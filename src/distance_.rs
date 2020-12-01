@@ -1,6 +1,7 @@
-fn naive(x: &[u8], y: &[u8]) -> u64 {
-    assert_eq!(x.len(), y.len());
-    x.iter().zip(y).fold(0, |a, (b, c)| a + (*b ^ *c).count_ones() as u64)
+fn naive(mask:&[u8], x: &[u8], y: &[u8]) -> u64 {
+    assert_eq!(mask.len(), x.len());
+    assert_eq!(x.len(),    y.len());
+    mask.iter().zip( x.iter().zip(y) ).fold(0, |a, (m, (b, c)) | a + (*m & (*b ^ *c)).count_ones() as u64)
 }
 
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
@@ -11,8 +12,12 @@ pub struct DistanceError {
 /// Computes the bitwise [Hamming
 /// distance](https://en.wikipedia.org/wiki/Hamming_distance) between
 /// `x` and `y`, that is, the number of bits where `x` and `y` differ,
-/// or, the number of set bits in the xor of `x` and `y`.
+/// or, the number of set bits in the xor of `x` and `y`...
+/// ... or rather, the  _masked_ hamming distance, i.e. counting 
+///     only the differing bits that are also 1 in the mask (!).
 ///
+/// The text below ignores the use of the mask. Keep it in mind.
+/// 
 /// This is a highly optimised version of the following naive version:
 ///
 /// ```rust
@@ -62,8 +67,9 @@ pub struct DistanceError {
 /// // differing alignments
 /// assert!(hamming::distance_fast(&x[1..], &y[..999]).is_err());
 /// ```
-pub fn distance_fast(x: &[u8], y: &[u8]) -> Result<u64, DistanceError> {
-    assert_eq!(x.len(), y.len());
+pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceError> {
+    assert_eq!(x.len(),    y.len());
+    assert_eq!(mask.len(), y.len());
 
     const M1: u64 = 0x5555555555555555;
     const M2: u64 = 0x3333333333333333;
@@ -73,29 +79,40 @@ pub fn distance_fast(x: &[u8], y: &[u8]) -> Result<u64, DistanceError> {
     type T30 = [u64; 30];
 
     // can't fit a single T30 in
-    let (head1, thirty1, tail1) = unsafe {
+    let (head0, thirty0, tail0) = unsafe {
+        ::util::align_to::<_, T30>(mask)
+    };
+   let (head1, thirty1, tail1) = unsafe {
         ::util::align_to::<_, T30>(x)
     };
     let (head2, thirty2, tail2) = unsafe {
         ::util::align_to::<_, T30>(y)
     };
 
-    if head1.len() != head2.len() {
+    if (head1.len() != head2.len()) || (head0.len() != head1.len()) {
         // The arrays required different shift amounts, so we can't
         // use aligned loads for both slices.
         return Err(DistanceError { _x: () });
     }
 
     debug_assert_eq!(thirty1.len(), thirty2.len());
+    debug_assert_eq!(thirty0.len(), thirty1.len());
 
-    let mut count = naive(head1, head2) + naive(tail1, tail2);
-    for (array1, array2) in thirty1.iter().zip(thirty2) {
+    // do the nonaligned stuff at the head and tail the hard way...
+    let mut count = naive(head0, head1, head2) + naive(tail0, tail1, tail2);
+    
+    // now do the aligned stuff in the middle...
+    for ( maskArray, 
+         (array1, array2) ) in thirty0.iter().
+                                      .zip( thirty1.iter()
+                                                   .zip(thirty2) ) {
         let mut acc = 0;
         for j_ in 0..10 {
             let j = j_ * 3;
-            let mut count1 = array1[j] ^ array2[j];
-            let mut count2 = array1[j + 1] ^ array2[j + 1];
-            let mut half1 = array1[j + 2] ^ array2[j + 2];
+            // Next 3 lines were all we had to modify for masking!
+            let mut count1 = maskArray[j]   & (array1[j]   ^ array2[j]  );
+            let mut count2 = maskArray[j+1] & (array1[j+1] ^ array2[j+1]);
+            let mut half1  = maskArray[j+1] & (array1[j+2] ^ array2[j+2]);
             let mut half2 = half1;
             half1 &= M1;
             half2 = (half2 >> 1) & M1;
@@ -162,10 +179,10 @@ pub fn distance_fast(x: &[u8], y: &[u8]) -> Result<u64, DistanceError> {
 /// let y = vec![0; 1000];
 /// assert_eq!(hamming::distance(&x, &y), 8 * 1000);
 /// ```
-pub fn distance(x: &[u8], y: &[u8]) -> u64 {
-    distance_fast(x, y)
+pub fn distance(maskx: &[u8], x: &[u8], y: &[u8]) -> u64 {
+    distance_fast(mask, x, y)
         .ok()
-        .unwrap_or_else(|| naive(x, y))
+        .unwrap_or_else(|| naive(mask, x, y))
 }
 
 #[cfg(test)]
