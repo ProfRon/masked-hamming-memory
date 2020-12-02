@@ -4,7 +4,7 @@ A rust crate to implement Bernd Klauer's MHD (Masked Hamming Distance) Associati
 
 ## Inspiration
 
-Literature references concering Klauer's MHD Memory are gathered in <file:MHD-References.bib>.
+Literature references concering Klauer's MHD Memory are gathered in the [MHD-References bibtex file](MHD-References.bib).
 
 Huonw's code repository is at <https://github.com/huonw/hamming>.
 
