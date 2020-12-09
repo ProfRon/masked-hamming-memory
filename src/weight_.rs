@@ -34,7 +34,7 @@ fn naive(x: &[u8]) -> u64 {
 /// # Example
 ///
 /// ```rust
-/// assert_eq!(hamming::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
+/// assert_eq!(mhd_am::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
 /// ```
 pub fn weight(x: &[u8]) -> u64 {
     const M1: u64 = 0x5555555555555555;
@@ -104,9 +104,15 @@ mod tests {
             .quickcheck(prop as fn(Vec<u8>,u8) -> qc::TestResult)
     }
     #[test]
-    fn weight_huge() {
-        let v = vec![0b1001_1101; 10234567];
+    fn weight_big() {
+        let v = vec![0b1001_1101; 12791]; // 12791 is a prime, 14 bit number (according to openssl)
         assert_eq!(super::weight(&v),
                    v[0].count_ones() as u64 * v.len() as u64);
     }
+//    #[test]
+//    fn weight_huge() {
+//        let v = vec![0b1001_1101; 10234567]; // magic number?!?
+//        assert_eq!(super::weight(&v),
+//                   v[0].count_ones() as u64 * v.len() as u64);
+//    }
 }

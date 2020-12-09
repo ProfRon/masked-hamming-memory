@@ -13,8 +13,8 @@
 //! # Examples
 //!
 //! ```rust
-//! assert_eq!(hamming::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
-//! assert_eq!(hamming::distance(&[1, 0xFF], &[0xFF, 1]), 7 + 7);
+//! assert_eq!(mhd_am::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
+//! assert_eq!(mhd_am::distance(&[0xFF, 0xFF], &[1, 0xFF], &[0xFF, 1]), 7 + 7);
 //! ```
 
 #![deny(warnings)]

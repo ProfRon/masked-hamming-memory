@@ -1,5 +1,5 @@
 [package]
-name = "MHD-AM"
+name = "mhd_am"
 version = "0.0.1"
 authors = ["Ronald Moore <ronald.moore@h-da.de>"]
 
