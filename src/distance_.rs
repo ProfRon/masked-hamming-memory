@@ -61,14 +61,14 @@ pub struct DistanceError {
 /// let m = vec![0xFF; 1000];
 /// let x = vec![0xFF; 1000];
 /// let y = vec![0; 1000];
-/// assert_eq!(mhd_am::distance_fast(&m, &x, &y), Ok(8 * 1000));
+/// assert_eq!(mhd_mem::distance_fast(&m, &x, &y), Ok(8 * 1000));
 ///
 /// // same alignment, but moderately complicated
-/// assert_eq!(mhd_am::distance_fast(&m[1..1000 - 8], &x[1..1000 - 8], &y[8 + 1..]), Ok(8 * (1000 - 8 - 1)));
+/// assert_eq!(mhd_mem::distance_fast(&m[1..1000 - 8], &x[1..1000 - 8], &y[8 + 1..]), Ok(8 * (1000 - 8 - 1)));
 ///
 /// // differing alignments
-/// assert!(mhd_am::distance_fast(&m[1..], &x[1..],   &y[..999]).is_err());
-/// assert!(mhd_am::distance_fast(&m[1..], &x[..999], &y[..999]).is_err());
+/// assert!(mhd_mem::distance_fast(&m[1..], &x[1..],   &y[..999]).is_err());
+/// assert!(mhd_mem::distance_fast(&m[1..], &x[..999], &y[..999]).is_err());
 /// ```
 pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceError> {
     assert_eq!(x.len(),    y.len());
@@ -183,7 +183,7 @@ pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceErr
 /// let mask = vec![0xF0; 1000];
 /// let x    = vec![0xFF; 1000];
 /// let y    = vec![0; 1000];
-/// assert_eq!(mhd_am::distance(&mask, &x, &y), 4 * 1000);
+/// assert_eq!(mhd_mem::distance(&mask, &x, &y), 4 * 1000);
 /// ```
 pub fn distance(mask: &[u8], x: &[u8], y: &[u8]) -> u64 {
     distance_fast(mask, x, y)
@@ -191,10 +191,10 @@ pub fn distance(mask: &[u8], x: &[u8], y: &[u8]) -> u64 {
         .unwrap_or_else(|| naive(mask, x, y))
 }
 
+// TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS
+
 #[cfg(test)]
 mod tests {
-    use quickcheck as qc;
-    use rand;
     #[test]
     fn naive_smoke() {
         let tests: &[(&[u8], &[u8], &[u8], u64)] = &[
@@ -216,23 +216,27 @@ mod tests {
             assert_eq!(super::distance(mask, x, y), expected);
         }
     }
-    #[test]
-    fn distance_fast_qc() {
-        fn prop(m_vec: Vec<u8>, x_vec: Vec<u8>, y_vec: Vec<u8>, misalign: u8) -> qc::TestResult {
-            let l = ::std::cmp::min(m_vec.len(), ::std::cmp::min(x_vec.len(), y_vec.len()));
-            if l < misalign as usize {
-                return qc::TestResult::discard()
-            }
-
-            let mask = &m_vec[misalign as usize..l];
-            let x    = &x_vec[misalign as usize..l];
-            let y    = &y_vec[misalign as usize..l];
-            qc::TestResult::from_bool(super::distance_fast(mask, x, y).unwrap() == super::naive(mask, x, y))
-        }
-        qc::QuickCheck::new()
-            .gen(qc::StdGen::new(rand::thread_rng(), 300 ))  // was originally 10_000, 480 or 600 or 900 all take forever?!?
-            .quickcheck(prop as fn(Vec<u8>,Vec<u8>,Vec<u8>,u8) -> qc::TestResult)
-    }
+//    use rand;
+//    use quickcheck as qc;
+//    #[test]
+//    fn distance_fast_qc() {
+//        fn prop(m_vec: Vec<u8>, x_vec: Vec<u8>, y_vec: Vec<u8>, misalign: u8) -> qc::TestResult {
+//            let l = ::std::cmp::min(m_vec.len(), ::std::cmp::min(x_vec.len(), y_vec.len()));
+//            if l < misalign as usize {
+//                return qc::TestResult::discard()
+//            }
+//
+//            let mask = &m_vec[misalign as usize..l];
+//            let x    = &x_vec[misalign as usize..l];
+//            let y    = &y_vec[misalign as usize..l];
+//            qc::TestResult::from_bool(super::distance_fast(mask, x, y).unwrap() == super::naive(mask, x, y))
+//        }
+//        // below, size was originally 10_000; 330 works (sometimes), 
+//        // but 333 or more takes over 60 seconds (warning)?!?
+//        qc::QuickCheck::new()
+//            .gen(qc::StdGen::new(rand::thread_rng(), 320 ))  
+//            .quickcheck(prop as fn(Vec<u8>,Vec<u8>,Vec<u8>,u8) -> qc::TestResult)
+//    }
     #[test]
     fn distance_fast_smoke_huge() {
         

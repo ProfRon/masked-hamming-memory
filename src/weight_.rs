@@ -34,7 +34,7 @@ fn naive(x: &[u8]) -> u64 {
 /// # Example
 ///
 /// ```rust
-/// assert_eq!(mhd_am::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
+/// assert_eq!(mhd_mem::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
 /// ```
 pub fn weight(x: &[u8]) -> u64 {
     const M1: u64 = 0x5555555555555555;

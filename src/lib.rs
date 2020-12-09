@@ -7,14 +7,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! hamming = "0.1"
+//! mhd_mem = "0.1"
 //! ```
 //!
 //! # Examples
 //!
 //! ```rust
-//! assert_eq!(mhd_am::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
-//! assert_eq!(mhd_am::distance(&[0xFF, 0xFF], &[1, 0xFF], &[0xFF, 1]), 7 + 7);
+//! assert_eq!(mhd_mem::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
+//! assert_eq!(mhd_mem::distance(&[0xFF, 0xFF], &[1, 0xFF], &[0xFF, 1]), 7 + 7);
 //! ```
 
 #![deny(warnings)]
