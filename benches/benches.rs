@@ -21,7 +21,7 @@ macro_rules! create_benchmarks {
                     PlotConfiguration::default()
                     .summary_scale(AxisScale::Logarithmic);
                 let bench = ParameterizedBenchmark::new(
-                    $first_name, $first_func, input.into_iter().cloned())
+                    $first_name, $first_func, input.iter().cloned())
                     $( .with_function($rest_name, $rest_func) )*
                     .plot_config(plot_config);
                 c.bench(stringify!($group_id), bench);
