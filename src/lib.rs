@@ -31,3 +31,6 @@ mod distance_;
 pub use distance_::{distance, distance_fast};
 
 mod util;
+
+mod memory;
+pub use memory::MHDMemoryRow;
