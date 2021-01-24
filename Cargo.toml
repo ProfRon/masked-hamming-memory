@@ -18,6 +18,9 @@ A rust crate to implement Bernd Klauer's MHD (Masked Hamming Distance) Associati
 [features]
 unstable = []
 
+[dependencies]
+hamming = "0.1"
+
 [dev-dependencies]
 quickcheck = "0.2"
 rand = "0.3"

@@ -20,17 +20,20 @@
 #![deny(warnings)]
 #![cfg_attr(not(test), no_std)]
 
+extern crate hamming;
+
 #[cfg(test)] extern crate core;
 #[cfg(test)] extern crate quickcheck;
 #[cfg(test)] extern crate rand;
+
 
 mod weight_;
 pub use weight_::weight;
 
 mod distance_;
-pub use distance_::{distance, distance_fast};
+pub use distance_::{distance, distance_fast, truncated_distance };
 
 mod util;
 
-mod memory;
-pub use memory::MHDMemoryRow;
+mod mhd_memory;
+pub use mhd_memory::MHDMemoryRow;

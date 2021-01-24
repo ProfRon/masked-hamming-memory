@@ -40,19 +40,27 @@
 #[derive(Debug)]
 pub struct MHDMemoryRow {
     bits:  [ u8; MHDMemoryRow::NUM_BYTES ],
-    pub value: f32,
+    pub value: f32, // exported, so no getter or setter provided
  }
 
-use ::distance;
+use ::distance; // The Masked Hamming Distance Function -- see distance_rs.
 
 impl MHDMemoryRow {
 
-    pub const NUM_BITS  : usize = 1024;
-    pub const NUM_BYTES : usize = MHDMemoryRow::NUM_BITS / 8;
+    pub const NUM_BITS  : usize = 1024; // we could make this variable, but why?
+    pub const NUM_BYTES : usize = MHDMemoryRow::NUM_BITS / 8; // per definition
 
-    pub fn new( value: f32 ) -> MHDMemoryRow {
+    pub fn new( value: f32  ) -> MHDMemoryRow {
         MHDMemoryRow { bits : [ 0; MHDMemoryRow::NUM_BYTES ], value: value }
     }
+
+    // pub fn new( bits: &[ u8; MHDMemoryRow::NUM_BYTES ] ) -> MHDMemoryRow {
+    //     MHDMemoryRow { bits : bits, value: 0.0 }
+    // }
+    //
+    // pub fn new( bits: &[ u8; MHDMemoryRow::NUM_BYTES ], value: f32   ) -> MHDMemoryRow {
+    //     MHDMemoryRow { bits : bits, value: value }
+    // }
 
     pub fn get_bit(&self, index: usize ) -> bool {
         let byte_index = index / 8;

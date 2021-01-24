@@ -1,3 +1,6 @@
+/// # The Masked Hamming Distance Functions
+///
+
 fn naive(mask:&[u8], x: &[u8], y: &[u8]) -> u64 {
     assert_eq!(mask.len(), x.len());
     assert_eq!(x.len(),    y.len());
@@ -9,14 +12,12 @@ pub struct DistanceError {
     _x: ()
 }
 
-/// Computes the bitwise [Hamming
-/// distance](https://en.wikipedia.org/wiki/Hamming_distance) between
-/// `x` and `y`, that is, the number of bits where `x` and `y` differ,
+/// Computes the bitwise **Masked Hamming distance**
+/// between `x` and `y`, that is, the number of bits where `x` and `y` differ,
 /// or, the number of set bits in the xor of `x` and `y`...
-/// ... or rather, the  _masked_ hamming distance, i.e. counting 
-///     only the differing bits that are also 1 in the mask (!).
+/// ... counting only the differing bits that are also 1 in the mask (!).
 ///
-/// The text below ignores the use of the mask. Keep it in mind.
+/// The text below ignores the use of the mask. Keep that in mind.
 /// 
 /// This is a highly optimised version of the following naive version:
 ///
@@ -135,8 +136,7 @@ pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceErr
     Ok(count)
 }
 
-/// Computes the bitwise [Hamming
-/// distance](https://en.wikipedia.org/wiki/Hamming_distance) between
+/// Computes the bitwise **Masked Hamming Distance** between
 /// `x` and `y`, that is, the number of bits where `x` and `y` differ,
 /// or, the number of set bits in the xor of `x` and `y`
 ///  -- whereby only the bits which are set in the mask are counted!
@@ -190,6 +190,59 @@ pub fn distance(mask: &[u8], x: &[u8], y: &[u8]) -> u64 {
         .ok()
         .unwrap_or_else(|| naive(mask, x, y))
 }
+
+//////////////////////////////////////////
+//
+// **Truncated Hamming Distance**
+// This is a special case of the masked hamming distance,
+// where all of one's in the mask are on the left.
+// In this case, we can represent the mask as an integer: _n_ means the leftmost _n_ bits are
+// one and the remaining bits are all zero.
+// This als means we can stop the calculation earlier!
+//
+// # Examples:
+/// ```rust
+/// let lvec  = vec![0xF0; 2]; // l ^ r = 0xFF
+/// let rvec  = vec![0x0F; 2]; // i.e.  8 different bits / byte
+///
+/// assert_eq!( 14, mhd_mem::truncated_distance( 14, &lvec, &rvec ) );
+/// ```
+
+pub fn truncated_distance( masked_bits: usize, left: &[u8], right: &[u8]) -> usize {
+
+    assert_eq!( left.len(), right.len() );
+
+    let num_mask_bytes = masked_bits / 8;
+    let remainder_bits = masked_bits % 8;
+
+    assert!( num_mask_bytes <= left.len() ); // where left.len() == right.len()
+
+    // Turn left and right into slices
+    let left_slice =  &left[0..num_mask_bytes];
+    let right_slice = &right[0..num_mask_bytes];
+
+    // First, byte-wise...
+    let subtotal : usize = hamming::distance( &left_slice, &right_slice ) as usize;
+
+    // Finally, bit-wise (for the remaining bits in the last byte, if any)
+
+    if 0 == remainder_bits {
+        return subtotal;
+    }; // end if there are reainderBits
+
+    // else, if some bits are not yet counted...
+
+    // IMPORTANT NOTE : We assume the bits are numbered from left to right,
+    // i.e. the mask for bit 0 is 128, the mask for bit 1 is 64, for bit 2 is 32...
+    // ... for bit 6 is 2 and for bit 7 is 1.
+
+    let mask : u8 = ((0xFF00 >> remainder_bits) & 0xFF) as u8;
+
+    assert!( num_mask_bytes < left.len() ); // so it's safe to reference left[numberMaskBytes]
+    return subtotal + (mask & (left[num_mask_bytes] ^ right[num_mask_bytes])).count_ones() as usize;
+
+}
+
 
 // TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS
 
@@ -261,5 +314,30 @@ mod tests {
                 }
             }
         }
+    }
+    #[test]
+    fn truncate_distance_smoke() {
+        let size = 4 * 1024 * 1024;   // number of bytes in vectors
+        let v1   = vec![0xF0; size ];
+        let v2   = vec![0xFF; size ]; // so, v1 ^ v2 = 0x0F = 4 bits / byte
+
+        let num_bytes = (size - 2048) + 512 + 3;
+        let num_bits = (8 * num_bytes) + 6;
+        let d0 = (num_bits / 2) -1; // -1 because of incomplete last byte
+        let d1    = super::truncated_distance( num_bits, &v1, &v2 );
+        assert_eq!( d0, d1 );
+
+        let other_bits = (8 * (size-1)) + 6;
+        let d2 = (other_bits / 2) -1; // -1 because of incomplete last byte
+        let d3      = super::truncated_distance( other_bits, &v1, &v2 );
+        assert_eq!( d2, d3 );
+
+        // simple comparison using ALL bits
+        let d4 = size * 4;
+        let d5      = super::truncated_distance( 8 * size, &v1, &v2 );
+        assert_eq!( d4, d5 );
+
+
+
     }
 }
