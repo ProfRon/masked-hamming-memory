@@ -1,0 +1,139 @@
+/// # The `Sample` Data Type
+///
+/// The Sample data type is used to build the MHD Memory, a
+/// and also used to define problems and algorithms to solve those problems.
+///
+/// ## Definition
+/// The Sample is simply an ordered pair of a bit vector and a floating point value.
+/// We call the real numbers on the "right hand side" the *score*.
+/// The goal is to find the bit vector with best score.
+/// Without loss of generality, we take the best score to be the largest score:
+/// If you are actually trying to find the minimal score, multiply the "real" scores by -1.
+///
+/// ## Note on Terminology:
+/// It is perhaps more customary to call the `samples` _rows_.
+/// However, we will later define types for algorithms and for problems,
+/// and we want to reuse the `sample` datatype there -- and there,
+/// `samples` makes more sense than _rows_.
+///
+/// ## Note to self:
+/// Once we get many, many rows, should RAM become a problem, we might want to consider faking the floats.
+/// For example, we could perhaps get by with only 8 bits (i.e. taking an unsigned byte divided by 256, or a signed byte divided by 128.
+///
+/// ## Examples:
+/// ```rust
+/// let row0  =  mhd_mem::Sample { bytes : [0;  mhd_mem::Sample::NUM_BYTES ], score : 42.0 };
+/// assert_eq!( row0.bytes[ 4 ], 0 );
+/// assert_eq!( row0.score, 42.0 );
+///
+/// let r = mhd_mem::Sample::default( );
+/// let s = mhd_mem::Sample::new( 4.2 );
+/// assert_eq!( r.score, 0.0 );
+/// assert_eq!( s.score, 4.2 );
+/// assert_eq!( r.bytes, s.bytes );
+///
+/// let mut row1 = mhd_mem::Sample::default();
+/// assert_eq!( row1.get_bit( 42 ), false ); // should be 0
+/// row1.set_bit( 42, true );
+/// assert!( row1.get_bit( 42 ) );
+/// row1.set_bit( 42, false );
+/// assert!( ! row1.get_bit( 42 ) );
+/// ```
+///
+
+#[derive(Debug)]
+#[derive(Default)]
+pub struct Sample {
+    pub bytes:  [u8; Self::NUM_BYTES], // this will later be a field of the memory
+    pub score: f32 // we will probably change that ...
+} // end struct Sample
+
+impl Sample {
+
+    pub const NUM_BITS: usize = 64; // enough for testing, but not too many...
+    pub const NUM_BYTES: usize = Self::NUM_BITS / 8; // 8 is not really a magic number, is it?
+
+}
+
+impl Sample {
+
+    pub fn default() -> Self {
+        Sample {
+            bytes : [0;  Sample::NUM_BYTES],
+            score : 0.0
+        }
+    }
+
+    pub fn new(starting_score: f32 ) -> Self {
+        Sample {
+            score : starting_score,
+            ..Default::default() }
+    }
+
+    pub fn byte_index( bit_index: usize ) -> usize {
+        let byte_index = bit_index / 8;
+        assert!( byte_index <  Sample::NUM_BYTES);
+        return byte_index;
+    }
+
+    pub fn get_bit( &mut self, bit_index: usize ) -> bool {
+
+        let byte_index = Sample::byte_index( bit_index );
+
+        let byte = self.bytes[ byte_index ];
+        let mask_index = bit_index % 8;
+        let bit_mask = 128 >> mask_index;
+        return 0 != (byte & bit_mask);
+    }
+
+    pub fn set_bit(&mut self, bit_index: usize, bit_value: bool ) {
+
+        let byte_index = Sample::byte_index( bit_index );
+
+        let mask_index = bit_index % 8;
+        let bit_mask = 128 >> mask_index;
+
+        if bit_value {
+            self.bytes[  byte_index ] |=  bit_mask;
+        } else {
+            self.bytes[  byte_index ] &= !bit_mask;
+        };
+    }
+
+} // end impl Sample
+
+// TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test_constructors() {
+        let r = super::Sample::default();
+        assert_eq!(r.bytes[0], 0); // should be 0
+        assert_eq!(r.bytes[7], 0); // should be 0
+        assert_eq!(r.score, 0.0); // should be 0
+
+        let s = super::Sample::new(42.42);
+        assert_eq!(s.score, 42.42); // should be 0
+        assert!(r.score != s.score);
+        assert!(r.bytes == s.bytes);
+
+    } // end test_contructors
+
+    #[test]
+    fn test_methods() {
+
+        let mut row1 = super::Sample::default();
+        assert_eq!(row1.get_bit(62), false); // should be 0
+        row1.set_bit(62, true);
+        assert!( row1.get_bit(62));
+        row1.set_bit(62, false);
+        assert!(! row1.get_bit(62) );
+
+    } // end test_methods
+
+} // end mod tests
+
+
+
