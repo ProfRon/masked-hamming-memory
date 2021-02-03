@@ -15,7 +15,7 @@
 //! ```rust
 //! assert_eq!(mhd_mem::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
 //! assert_eq!(mhd_mem::distance(&[0xFF, 0xFF], &[1, 0xFF], &[0xFF, 1]), 7 + 7);
-//! assert_eq!(mhd_mem::Sample::default().score, 0.0 );
+//! assert_eq!(mhd_mem::Sample::default().score, 0.0 as mhd_mem::ScoreType );
 //! assert_eq!(mhd_mem::Sample::new( 42.0 ).get_bit( 7 ), false );
 //! ```
 
@@ -33,10 +33,10 @@ mod weight_;
 pub use weight_::weight;
 
 mod distance_;
-pub use distance_::{distance, distance_fast, truncated_distance };
+pub use distance_::{ distance, distance_fast, truncated_distance };
 
 mod sample;
-pub use sample::Sample;
+pub use sample::{ NUM_BITS, NUM_BYTES, ScoreType, Sample };
 
 mod util;
 

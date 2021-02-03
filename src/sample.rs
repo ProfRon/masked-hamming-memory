@@ -22,7 +22,7 @@
 ///
 /// ## Examples:
 /// ```rust
-/// let row0  =  mhd_mem::Sample { bytes : [0;  mhd_mem::Sample::NUM_BYTES ], score : 42.0 };
+/// let row0  =  mhd_mem::Sample { bytes : [0;  mhd_mem::NUM_BYTES ], score : 42.0 };
 /// assert_eq!( row0.bytes[ 4 ], 0 );
 /// assert_eq!( row0.score, 42.0 );
 ///
@@ -41,30 +41,29 @@
 /// ```
 ///
 
-#[derive(Debug)]
-#[derive(Default)]
+// Following two constants might be turned into global variables later...
+pub const NUM_BITS:  usize = 64; // enough for testing, but not too many...
+pub const NUM_BYTES: usize = NUM_BITS / 8; // 8 is not really a magic number, is it?
+
+pub type ScoreType = f32; // that can change at any time, so we give it a name
+
+#[derive(Debug,Default,Clone)]
 pub struct Sample {
-    pub bytes:  [u8; Self::NUM_BYTES], // this will later be a field of the memory
-    pub score: f32 // we will probably change that ...
+    pub bytes:  [u8; NUM_BYTES], // this will later be a field of the memory
+    pub score: ScoreType // we will probably change that ...
 } // end struct Sample
 
-impl Sample {
-
-    pub const NUM_BITS: usize = 64; // enough for testing, but not too many...
-    pub const NUM_BYTES: usize = Self::NUM_BITS / 8; // 8 is not really a magic number, is it?
-
-}
 
 impl Sample {
 
     pub fn default() -> Self {
         Sample {
-            bytes : [0;  Sample::NUM_BYTES],
+            bytes : [0;  NUM_BYTES ],
             score : 0.0
         }
     }
 
-    pub fn new(starting_score: f32 ) -> Self {
+    pub fn new(starting_score: ScoreType ) -> Self {
         Sample {
             score : starting_score,
             ..Default::default() }
@@ -72,7 +71,7 @@ impl Sample {
 
     pub fn byte_index( bit_index: usize ) -> usize {
         let byte_index = bit_index / 8;
-        assert!( byte_index <  Sample::NUM_BYTES);
+        assert!( byte_index <  NUM_BYTES );
         return byte_index;
     }
 
