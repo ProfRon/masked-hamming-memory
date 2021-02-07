@@ -130,9 +130,13 @@ mod tests {
         assert_eq!(r.score, 0.0); // should be 0
 
         let s = super::Sample::new(42.42);
-        assert_eq!(s.score, 42.42); // should be 0
+        assert_eq!(s.score, 42.42); // should NOT be 0
         assert!(r.score != s.score);
         assert!(r.bytes == s.bytes);
+
+        let q = super::Sample::random( );
+        assert!(r.score == q.score);
+        assert_ne!( q, r );  // with very high probability
 
     } // end test_contructors
 
@@ -152,13 +156,28 @@ mod tests {
     fn test_randomization() {
         // Note: This test could fail due to dumb luck.
         // That's very improbable, but _could_ happen.
+        
+        // Check that randomize() changes its argument
         let starting_point = super::Sample::default();
         let mut one_step = starting_point.clone();
         one_step.randomize();
         assert_ne!( starting_point, one_step );
+        
+        // Check that re-randomizing changes the sample
+        let mut two_steps = one_step.clone();
+        two_steps.randomize();
+        assert_ne!( one_step, two_steps );
+        
+        // Check that calling the `random` constructor 
+        // gives a fresh sample.
+        let three_steps = super::Sample::random();
+        assert_ne!( three_steps, starting_point );
+        assert_ne!( two_steps,   three_steps );
+
+		// Check that calling the `random` constructor 
+		// doesn't always return the same result.
         let final_point = super::Sample::random();
-        assert_ne!( one_step, final_point );
-        assert_ne!( final_point, starting_point );
+        assert_ne!( three_steps, final_point );
     }
 } // end mod tests
 
