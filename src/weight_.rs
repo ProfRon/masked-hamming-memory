@@ -76,8 +76,6 @@ pub fn weight(x: &[u8]) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use quickcheck as qc;
-    use rand;
     #[test]
     fn naive_smoke() {
         let tests = [(&[0u8] as &[u8], 0),
@@ -89,6 +87,9 @@ mod tests {
             assert_eq!(super::naive(v), expected);
         }
     }
+    /************************************************************
+    use quickcheck as qc;
+    use rand;
     #[test]
     fn weight_qc() {
         fn prop(v: Vec<u8>, misalign: u8) -> qc::TestResult {
@@ -103,6 +104,8 @@ mod tests {
             .gen(qc::StdGen::new(rand::thread_rng(), 10_000))
             .quickcheck(prop as fn(Vec<u8>,u8) -> qc::TestResult)
     }
+    **************************************************************/
+
     #[test]
     fn weight_big() {
         let v = vec![0b1001_1101; 12791]; // 12791 is a prime, 14 bit number (according to openssl)

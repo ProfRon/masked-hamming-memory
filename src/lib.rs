@@ -23,11 +23,10 @@
 // #![cfg_attr(not(test), no_std)]
 
 extern crate hamming;
-
 extern crate core;
-#[cfg(test)] extern crate quickcheck;
-#[cfg(test)] extern crate rand;
+extern crate rand;
 
+#[cfg(test)] extern crate quickcheck;
 
 mod weight_;
 pub use weight_::weight;

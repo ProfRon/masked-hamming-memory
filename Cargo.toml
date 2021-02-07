@@ -20,10 +20,10 @@ unstable = []
 
 [dependencies]
 hamming = "0.1"
+rand = "0.8"
 
 [dev-dependencies]
 quickcheck = "0.2"
-rand = "0.3"
 criterion = "0.2"
 
 [[bench]]

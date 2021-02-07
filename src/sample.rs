@@ -32,6 +32,10 @@
 /// assert_eq!( s.score, 4.2 );
 /// assert_eq!( r.bytes, s.bytes );
 ///
+/// let rr = mhd_mem::Sample::random( );
+/// assert_ne!( r, rr );
+/// // That last test could fail, by dumb luck, but it's nearly impossible...
+///
 /// let mut row1 = mhd_mem::Sample::default();
 /// assert_eq!( row1.get_bit( 42 ), false ); // should be 0
 /// row1.set_bit( 42, true );
@@ -47,12 +51,13 @@ pub const NUM_BYTES: usize = NUM_BITS / 8; // 8 is not really a magic number, is
 
 pub type ScoreType = f32; // that can change at any time, so we give it a name
 
-#[derive(Debug,Default,Clone)]
+#[derive(Debug,Default,Clone,PartialEq)]
 pub struct Sample {
     pub bytes:  [u8; NUM_BYTES], // this will later be a field of the memory
     pub score: ScoreType // we will probably change that ...
 } // end struct Sample
 
+use rand::prelude::*;
 
 impl Sample {
 
@@ -66,7 +71,18 @@ impl Sample {
     pub fn new(starting_score: ScoreType ) -> Self {
         Sample {
             score : starting_score,
-            ..Default::default() }
+            ..Default::default()
+        }
+    }
+
+    pub fn randomize( &mut self ) {
+        rand::thread_rng().fill( &mut self.bytes );
+    }
+
+    pub fn random( ) -> Self {
+        let mut result = Sample::default();
+        result.randomize();
+        result
     }
 
     pub fn byte_index( bit_index: usize ) -> usize {
@@ -132,6 +148,18 @@ mod tests {
 
     } // end test_methods
 
+    #[test]
+    fn test_randomization() {
+        // Note: This test could fail due to dumb luck.
+        // That's very improbable, but _could_ happen.
+        let starting_point = super::Sample::default();
+        let mut one_step = starting_point.clone();
+        one_step.randomize();
+        assert_ne!( starting_point, one_step );
+        let final_point = super::Sample::random();
+        assert_ne!( one_step, final_point );
+        assert_ne!( final_point, starting_point );
+    }
 } // end mod tests
 
 
