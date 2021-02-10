@@ -121,20 +121,21 @@ impl Sample {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     #[test]
     fn test_constructors() {
-        let r = super::Sample::default();
+        let r = Sample::default();
         assert_eq!(r.bytes[0], 0); // should be 0
         assert_eq!(r.bytes[7], 0); // should be 0
         assert_eq!(r.score, 0.0); // should be 0
 
-        let s = super::Sample::new(42.42);
+        let s = Sample::new(42.42);
         assert_eq!(s.score, 42.42); // should NOT be 0
         assert!(r.score != s.score);
         assert!(r.bytes == s.bytes);
 
-        let q = super::Sample::random( );
+        let q = Sample::random( );
         assert!(r.score == q.score);
         assert_ne!( q, r );  // with very high probability
 
@@ -143,7 +144,7 @@ mod tests {
     #[test]
     fn test_methods() {
 
-        let mut row1 = super::Sample::default();
+        let mut row1 = Sample::default();
         assert_eq!(row1.get_bit(62), false); // should be 0
         row1.set_bit(62, true);
         assert!( row1.get_bit(62));
@@ -158,7 +159,7 @@ mod tests {
         // That's very improbable, but _could_ happen.
         
         // Check that randomize() changes its argument
-        let starting_point = super::Sample::default();
+        let starting_point = Sample::default();
         let mut one_step = starting_point.clone();
         one_step.randomize();
         assert_ne!( starting_point, one_step );
@@ -170,13 +171,13 @@ mod tests {
         
         // Check that calling the `random` constructor 
         // gives a fresh sample.
-        let three_steps = super::Sample::random();
+        let three_steps = Sample::random();
         assert_ne!( three_steps, starting_point );
         assert_ne!( two_steps,   three_steps );
 
 		// Check that calling the `random` constructor 
 		// doesn't always return the same result.
-        let final_point = super::Sample::random();
+        let final_point = Sample::random();
         assert_ne!( three_steps, final_point );
     }
 } // end mod tests

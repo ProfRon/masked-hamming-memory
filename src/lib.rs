@@ -37,5 +37,8 @@ pub use distance_::{ distance, distance_fast, truncated_distance };
 mod sample;
 pub use sample::{ NUM_BITS, NUM_BYTES, ScoreType, Sample };
 
+mod mhdmemory;
+pub use mhdmemory::{ MHDMemory };
+
 mod util;
 
