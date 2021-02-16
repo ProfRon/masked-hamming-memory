@@ -66,7 +66,7 @@ impl MHDMemory {
 
     pub fn avg_score( &self ) -> ScoreType {
         if self.is_empty() {
-            0.0 as ScoreType
+            ZERO_SCORE
         } else { // if not empty
             self.total_score / self.num_samples() as ScoreType
         }
