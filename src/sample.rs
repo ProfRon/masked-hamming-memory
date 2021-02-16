@@ -22,15 +22,17 @@
 ///
 /// ## Examples:
 /// ```rust
-/// let row0  =  mhd_mem::Sample { bytes : [0;  mhd_mem::NUM_BYTES ], score : 42.0 };
+/// use mhd_mem::{ScoreType, ZERO_SCORE };
+/// let the_answer = 42 as ScoreType;
+/// let row0  =  mhd_mem::Sample { bytes : vec![0x0;  mhd_mem::NUM_BYTES ], score : the_answer };
 /// assert_eq!( row0.bytes[ 4 ], 0 );
-/// assert_eq!( row0.score, 42.0 );
+/// assert_eq!( row0.score, the_answer);
 ///
 /// let r = mhd_mem::Sample::default( );
-/// let s = mhd_mem::Sample::new( 4.2 );
-/// assert_eq!( r.score, 0.0 );
-/// assert_eq!( s.score, 4.2 );
-/// assert_eq!( r.bytes, s.bytes );
+/// let s = mhd_mem::Sample::new( the_answer );
+/// assert_eq!( r.score, ZERO_SCORE );
+/// assert_eq!( s.score, the_answer );
+/// assert!( r.bytes.eq( &s.bytes ) );
 ///
 /// let rr = mhd_mem::Sample::random( );
 /// assert_ne!( r, rr );
@@ -46,15 +48,18 @@
 ///
 
 // Following two constants might be turned into global variables later...
-pub const NUM_BITS:  usize = 64; // enough for testing, but not too many...
+pub const NUM_BITS:  usize = 256; // enough for testing, but not too many...
 pub const NUM_BYTES: usize = NUM_BITS / 8; // 8 is not really a magic number, is it?
 
-pub type ScoreType = f32; // that can change at any time, so we give it a name
+pub type ScoreType = i32; // that can change at any time, so we give it a name
+
+pub const ZERO_SCORE : ScoreType = 0;
 
 #[derive(Debug,Default,Clone,PartialEq)]
 pub struct Sample {
-    pub bytes:  [u8; NUM_BYTES], // this will later be a field of the memory
-    pub score: ScoreType // we will probably change that ...
+    // pub bytes:  [u8; NUM_BYTES],
+    pub bytes : Vec< u8 >, // initially empty
+    pub score : ScoreType // we will probably change that ...
 } // end struct Sample
 
 use rand::prelude::*;
@@ -63,20 +68,23 @@ impl Sample {
 
     pub fn default() -> Self {
         Sample {
-            bytes : [0;  NUM_BYTES ],
-            score : 0.0
+            // bytes : [0;  NUM_BYTES ],
+            bytes : vec![ 0x0; NUM_BYTES ], // start with an empty vector of bytes
+            score : ZERO_SCORE,
         }
     }
 
-    pub fn new(starting_score: ScoreType ) -> Self {
+    pub fn new( starting_score: ScoreType ) -> Self {
         Sample {
             score : starting_score,
-            ..Default::default()
+            bytes : vec![ 0x0; NUM_BYTES ], // start with an empty vector of bytes
         }
     }
 
     pub fn randomize( &mut self ) {
-        rand::thread_rng().fill( &mut self.bytes );
+        let random_byte : i8 = rand::thread_rng().gen(); // can be negative, so -128 <= rb < 128
+        self.score = random_byte as ScoreType;
+        rand::thread_rng().fill_bytes( &mut self.bytes  );
     }
 
     pub fn random( ) -> Self {
@@ -128,16 +136,17 @@ mod tests {
         let r = Sample::default();
         assert_eq!(r.bytes[0], 0); // should be 0
         assert_eq!(r.bytes[7], 0); // should be 0
-        assert_eq!(r.score, 0.0); // should be 0
+        assert_eq!(r.score, ZERO_SCORE ); // should be 0
 
-        let s = Sample::new(42.42);
-        assert_eq!(s.score, 42.42); // should NOT be 0
+        let s = Sample::new(42 );
+        assert_eq!(s.score, 42 as ScoreType ); // should NOT be 0
         assert!(r.score != s.score);
-        assert!(r.bytes == s.bytes);
+        // assert!(r.bytes == s.bytes);
+        assert!( r.bytes.eq( &s.bytes ) );
 
         let q = Sample::random( );
-        assert!(r.score == q.score);
-        assert_ne!( q, r );  // with very high probability
+        assert!(r.score != q.score);  // with very high probability
+        assert_ne!( q, r );           // with very high probability
 
     } // end test_contructors
 

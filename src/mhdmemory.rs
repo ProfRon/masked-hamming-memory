@@ -7,12 +7,13 @@
 ///
 /// ```rust
 ///
+/// use mhd_mem::ScoreType;
 /// let mut test_mem = mhd_mem::MHDMemory::default();
 /// assert!( test_mem.is_empty() );
 ///
-/// let row0 = mhd_mem::Sample { bytes : [0xFF;  mhd_mem::NUM_BYTES ], score : 0.3 };   // all numbers divisible by three...
-/// let row1 = mhd_mem::Sample { bytes : [0xFF;  mhd_mem::NUM_BYTES ], score : 3.3 };
-/// let row2 = mhd_mem::Sample { bytes : [0xF0;  mhd_mem::NUM_BYTES ], score : 33.3 };
+/// let row0 = mhd_mem::Sample { bytes : vec![0xFF;  mhd_mem::NUM_BYTES ], score :   3 as ScoreType };
+/// let row1 = mhd_mem::Sample { bytes : vec![0xFF;  mhd_mem::NUM_BYTES ], score :  33 as ScoreType };
+/// let row2 = mhd_mem::Sample { bytes : vec![0xF0;  mhd_mem::NUM_BYTES ], score : 333 as ScoreType };
 ///
 /// test_mem.write_sample( &row2 );
 /// test_mem.write_sample( &row1 );
@@ -21,11 +22,11 @@
 /// assert!( ! test_mem.is_empty() );
 /// assert_eq!( 3, test_mem.num_samples() );
 ///
-/// let target_total : mhd_mem::ScoreType = 0.3 + 3.3 + 33.3;
+/// let target_total : ScoreType = 3 + 33 + 333; // == 369 right?
 /// assert_eq!( test_mem.total_score, target_total );
-/// assert_eq!( test_mem.min_score, 0.3 );
-/// assert_eq!( test_mem.max_score, 33.3 );
-/// let target_avg : mhd_mem::ScoreType = target_total / (3 as mhd_mem::ScoreType);
+/// assert_eq!( test_mem.min_score, 3 );
+/// assert_eq!( test_mem.max_score, 333 );
+/// let target_avg : mhd_mem::ScoreType = target_total / (3 as mhd_mem::ScoreType); // == 123 ?
 /// assert_eq!( test_mem.avg_score(), target_avg );
 /// ```
 
@@ -47,9 +48,9 @@ impl MHDMemory {
     pub fn default( ) -> Self {
         MHDMemory {
             samples : vec![ ], // start with an empty vector of samples
-            total_score : 0.0,
-            max_score   : 0.0,
-            min_score   : 0.0,
+            total_score : ZERO_SCORE,
+            max_score   : ZERO_SCORE,
+            min_score   : ZERO_SCORE,
         }
     }
 
@@ -94,17 +95,17 @@ impl MHDMemory {
 
         let ( score_sum, weight_sum ) =
             self.samples.iter()
-                .map( |s| -> ( ScoreType, ScoreType ) {  // use a closure here to capture query and mask
+                .map( |s| {  // use a closure here to capture query and mask
                     let dist = distance( mask, query, &s.bytes );
-                    let dist_plus_1 = (dist +1) as ScoreType; // adding one prevents division by zero later
+                    let dist_plus_1 = (dist +1) as f64; // adding one prevents division by zero later
                     let weight = 1.0 / (dist_plus_1 * dist_plus_1);
-                    ( s.score * weight, weight ) // return score
+                    ( weight * s.score as f64, weight ) // return score
                 } )
-                .fold( ( 0 as ScoreType, 0 as ScoreType ), | (s0, w0), (s1, w1) | (s0+s1, w0+w1) );
+                .fold( ( 0.0, 0.0 ), | (s0, w0), (s1, w1) | (s0+s1, w0+w1) );
 
         let result = score_sum / weight_sum;
         println!( "sum of scores = {}, sum of weights =  {}, result = {}", score_sum, weight_sum, result );
-        return result
+        return result as ScoreType
 
     } // end maked_read
 
@@ -125,6 +126,17 @@ impl MHDMemory {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_one_random_write() {
+        let mut new_test_mem = MHDMemory::new();
+
+        new_test_mem.write_random_sample();
+
+        assert!(!new_test_mem.is_empty());
+        assert_eq!(1, new_test_mem.num_samples());
+        assert_ne!( ZERO_SCORE, new_test_mem.samples[0].score );
+    }
 
     #[test]
     fn test_random_writes() {
