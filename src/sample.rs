@@ -44,18 +44,26 @@
 /// assert!( row1.get_bit( 42 ) );
 /// row1.set_bit( 42, false );
 /// assert!( ! row1.get_bit( 42 ) );
+///
+/// let row_ff = mhd_mem::Sample::new_ones( the_answer );
+/// assert_eq!( row_ff.score, the_answer );
+/// assert!( row_ff.get_bit(  0 ) ); // should be 1
+/// assert!( row_ff.get_bit(  7 ) ); // should be 1
+/// assert!( row_ff.get_bit( 32 ) ); // should be 1
+/// assert!( row_ff.get_bit( 42 ) ); // should be 1
+/// assert!( row_ff.get_bit( 63 ) ); // should be 1
 /// ```
 ///
 
 // Following two constants might be turned into global variables later...
-pub const NUM_BITS:  usize = 256; // enough for testing, but not too many...
+pub const NUM_BITS:  usize = 64; // enough for testing, but not too many...
 pub const NUM_BYTES: usize = NUM_BITS / 8; // 8 is not really a magic number, is it?
 
 pub type ScoreType = i32; // that can change at any time, so we give it a name
 
 pub const ZERO_SCORE : ScoreType = 0;
 
-#[derive(Debug,Default,Clone,PartialEq)]
+#[derive(Debug,Default, Clone,PartialEq)]
 pub struct Sample {
     // pub bytes:  [u8; NUM_BYTES],
     pub bytes : Vec< u8 >, // initially empty
@@ -81,6 +89,13 @@ impl Sample {
         }
     }
 
+    pub fn new_ones( starting_score: ScoreType ) -> Self {
+        Sample {
+            score : starting_score,
+            bytes : vec![ 0xFF; NUM_BYTES ], // start with an empty vector of bytes
+        }
+    }
+
     pub fn randomize( &mut self ) {
         let random_byte : i8 = rand::thread_rng().gen(); // can be negative, so -128 <= rb < 128
         self.score = random_byte as ScoreType;
@@ -99,7 +114,7 @@ impl Sample {
         return byte_index;
     }
 
-    pub fn get_bit( &mut self, bit_index: usize ) -> bool {
+    pub fn get_bit( & self, bit_index: usize ) -> bool {
 
         let byte_index = Sample::byte_index( bit_index );
 
@@ -147,6 +162,12 @@ mod tests {
         let q = Sample::random( );
         assert!(r.score != q.score);  // with very high probability
         assert_ne!( q, r );           // with very high probability
+
+        let t = Sample::new_ones( 42 );
+        assert_eq!(t.bytes[0], 0xFF); // should be 0
+        assert_eq!(t.bytes[3], 0xff); // should be 0
+        assert_eq!(t.bytes[7], 0xFF); // should be 0
+        assert_eq!(t.score, 42 as ScoreType ); // should NOT be 0
 
     } // end test_contructors
 
