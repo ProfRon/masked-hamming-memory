@@ -1,7 +1,42 @@
-#[macro_use]
-extern crate criterion;
 extern crate mhd_mem;
+extern crate criterion;
 
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+// use mhd_mem::mhd_method::*;
+use mhd_mem::mhd_optimizer::*;
+
+#[inline]
+fn bench_find_best_solution( num_decisions : usize ) {
+
+    let mut little_knapsack = ProblemSubsetSum::random(num_decisions);
+
+    let mut first_solver   = FirstDepthFirstSolver::new(num_decisions);
+
+    use std::time::{Duration};
+    let time_limit = Duration::new( 4, 0); // 4 seconds
+
+    assert!( little_knapsack.is_legal() );
+
+    let the_best = find_best_solution( & mut first_solver, & mut little_knapsack, time_limit );
+
+    assert!( the_best.get_score() <= little_knapsack.capacity );
+
+}
+
+pub fn criterion_benchmark_16(c: &mut Criterion) {
+    c.bench_function("find best 16",
+                     |b| b.iter(|| bench_find_best_solution(black_box(16 ))));
+}
+
+pub fn criterion_benchmark_20(c: &mut Criterion) {
+    c.bench_function("find best 20",
+                     |b| b.iter(|| bench_find_best_solution(black_box(20 ))));
+}
+
+criterion_group!(benches, criterion_benchmark_16, criterion_benchmark_20);
+criterion_main!(benches);
+
+/********************************** OBSOLETE OLD HAMMING BENCHES ****************************
 use criterion::{Criterion, Bencher, ParameterizedBenchmark, PlotConfiguration, AxisScale};
 
 const SIZES: [usize; 7] = [1, 10, 100, 1000, 10_000, 100_000, 1_000_000];
@@ -76,3 +111,4 @@ create_benchmarks! {
 
 criterion_group!(benches, weight, distance);
 criterion_main!(benches);
+******************************* END OBSOLETE OLD HAMMING BENCHES ****************************/

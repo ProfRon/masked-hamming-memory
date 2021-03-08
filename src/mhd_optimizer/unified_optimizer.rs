@@ -38,7 +38,7 @@ pub fn find_best_solution< Sol  : Solution,
         // Terminate out if loop?
         if solver.is_empty()
             || time_limit <= start_time.elapsed( )  {
-            println!( "Solver is finished! Unfinished work = {}, visitations = {}, time taken? {:?}",
+            info!( "Solver is finished! Unfinished work = {}, visitations = {}, time taken? {:?}",
                       solver.number_of_solutions(), num_visitations, start_time.elapsed( ) );
             break best_solution;
         }; // end if terminating
