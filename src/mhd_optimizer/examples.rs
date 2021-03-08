@@ -67,7 +67,8 @@ impl Problem< TwoSampleSolution, FirstDepthFirstSolver> for ProblemSubsetSum {
     }
 
     fn randomize( &mut self ) {
-
+        assert!( 1 < self.problem_size(),
+                 "Randomize not defined when problem_size = {}", self.problem_size() );
         // self.weights =  (0..self.problem_size()).map( |_| fancy_random_int( ) ).collect();
         let mut rng = rand::thread_rng();
         let expo_distr = Exp::new(3.0/16.0).unwrap();
@@ -85,10 +86,14 @@ impl Problem< TwoSampleSolution, FirstDepthFirstSolver> for ProblemSubsetSum {
 
         // Choose Capacity as the sum of a random selection of the weights
         let berno_distr = Bernoulli::new(0.5).unwrap();
-        self.capacity =  self.weights.iter()
-            .map( |w| if berno_distr.sample( & mut rng ) { *w }
-            else { ZERO_SCORE } )
-            .sum();
+        loop {
+            self.capacity = self.weights.iter()
+                .map(|w| if berno_distr.sample(&mut rng) { *w } else { ZERO_SCORE })
+                .sum();
+            if self.is_legal() { return; };
+            // else, find another capacity
+        }; // loop until self.is_legal();
+
     }
 
     fn is_legal( & self ) -> bool {
@@ -290,13 +295,14 @@ mod tests {
 
     #[test]
     fn test_children_regstration() {
-        const NUM_BITS: usize = 12;
+        const NUM_BITS: usize = 32; // big, to make special cases below REALLY improbable
 
         // Test register_children_of( )
         let problem = ProblemSubsetSum::random(NUM_BITS); // a lot smaller
         assert!( problem.is_legal() );
 
         let mut solver  = FirstDepthFirstSolver::new(NUM_BITS);
+
         solver.push( problem.starting_solution( ) );
         assert!( ! solver.is_empty() );
 
