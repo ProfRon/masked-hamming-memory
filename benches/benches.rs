@@ -66,11 +66,11 @@ fn distance_bench<F: 'static + FnMut(&[u8], &[u8], &[u8]) -> u64>(mut f: F) -> i
 create_benchmarks! {
     fn weight(SIZES) {
         "naive" => weight_bench(naive_weight),
-        "weight" => weight_bench(mhd_mem::weight),
+        "weight" => weight_bench(mhd_mem::mhd_method::weight),
     }
     fn distance(SIZES) {
         "naive" => distance_bench(naive_distance),
-        "distance" => distance_bench(mhd_mem::distance),
+        "distance" => distance_bench(mhd_mem::mhd_method::distance),
     }
 }
 

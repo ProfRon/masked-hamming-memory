@@ -22,30 +22,30 @@
 ///
 /// ## Examples:
 /// ```rust
-/// use mhd_mem::{ScoreType, ZERO_SCORE };
+/// use mhd_mem::mhd_method::{Sample, ScoreType, NUM_BYTES, ZERO_SCORE };
 /// let the_answer = 42 as ScoreType;
-/// let row0  =  mhd_mem::Sample { bytes : vec![0x0;  mhd_mem::NUM_BYTES ], score : the_answer };
+/// let row0  =  Sample { bytes : vec![0x0;  NUM_BYTES ], score : the_answer };
 /// assert_eq!( row0.bytes[ 4 ], 0 );
 /// assert_eq!( row0.score, the_answer);
 ///
-/// let r = mhd_mem::Sample::default( );
-/// let s = mhd_mem::Sample::new( the_answer );
+/// let r = Sample::default( );
+/// let s = Sample::new( the_answer );
 /// assert_eq!( r.score, ZERO_SCORE );
 /// assert_eq!( s.score, the_answer );
 /// assert!( r.bytes.eq( &s.bytes ) );
 ///
-/// let rr = mhd_mem::Sample::random( );
+/// let rr = Sample::random( );
 /// assert_ne!( r, rr );
 /// // That last test could fail, by dumb luck, but it's nearly impossible...
 ///
-/// let mut row1 = mhd_mem::Sample::default();
+/// let mut row1 = Sample::default();
 /// assert_eq!( row1.get_bit( 42 ), false ); // should be 0
 /// row1.set_bit( 42, true );
 /// assert!( row1.get_bit( 42 ) );
 /// row1.set_bit( 42, false );
 /// assert!( ! row1.get_bit( 42 ) );
 ///
-/// let row_ff = mhd_mem::Sample::new_ones( the_answer );
+/// let row_ff = Sample::new_ones( the_answer );
 /// assert_eq!( row_ff.score, the_answer );
 /// assert!( row_ff.get_bit(  0 ) ); // should be 1
 /// assert!( row_ff.get_bit(  7 ) ); // should be 1

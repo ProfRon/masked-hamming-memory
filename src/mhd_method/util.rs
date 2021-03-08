@@ -8,7 +8,8 @@ pub unsafe fn align_to<T, U>(x: &[T]) -> (&[T], &[U], &[T]) {
     let orig_size = mem::size_of::<T>();
     let size = mem::size_of::<U>();
 
-    debug_assert!(orig_size < size && size % orig_size == 0);
+    debug_assert!( orig_size < size );
+    debug_assert!( size % orig_size == 0);
     let size_ratio = size / orig_size;
 
     let alignment = mem::align_of::<U>();
@@ -105,16 +106,16 @@ mod tests {
         align_to_test(3, 9, &[3], &[0x07060504], &[8]);
     }
 
+    #[cfg_attr(not(debug_assertions), ignore)]
     #[test]
     #[should_panic]
-    #[cfg_attr(not(debug_assertions), ignore)]
     fn align_to_smaller() {
         let _ = unsafe { align_to::<u64, u8>(&[]) };
     }
 
+    #[cfg_attr(not(debug_assertions), ignore)]
     #[test]
     #[should_panic]
-    #[cfg_attr(not(debug_assertions), ignore)]
     fn align_to_nondivisible() {
         let _ = unsafe { align_to::<[u8; 2], [u8; 3]>(&[]) };
     }

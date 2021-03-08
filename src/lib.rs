@@ -13,10 +13,11 @@
 //! # Examples
 //!
 //! ```rust
-//! assert_eq!(mhd_mem::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
-//! assert_eq!(mhd_mem::distance(&[0xFF, 0xFF], &[1, 0xFF], &[0xFF, 1]), 7 + 7);
-//! assert_eq!(mhd_mem::Sample::default().score, 0.0 as mhd_mem::ScoreType );
-//! assert_eq!(mhd_mem::Sample::new( 42 as mhd_mem::ScoreType ).get_bit( 7 ), false );
+//! use mhd_mem::mhd_method::*;
+//! assert_eq!( weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
+//! assert_eq!( distance(&[0xFF, 0xFF], &[1, 0xFF], &[0xFF, 1]), 7 + 7);
+//! assert_eq!( Sample::default().score, ZERO_SCORE );
+//! assert_eq!( Sample::new( 42 as ScoreType ).get_bit( 7 ), false );
 //! ```
 
 //   #![deny(warnings)]
@@ -25,20 +26,44 @@
 extern crate hamming;
 extern crate core;
 extern crate rand;
+extern crate rand_distr;
+extern crate log;
 
 #[cfg(test)] extern crate quickcheck;
 
-mod weight_;
-pub use weight_::weight;
+pub mod mhd_method {
 
-mod distance_;
-pub use distance_::{ distance, distance_fast, truncated_distance };
+    pub mod util;
 
-mod sample;
-pub use sample::{ NUM_BITS, NUM_BYTES, ZERO_SCORE, ScoreType, Sample };
+    pub mod weight_;
+    pub use self::weight_::weight;
 
-mod mhdmemory;
-pub use mhdmemory::{ MHDMemory };
+    pub mod distance_;
+    pub use self::distance_::{ distance, distance_fast, truncated_distance };
 
-mod util;
+    pub mod sample;
+    pub use self::sample::{ NUM_BITS, NUM_BYTES, ZERO_SCORE, ScoreType, Sample };
+
+    pub mod mhdmemory;
+    pub use self::mhdmemory::{ MHDMemory };
+}
+
+pub mod mhd_optimizer {
+    pub mod solution;
+    pub use self::solution::{ Solution, TwoSampleSolution };
+
+    pub mod solver;
+    pub use self::solver::{ Solver, FirstDepthFirstSolver };
+
+    pub mod problem;
+    pub use self::problem::Problem;
+
+    mod examples;
+    pub use self::examples::ProblemSubsetSum;
+
+    pub mod unified_optimizer;
+    pub use self::unified_optimizer::find_best_solution;
+
+}
+
 

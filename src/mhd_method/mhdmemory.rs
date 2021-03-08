@@ -7,13 +7,13 @@
 ///
 /// ```rust
 ///
-/// use mhd_mem::ScoreType;
-/// let mut test_mem = mhd_mem::MHDMemory::default();
+/// use mhd_mem::mhd_method::{MHDMemory, Sample, ScoreType, NUM_BYTES };
+/// let mut test_mem = MHDMemory::default();
 /// assert!( test_mem.is_empty() );
 ///
-/// let row0 = mhd_mem::Sample { bytes : vec![0xFF;  mhd_mem::NUM_BYTES ], score :   3 as ScoreType };
-/// let row1 = mhd_mem::Sample { bytes : vec![0xFF;  mhd_mem::NUM_BYTES ], score :  33 as ScoreType };
-/// let row2 = mhd_mem::Sample { bytes : vec![0xF0;  mhd_mem::NUM_BYTES ], score : 333 as ScoreType };
+/// let row0 = Sample { bytes : vec![0xFF;  NUM_BYTES ], score :   3 as ScoreType };
+/// let row1 = Sample { bytes : vec![0xFF;  NUM_BYTES ], score :  33 as ScoreType };
+/// let row2 = Sample { bytes : vec![0xF0;  NUM_BYTES ], score : 333 as ScoreType };
 ///
 /// test_mem.write_sample( &row2 );
 /// test_mem.write_sample( &row1 );
@@ -26,11 +26,14 @@
 /// assert_eq!( test_mem.total_score, target_total );
 /// assert_eq!( test_mem.min_score, 3 );
 /// assert_eq!( test_mem.max_score, 333 );
-/// let target_avg : mhd_mem::ScoreType = target_total / (3 as mhd_mem::ScoreType); // == 123 ?
+/// let target_avg : ScoreType = target_total / (3 as ScoreType); // == 123 ?
 /// assert_eq!( test_mem.avg_score(), target_avg );
 /// ```
 
-use super::*;
+use ::mhd_method::distance_::*;
+use ::mhd_method::sample::*;
+// use ::mhd_method::util::*;    // Not needed, according to compiler
+// use ::mhd_method::weight_::*; // Not needed, according to compiler
 
 #[derive(Debug, Default, Clone )]
 pub struct MHDMemory {

@@ -34,7 +34,7 @@ fn naive(x: &[u8]) -> u64 {
 /// # Example
 ///
 /// ```rust
-/// assert_eq!(mhd_mem::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
+/// assert_eq!(mhd_mem::mhd_method::weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
 /// ```
 pub fn weight(x: &[u8]) -> u64 {
     const M1: u64 = 0x5555555555555555;
@@ -44,7 +44,7 @@ pub fn weight(x: &[u8]) -> u64 {
 
     type T30 = [u64; 30];
     let (head, thirty, tail) = unsafe {
-        ::util::align_to::<_, T30>(x)
+        super::util::align_to::<_, T30>(x)
     };
 
     let mut count = naive(head) + naive(tail);
