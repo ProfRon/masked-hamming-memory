@@ -1,39 +1,58 @@
 extern crate mhd_mem;
 extern crate criterion;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 // use mhd_mem::mhd_method::*;
 use mhd_mem::mhd_optimizer::*;
 
-#[inline]
 fn bench_find_best_solution( num_decisions : usize ) {
-
-    let mut little_knapsack = ProblemSubsetSum::random(num_decisions);
-
-    let mut first_solver   = FirstDepthFirstSolver::new(num_decisions);
+    assert!( 1 < num_decisions );
+    assert!( num_decisions <= 20 );
 
     use std::time::{Duration};
-    let time_limit = Duration::new( 4, 0); // 4 seconds
+    let time_limit = Duration::new( 2, 0); // 4 seconds
 
-    assert!( little_knapsack.is_legal() );
+    let mut first_solver   = FirstDepthFirstSolver::new(num_decisions);
+    assert!( first_solver.is_empty() );
 
-    let the_best = find_best_solution( & mut first_solver, & mut little_knapsack, time_limit );
+    let mut knapsack = ProblemSubsetSum::random(num_decisions);
+    assert!( knapsack.is_legal() );
 
-    assert!( the_best.get_score() <= little_knapsack.capacity );
-
+    let the_best = find_best_solution( & mut first_solver, & mut knapsack, time_limit );
+    assert!( the_best.get_score() <= knapsack.capacity );
 }
 
-pub fn criterion_benchmark_16(c: &mut Criterion) {
-    c.bench_function("find best 16",
-                     |b| b.iter(|| bench_find_best_solution(black_box(16 ))));
+// The following code is from
+// https://bheisler.github.io/criterion.rs/book/user_guide/benchmarking_with_inputs.html
+
+use criterion::{ black_box, criterion_group, criterion_main, Criterion, Throughput, BenchmarkId };
+
+pub fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("find_best with", |b| b.iter(||
+                           bench_find_best_solution( black_box( 6 ) as usize )
+    ));
 }
 
-pub fn criterion_benchmark_20(c: &mut Criterion) {
-    c.bench_function("find best 20",
-                     |b| b.iter(|| bench_find_best_solution(black_box(20 ))));
+fn from_one_elem(c: &mut Criterion) {
+    let size: usize = 6;
+
+    c.bench_with_input(BenchmarkId::new("one_input_example 6", size), &size, |b, &s| {
+        b.iter(|| bench_find_best_solution( black_box( s ) as usize ));
+    });
 }
 
-criterion_group!(benches, criterion_benchmark_16, criterion_benchmark_20);
+fn from_many_elems(c: &mut Criterion) {
+
+    let mut group = c.benchmark_group("SubsetSum_Sizes");
+    for size in [ 8, 10, 12, 14, 16, 18 ].iter() {
+        group.throughput(Throughput::Elements(*size as u64));
+        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
+            b.iter(|| bench_find_best_solution( size as usize ) );
+        });
+    }
+    group.finish();
+}
+
+criterion_group!(benches, criterion_benchmark, from_one_elem, from_many_elems );
 criterion_main!(benches);
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************

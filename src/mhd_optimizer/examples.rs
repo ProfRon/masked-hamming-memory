@@ -294,6 +294,14 @@ mod tests {
     } // end test_random_weights
 
     #[test]
+    fn test_random_knapsacks() {
+        for size in [ 2, 3, 4, 5, 6, 7, 8, 16, 32, 64, 128, 256 ].iter() {
+            let sack = ProblemSubsetSum::random( *size );
+            assert!( sack.is_legal(), "illegal random sack with size {}?!?", *size );
+        }
+    }
+
+    #[test]
     fn test_children_regstration() {
         const NUM_BITS: usize = 32; // big, to make special cases below REALLY improbable
 
