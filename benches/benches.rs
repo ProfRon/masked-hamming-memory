@@ -6,7 +6,7 @@ use mhd_mem::mhd_optimizer::*;
 
 use std::time::Duration;
 
-fn bench_find_best_solution( num_decisions : usize ) {
+fn bench_depth_first( num_decisions : usize ) {
     assert!( 1 < num_decisions );
     assert!( num_decisions <= 20 );
 
@@ -31,8 +31,8 @@ fn bench_find_best_solution( num_decisions : usize ) {
 
 use criterion::{ criterion_group, criterion_main, Criterion, BenchmarkId };
 
-fn for_different_sizes(c: &mut Criterion) {
-    let mut group = c.benchmark_group("SubsetSum_Sizes");
+fn depth_first_benches(c: &mut Criterion) {
+    let mut group = c.benchmark_group("SubsetSum_DepthFirst");
 
     for b in [2, 3, 4, 6, 8, 10, 14, 18 ].iter() {
         let bits : usize = *b;
@@ -46,13 +46,52 @@ fn for_different_sizes(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Optimize", parameter_string),
                                &bits,
                                |b, bs| {
-                                    b.iter(|| bench_find_best_solution( *bs   ) );
+                                    b.iter(|| bench_depth_first( *bs   ) );
         });
     }
     group.finish();
 }
 
-criterion_group!(benches, for_different_sizes );
+fn bench_best_first( num_decisions : usize ) {
+    assert!( 1 < num_decisions );
+    assert!( num_decisions <= 20 );
+
+    let time_limit = Duration::new( 2, 0); // 4 seconds
+
+    let mut best_solver   = BestFirstSolver::new(num_decisions);
+    assert!( best_solver.is_empty() );
+
+    let mut knapsack = ProblemSubsetSum::random(num_decisions);
+    assert!( knapsack.is_legal() );
+
+    let the_best = find_best_solution( & mut best_solver, & mut knapsack, time_limit )
+        .expect("could not find best solution");
+
+    assert!( the_best.get_score() <= knapsack.capacity );
+}
+
+fn best_first_benches(c: &mut Criterion) {
+    let mut group = c.benchmark_group("SubsetSum_BestFirst");
+
+    for b in [2, 3, 4, 6, 8, 10, 14, 18 ].iter() {
+        let bits : usize = *b;
+        // group.throughput(Throughput::Elements(*size as u64));
+
+        group.measurement_time( Duration::from_secs(bits as u64 ) ); // size in seconds
+        // actually, we should take something of "big O" O(2^size),
+        // but who has the patience?!?
+
+        let parameter_string = format!("bit size {}", bits );
+        group.bench_with_input(BenchmarkId::new("Optimize", parameter_string),
+                               &bits,
+                               |b, bs| {
+                                   b.iter(|| bench_best_first( *bs   ) );
+                               });
+    }
+    group.finish();
+}
+
+criterion_group!(benches, depth_first_benches, best_first_benches );
 criterion_main!(benches);
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************

@@ -2,7 +2,7 @@
 /// ## The Solution Trait
 ///
 
-pub trait Solution : Sized + Clone {
+pub trait Solution : Sized + Clone + Ord {
 
     // First, an "associated type"
     // Compare <file:///home/ron/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/share/doc/rust/html/book/ch19-03-advanced-traits.html>
@@ -66,15 +66,48 @@ pub trait Solution : Sized + Clone {
 /// assert_eq!( sol2.get_score(),      42 as ScoreType );
 /// assert_eq!( sol2.get_best_score(), 88 as ScoreType );
 ///
+/// let mut sol3 = TwoSampleSolution::new( 4 );
+/// sol3.put_score(      64 as ScoreType );
+/// sol3.put_best_score( 88 as ScoreType );
+/// assert!( sol2 < sol3 );
+/// assert!( ! (sol2 == sol3) );
 /// ```
 
 use ::mhd_method::sample::{Sample, ScoreType, NUM_BITS };
 use std::fmt::Display; // Not used: NUM_BYTES
+use std::cmp::Ordering;
 
 #[derive(Debug,Clone)]
 pub struct TwoSampleSolution {
     pub mask      : Sample,  // we could have used Vec<u8> (twice) here (and saved two scores),
     pub decisions : Sample,  // but we wouldn't have the get_bit and set_bit methods!
+}
+
+impl TwoSampleSolution {
+    pub fn estimate( & self ) -> <TwoSampleSolution as Solution>::ScoreType {
+        (self.get_score() + self.get_best_score()) / 2
+    }
+}
+
+// Ord requires Eq, which requires PartialEq
+impl PartialEq for TwoSampleSolution {
+    fn eq(&self, other: &Self) -> bool {
+        self.estimate() == other.estimate()
+    }
+}
+
+impl Eq for TwoSampleSolution {}
+
+impl Ord for TwoSampleSolution {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.estimate( ).cmp( & other.estimate( ) )
+    }
+}
+
+impl PartialOrd for TwoSampleSolution {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some( self.estimate( ).cmp( & other.estimate( ) ) )
+    }
 }
 
 impl Solution for TwoSampleSolution {

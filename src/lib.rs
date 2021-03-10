@@ -53,13 +53,13 @@ pub mod mhd_optimizer {
     pub use self::solution::{ Solution, TwoSampleSolution };
 
     pub mod solver;
-    pub use self::solver::{ Solver, FirstDepthFirstSolver };
+    pub use self::solver::{ Solver };
 
     pub mod problem;
     pub use self::problem::Problem;
 
     mod examples;
-    pub use self::examples::ProblemSubsetSum;
+    pub use self::examples::{ ProblemSubsetSum, FirstDepthFirstSolver, BestFirstSolver };
 
     pub mod unified_optimizer;
     pub use self::unified_optimizer::find_best_solution;

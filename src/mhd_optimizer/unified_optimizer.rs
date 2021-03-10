@@ -20,9 +20,9 @@ use std::error::Error;
 
 pub fn find_best_solution< Sol  : Solution,
                            Solv : Solver< Sol >,
-                           Prob : Problem< Sol, Solv > >
+                           Prob : Problem< Sol > >
                          ( solver     : & mut Solv,
-                           problem    : & mut Prob,
+                           problem    : & Prob,
                            time_limit : Duration ) -> Result< Sol, Box<dyn Error> >{
 
     let filename = "trace.csv";

@@ -3,7 +3,7 @@
 use ::mhd_optimizer::Solution;
 use ::mhd_optimizer::Solver;
 
-pub trait Problem< Sol : Solution, Slvr : Solver< Sol > >
+pub trait Problem< Sol : Solution >
     where Self: Sized
 {
 
@@ -54,6 +54,6 @@ pub trait Problem< Sol : Solution, Slvr : Solver< Sol > >
     fn can_be_better_than( & self, new_solution : & Sol, old_solution : & Sol ) -> bool {
         self.solution_best_score( old_solution ) <= self.solution_best_score( new_solution )
     }
-    fn register_children_of( & self, parent : & Sol, solver : & mut Slvr );
+    fn register_children_of( & self, parent : & Sol, solver : & mut impl Solver< Sol > );
 
 } // end trait Problem

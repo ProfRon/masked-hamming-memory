@@ -56,14 +56,14 @@
 ///
 
 // Following two constants might be turned into global variables later...
-pub const NUM_BITS:  usize = 64; // enough for testing, but not too many...
+pub const NUM_BITS:  usize = 256; // enough for testing, but not too many...
 pub const NUM_BYTES: usize = NUM_BITS / 8; // 8 is not really a magic number, is it?
 
 pub type ScoreType = i32; // that can change at any time, so we give it a name
 
 pub const ZERO_SCORE : ScoreType = 0;
 
-#[derive(Debug,Default, Clone,PartialEq)]
+#[derive( Default, Clone, PartialEq)] // Debug implemented by hand, see below
 pub struct Sample {
     // pub bytes:  [u8; NUM_BYTES],
     pub bytes : Vec< u8 >, // initially empty
@@ -139,6 +139,12 @@ impl Sample {
     }
 
 } // end impl Sample
+
+impl std::fmt::Debug for Sample {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!( f, "[Sample: score {}, bytes{:x?}]", self.score, self.bytes )
+    }
+}
 
 // TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS
 
