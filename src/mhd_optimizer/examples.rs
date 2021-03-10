@@ -67,14 +67,14 @@ impl Problem< TwoSampleSolution, FirstDepthFirstSolver> for ProblemSubsetSum {
     }
 
     fn randomize( &mut self ) {
-        assert!( 1 < self.problem_size(),
-                 "Randomize not defined when problem_size = {}", self.problem_size() );
+        let num_bits = self.problem_size( );
+        assert!( 1 < num_bits, "Randomize not defined when problem_size = {}", num_bits );
         // self.weights =  (0..self.problem_size()).map( |_| fancy_random_int( ) ).collect();
         let mut rng = rand::thread_rng();
         let expo_distr = Exp::new(3.0/16.0).unwrap();
 
-        self.weights = (0..self.problem_size())
-            .map( |_| (expo_distr.sample( & mut rng ) * 10.0) as ScoreType )
+        self.weights = (0..num_bits)
+            .map( |_| (expo_distr.sample( & mut rng ) * 10.0 + 1.0) as ScoreType )
             .collect();
 
         ///// The next two lines are optional. Experimentation still going on to see if they help.
@@ -83,6 +83,11 @@ impl Problem< TwoSampleSolution, FirstDepthFirstSolver> for ProblemSubsetSum {
         // Sort weights
         self.weights.sort_unstable();
         self.weights.reverse();
+        assert!( num_bits == self.problem_size(), "Problem size changed in sort?!?");
+        assert!( 0 < self.weights[0] );
+        assert!( 0 < self.weights[num_bits-1] );
+        assert!( self.weights[num_bits-1] <= self.weights[0] ); // Change if not reversing sort
+
 
         // Choose Capacity as the sum of a random selection of the weights
         let berno_distr = Bernoulli::new(0.5).unwrap();

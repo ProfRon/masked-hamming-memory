@@ -4,11 +4,12 @@ extern crate criterion;
 // use mhd_mem::mhd_method::*;
 use mhd_mem::mhd_optimizer::*;
 
+use std::time::Duration;
+
 fn bench_find_best_solution( num_decisions : usize ) {
     assert!( 1 < num_decisions );
     assert!( num_decisions <= 20 );
 
-    use std::time::{Duration};
     let time_limit = Duration::new( 2, 0); // 4 seconds
 
     let mut first_solver   = FirstDepthFirstSolver::new(num_decisions);
@@ -25,36 +26,33 @@ fn bench_find_best_solution( num_decisions : usize ) {
 
 // The following code is from
 // https://bheisler.github.io/criterion.rs/book/user_guide/benchmarking_with_inputs.html
+// or (later) from
+// https://bheisler.github.io/criterion.rs/criterion/struct.BenchmarkGroup.html
 
-use criterion::{ black_box, criterion_group, criterion_main, Criterion, Throughput, BenchmarkId };
+use criterion::{ criterion_group, criterion_main, Criterion, BenchmarkId };
 
-pub fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("find_best with", |b| b.iter(||
-                           bench_find_best_solution( black_box( 6 ) as usize )
-    ));
-}
-
-fn from_one_elem(c: &mut Criterion) {
-    let size: usize = 6;
-
-    c.bench_with_input(BenchmarkId::new("one_input_example 6", size), &size, |b, &s| {
-        b.iter(|| bench_find_best_solution( black_box( s ) as usize ));
-    });
-}
-
-fn from_many_elems(c: &mut Criterion) {
-
+fn for_different_sizes(c: &mut Criterion) {
     let mut group = c.benchmark_group("SubsetSum_Sizes");
-    for size in [ 8, 10, 12, 14, 16, 18 ].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
-            b.iter(|| bench_find_best_solution( size as usize ) );
+
+    for b in [2, 3, 4, 6, 8, 10, 14, 18 ].iter() {
+        let bits : usize = *b;
+        // group.throughput(Throughput::Elements(*size as u64));
+
+        group.measurement_time( Duration::from_secs(bits as u64 ) ); // size in seconds
+        // actually, we should take something of "big O" O(2^size),
+        // but who has the patience?!?
+
+        let parameter_string = format!("bit size {}", bits );
+        group.bench_with_input(BenchmarkId::new("Optimize", parameter_string),
+                               &bits,
+                               |b, bs| {
+                                    b.iter(|| bench_find_best_solution( *bs   ) );
         });
     }
     group.finish();
 }
 
-criterion_group!(benches, criterion_benchmark, from_one_elem, from_many_elems );
+criterion_group!(benches, for_different_sizes );
 criterion_main!(benches);
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************
