@@ -35,6 +35,14 @@ pub fn find_best_solution< Sol  : Solution,
     // define some solution to be "best-so-far"
     let mut num_visitations : i64 = 1;
     let mut best_solution = problem.random_solution( );
+    trace!( "Optimizer initializes BEST score {}! after {} visitations",
+            best_solution.get_score(), num_visitations );
+    writeln!( csv_file, "{}; {}; {}; {}; {}" , // FIVE fields!
+                          start_time.elapsed().as_nanos(),
+                          num_visitations,
+                          solver.number_of_solutions(),
+                          best_solution.get_score(),
+                          best_solution.get_best_score() )?;
 
     // start at the root of the tree
     debug_assert!( solver.is_empty() );
@@ -59,8 +67,7 @@ pub fn find_best_solution< Sol  : Solution,
                           num_visitations,
                           solver.number_of_solutions(),
                           best_solution.get_score(),
-                          best_solution.get_best_score(),
-                        )?;
+                          best_solution.get_best_score() )?;
             }; // end if new solution better than old
         }; // endif next_solution has a score
 
@@ -86,6 +93,7 @@ pub fn find_best_solution< Sol  : Solution,
         }; // end if terminating
 
     };// end loop
+
     return Ok( result );
 
 } // end find_best_solution
