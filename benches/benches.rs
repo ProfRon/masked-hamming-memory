@@ -17,7 +17,9 @@ fn bench_find_best_solution( num_decisions : usize ) {
     let mut knapsack = ProblemSubsetSum::random(num_decisions);
     assert!( knapsack.is_legal() );
 
-    let the_best = find_best_solution( & mut first_solver, & mut knapsack, time_limit );
+    let the_best = find_best_solution( & mut first_solver, & mut knapsack, time_limit )
+                        .expect("could not find best solution");
+
     assert!( the_best.get_score() <= knapsack.capacity );
 }
 

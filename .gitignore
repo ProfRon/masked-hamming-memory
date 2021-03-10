@@ -3,4 +3,4 @@ Cargo.lock
 *.md.backup
 .project
 .idea
-
+trace.csv

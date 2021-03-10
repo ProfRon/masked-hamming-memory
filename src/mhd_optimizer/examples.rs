@@ -361,7 +361,8 @@ mod tests {
 
         assert!( little_knapsack.is_legal());
 
-        let the_best = find_best_solution( & mut first_solver, & mut little_knapsack, time_limit );
+        let the_best = find_best_solution( & mut first_solver, & mut little_knapsack, time_limit )
+                                       .expect("could not find best solution");
 
         assert_eq!( little_knapsack.solution_score( & the_best ), little_knapsack.capacity );
         assert_eq!( the_best.get_score(),      little_knapsack.capacity );
