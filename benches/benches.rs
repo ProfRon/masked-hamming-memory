@@ -3,26 +3,31 @@ extern crate criterion;
 
 // use mhd_mem::mhd_method::*;
 use mhd_mem::mhd_optimizer::*;
-
-use crate::
+use mhd_mem::mhd_optimizer::{ Solution, Problem, Solver };
+use mhd_mem::implementations::*;
 
 use std::time::Duration;
 
-fn bench_depth_first( num_decisions : usize ) {
-    assert!( 1 < num_decisions );
-    assert!( num_decisions <= 20 );
-    let time_limit = Duration::new( 2, 0); // 4 seconds
+fn bench_optimization< Sol  : Solution,
+                       Solv : Solver< Sol >,
+                       Prob : Problem< Sol > >
+                     ( time_limit : Duration,
+                       problem    : & Prob,
+                       solver     : & mut Solv  ) {
 
-    let mut first_solver   = FirstDepthFirstSolver::new(num_decisions);
-    assert!( first_solver.is_empty() );
+    assert!( solver.is_empty(),  "Will not bench solver which is not empty" );
+    assert!( problem.is_legal(), "Will not bench problem which is illegal" );
 
-    let mut knapsack = ProblemSubsetSum::random(num_decisions);
-    assert!( knapsack.is_legal() );
+    let the_best = find_best_solution( solver, problem, time_limit )
+                                     .expect("could not find best solution on bench");
 
-    let the_best = find_best_solution( & mut first_solver, & mut knapsack, time_limit )
-                        .expect("could not find best solution");
+    assert!( problem.solution_is_legal( & the_best ));
+    assert!( problem.solution_is_complete( & the_best ));
 
-    assert!( the_best.get_score() <= knapsack.capacity );
+    // let best_score = the_best.get_score();
+    // assert!( ZERO_SCORE < best_score );
+    // assert_eq!( best_score, problem.solution_score( & the_best ));
+    // assert_eq!( best_score, problem.solution_best_score( & the_best ));
 }
 
 // The following code is from
@@ -30,69 +35,95 @@ fn bench_depth_first( num_decisions : usize ) {
 // or (later) from
 // https://bheisler.github.io/criterion.rs/criterion/struct.BenchmarkGroup.html
 
-use criterion::{ criterion_group, criterion_main, Criterion, BenchmarkId };
+use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, BenchmarkGroup};
+use criterion::measurement::WallTime;
 
-fn depth_first_benches(c: &mut Criterion) {
-    let mut group = c.benchmark_group("SubsetSum_DepthFirst");
+fn bench_one_size(  group : & mut BenchmarkGroup<WallTime>,
+                    size : usize ) {
 
-    for b in [2, 3, 4, 6, 8, 10, 14, 18 ].iter() {
-        let bits : usize = *b;
+    let time_limit= Duration::from_secs( size as u64 );
+    group.measurement_time( time_limit ); // size in seconds
+
+    // actually, we should take something of "big O" O(2^size),
+    // but who has the patience?!?
+
+    // First one problem, then another, since they are not mutable
+    let problem_a = ProblemSubsetSum::new( size );
+    let prob_name = format!("{} bits, Subset Sum", size );
+
+    // ...with the Depth First Solver
+    let mut solver_a = DepthFirstSolver::new( size );
+    let bench_name = format!( "{}, Depth First", prob_name );
+
+    assert!( problem_a.is_legal() );
+    assert!( solver_a.is_empty() );
+
+    group.bench_function ( BenchmarkId::new("Optimize", bench_name ),
+                           |b| b.iter(
+                               || bench_optimization( time_limit, & problem_a, & mut solver_a )
+                           ));
+
+    // ...and with the Best First Solver
+    let mut solver_b = BestFirstSolver::new( size );
+    let bench_name = format!( "{}, Depth First", prob_name );
+
+    assert!( problem_a.is_legal() );
+    assert!( solver_b.is_empty() );
+
+    group.bench_function ( BenchmarkId::new("Optimize", bench_name),
+                           |b| b.iter(
+                               || bench_optimization( time_limit, & problem_a, & mut solver_b )
+                           ));
+    // First one problem, then another, since they are not mutable
+    let problem_b = Problem01Knapsack::new( size );
+    let prob_name = "0-1 Knapsack";
+
+    // ...with the Depth First Solver
+    let mut solver_c = DepthFirstSolver::new( size );
+    let bench_name = format!( "{}/Depth First", prob_name );
+
+    assert!( problem_b.is_legal() );
+    assert!( solver_c.is_empty() );
+
+    group.bench_function ( BenchmarkId::new("Optimize", bench_name ),
+                           |b| b.iter(
+                               || bench_optimization( time_limit, & problem_b, & mut solver_c )
+                           ));
+
+    // ...and with the Best First Solver
+    let mut solver_d = BestFirstSolver::new( size );
+    let bench_name = format!( "{}/Best First", prob_name );
+
+    assert!( problem_b.is_legal() );
+    assert!( solver_d.is_empty() );
+
+    group.bench_function ( BenchmarkId::new("Optimize", bench_name),
+                           |b| b.iter(
+                               || bench_optimization( time_limit, & problem_b, & mut solver_d )
+                           ));
+
+
+}
+
+fn bench_sizes( c: &mut Criterion ) {
+
+    let mut group = c.benchmark_group( "Optimization Benches" );
+
+    for bits in [ 4, 6, 8, 10, 14, 18 ].iter() {
+        bench_one_size( & mut group, *bits );
+        //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));
-
-        group.measurement_time( Duration::from_secs(bits as u64 ) ); // size in seconds
-        // actually, we should take something of "big O" O(2^size),
-        // but who has the patience?!?
-
-        let parameter_string = format!("bit size {}", bits );
-        group.bench_with_input(BenchmarkId::new("Optimize", parameter_string),
-                               &bits,
-                               |b, bs| {
-                                    b.iter(|| bench_depth_first( *bs   ) );
-        });
+        // let parameter_string = "Optimize Series";
+        // group.bench_with_input(BenchmarkId::new("Optimize", parameter_string),
+        //                        &bits,
+        //                        |b, bs| {
+        //                            b.iter(|| bench_one_size(  & mut group, *bs   ) );
+        //                        });
     }
     group.finish();
 }
 
-fn bench_best_first( num_decisions : usize ) {
-    assert!( 1 < num_decisions );
-    assert!( num_decisions <= 20 );
-
-    let time_limit = Duration::new( 2, 0); // 4 seconds
-
-    let mut best_solver   = BestFirstSolver::new(num_decisions);
-    assert!( best_solver.is_empty() );
-
-    let mut knapsack = ProblemSubsetSum::random(num_decisions);
-    assert!( knapsack.is_legal() );
-
-    let the_best = find_best_solution( & mut best_solver, & mut knapsack, time_limit )
-        .expect("could not find best solution");
-
-    assert!( the_best.get_score() <= knapsack.capacity );
-}
-
-fn best_first_benches(c: &mut Criterion) {
-    let mut group = c.benchmark_group("SubsetSum_BestFirst");
-
-    for b in [2, 3, 4, 6, 8, 10, 14, 18 ].iter() {
-        let bits : usize = *b;
-        // group.throughput(Throughput::Elements(*size as u64));
-
-        group.measurement_time( Duration::from_secs(bits as u64 ) ); // size in seconds
-        // actually, we should take something of "big O" O(2^size),
-        // but who has the patience?!?
-
-        let parameter_string = format!("bit size {}", bits );
-        group.bench_with_input(BenchmarkId::new("Optimize", parameter_string),
-                               &bits,
-                               |b, bs| {
-                                   b.iter(|| bench_best_first( *bs   ) );
-                               });
-    }
-    group.finish();
-}
-
-criterion_group!(benches, depth_first_benches, best_first_benches );
+criterion_group!(benches, bench_sizes );
 criterion_main!(benches);
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************

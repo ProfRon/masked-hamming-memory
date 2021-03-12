@@ -67,6 +67,9 @@ pub mod implementations {
     pub mod subset_sum_problem;
     pub use self::subset_sum_problem::ProblemSubsetSum;
 
+    pub mod zero_one_knapsack_problem;
+    pub use self::zero_one_knapsack_problem::Problem01Knapsack;
+
     pub mod depth_first_solver;
     pub use self::depth_first_solver::DepthFirstSolver;
 
