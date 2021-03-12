@@ -1,8 +1,10 @@
 /// # Example Implementations
 ///
-/// ## Example Problem Implementation: Depth First Search
+/// ## Example Problem Implementation: Subset Sum 0-1 Knapsack
 ///
 ///
+
+extern crate rand_distr;
 
 use rand_distr::{Exp, Bernoulli, Distribution};
 
@@ -10,84 +12,6 @@ use ::mhd_method::sample::{Sample, ScoreType, NUM_BITS, ZERO_SCORE }; // Not use
 
 use ::mhd_optimizer::{ Solution, TwoSampleSolution };
 use ::mhd_optimizer::{ Solver, Problem };
-// ## Sample Solver Implementation: Depth First Search
-///
-///
-/// ```rust
-/// use mhd_mem::mhd_method::sample::{Sample, ScoreType, NUM_BITS, ZERO_SCORE }; // Not used: NUM_BYTES
-/// use mhd_mem::mhd_optimizer::{ Solution, TwoSampleSolution };
-/// use mhd_mem::mhd_optimizer::{ Solver, FirstDepthFirstSolver };
-///
-/// let mut my_solver = FirstDepthFirstSolver::new( 8 );
-///
-/// assert_eq!( my_solver.number_of_solutions(), 0 );
-/// assert!( my_solver.is_empty() );
-///
-/// let sol0 = TwoSampleSolution::new( 8 );
-/// let sol1 = TwoSampleSolution::random( 8 );
-///
-/// assert_eq!( sol0.get_score(), ZERO_SCORE );
-/// assert_eq!( sol0.get_best_score(), ZERO_SCORE );
-/// assert_eq!( sol0.get_decision( 0 ), None );
-///
-/// let mut sol2 = TwoSampleSolution::new( 4 );
-/// sol2.make_decision( 0, true );
-/// sol2.make_decision( 1, false );
-/// sol2.make_decision( 2, true );
-/// assert!(   sol2.get_decision( 0 ).unwrap( ) );
-/// assert!( ! sol2.get_decision( 1 ).unwrap( ) );
-/// assert!(   sol2.get_decision( 2 ).unwrap( ) );
-/// assert_eq!( sol0.get_decision( 3 ), None );
-///
-/// sol2.put_score(      42 as ScoreType );
-/// sol2.put_best_score( 88 as ScoreType );
-/// assert_eq!( sol2.get_score(),      42 as ScoreType );
-/// assert_eq!( sol2.get_best_score(), 88 as ScoreType );
-
-/// my_solver.push( sol0 );
-/// my_solver.push( sol1 );
-/// my_solver.push( sol2 );
-///
-/// assert_eq!( my_solver.number_of_solutions(), 3 );
-///
-/// let popped = my_solver.pop( ).unwrap();
-/// assert!( ! popped.get_decision( 1 ).unwrap( ) );
-///
-///
-/// ```
-
-#[derive(Debug,Clone)]
-pub struct FirstDepthFirstSolver {
-    pub solutions: Vec< TwoSampleSolution >
-}
-
-impl Solver<TwoSampleSolution> for FirstDepthFirstSolver {
-
-    // type Sol = TwoSampleSolution;
-
-    fn new(  _: usize ) -> Self {
-        Self {
-            solutions : Vec::new( )
-        }
-    }
-
-    // Methods used by the Unified Optimization Algorithm (identified above)
-
-    fn number_of_solutions( & self ) -> usize {
-        self.solutions.len()
-    }
-    fn is_empty( & self ) -> bool {
-        self.solutions.is_empty( )
-    }
-
-    fn push( & mut self, solution : TwoSampleSolution ) {
-        self.solutions.push( solution );
-    }
-    fn pop( & mut self ) -> Option< TwoSampleSolution > {
-        self.solutions.pop( )
-    }
-
-}
 
 #[derive(Debug,Clone)]
 pub struct ProblemSubsetSum {
@@ -115,11 +39,11 @@ impl ProblemSubsetSum {
     pub fn make_implicit_decisions( & self,
                                     sol : & mut TwoSampleSolution ) {
         if self.solution_is_legal( &sol )
-           && ! self.solution_is_complete( & sol  ) {
+            && ! self.solution_is_complete( & sol  ) {
             let headroom = self.capacity - sol.get_score();
             for bit in 0..self.problem_size() {
                 if None == sol.get_decision( bit )
-                   && headroom < self.weights[ bit ] {
+                    && headroom < self.weights[ bit ] {
                     // found an unmade decision which cannot legally be made
                     sol.make_decision( bit, false );
                 } // end if implicit false decision
@@ -334,7 +258,8 @@ impl Problem< TwoSampleSolution > for ProblemSubsetSum {
 mod tests {
 
     use super::*;
-    use mhd_optimizer::find_best_solution;
+    use ::mhd_optimizer::find_best_solution;
+    use ::implementations::DepthFirstSolver;
 
     #[test]
     fn test_random_weights() {
@@ -406,7 +331,7 @@ mod tests {
         let problem = ProblemSubsetSum::random(NUM_BITS); // a lot smaller
         assert!( problem.is_legal() );
 
-        let mut solver  = FirstDepthFirstSolver::new(NUM_BITS);
+        let mut solver  = DepthFirstSolver::new(NUM_BITS);
 
         solver.push( problem.starting_solution( ) );
         assert!( ! solver.is_empty() );
@@ -451,7 +376,7 @@ mod tests {
         const NUM_DECISIONS: usize = 4; // for a start
 
         let mut little_knapsack = ProblemSubsetSum::random(NUM_DECISIONS);
-        let mut first_solver   = FirstDepthFirstSolver::new(NUM_DECISIONS);
+        let mut first_solver   = DepthFirstSolver::new(NUM_DECISIONS);
 
         use std::time::{Duration};
         let time_limit = Duration::new( 1, 0); // 1 second
@@ -469,67 +394,3 @@ mod tests {
 
 
 } // end mod tests
-
-/// ## Example Problem Implementation: Depth First Search
-///
-///
-use std::collections::BinaryHeap;
-
-#[derive(Debug,Clone)]
-pub struct BestFirstSolver {
-    pub solutions: BinaryHeap< TwoSampleSolution >
-}
-
-impl Solver<TwoSampleSolution> for BestFirstSolver {
-
-    fn new(  _: usize ) -> Self {
-        Self {
-            solutions : BinaryHeap::new( )
-        }
-    }
-
-    // Methods used by the Unified Optimization Algorithm (identified above)
-
-    fn number_of_solutions( & self ) -> usize {
-        self.solutions.len()
-    }
-    fn is_empty( & self ) -> bool {
-        self.solutions.is_empty( )
-    }
-
-    fn push( & mut self, solution : TwoSampleSolution ) {
-        self.solutions.push( solution );
-    }
-    fn pop( & mut self ) -> Option< TwoSampleSolution > {
-        self.solutions.pop( )
-    }
-
-} // end imp Solver for BestFirstSolver
-
-///////////////////// TESTs for ProblemSubsetSum with  BestFirstSolver /////////////////////
-#[cfg(test)]
-mod more_tests {
-    use super::*;
-    use mhd_optimizer::find_best_solution;
-
-    #[test]
-    fn test_find_best_first_solution() {
-        const NUM_DECISIONS: usize = 4; // for a start
-
-        let mut little_knapsack = ProblemSubsetSum::random(NUM_DECISIONS);
-        let mut second_solver = BestFirstSolver::new(NUM_DECISIONS);
-
-        use std::time::{Duration};
-        let time_limit = Duration::new(1, 0); // 1 second
-
-        assert!(little_knapsack.is_legal());
-
-        let the_best = find_best_solution(&mut second_solver, &mut little_knapsack, time_limit)
-            .expect("could not find best solution");
-
-        assert_eq!(little_knapsack.solution_score(&the_best), little_knapsack.capacity);
-        assert_eq!(the_best.get_score(), little_knapsack.capacity);
-        assert_eq!(the_best.get_best_score(), little_knapsack.capacity);
-    }
-
-}

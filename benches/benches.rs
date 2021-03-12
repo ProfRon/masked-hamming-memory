@@ -4,12 +4,13 @@ extern crate criterion;
 // use mhd_mem::mhd_method::*;
 use mhd_mem::mhd_optimizer::*;
 
+use crate::
+
 use std::time::Duration;
 
 fn bench_depth_first( num_decisions : usize ) {
     assert!( 1 < num_decisions );
     assert!( num_decisions <= 20 );
-
     let time_limit = Duration::new( 2, 0); // 4 seconds
 
     let mut first_solver   = FirstDepthFirstSolver::new(num_decisions);

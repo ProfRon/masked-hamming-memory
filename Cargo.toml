@@ -14,6 +14,7 @@ A rust crate to implement Bernd Klauer's MHD (Masked Hamming Distance) Associati
 (more or less) in Rust -- building on Huonw's excellent "hamming" crate.
 """
 
+autoexamples = false
 
 [features]
 unstable = []
@@ -23,11 +24,17 @@ hamming = "0.1"
 rand = "0.8"
 rand_distr = "0.4"
 log  = "0.4"
+serde = "1.0"
+docopt = "1.1"
 
 [dev-dependencies]
 quickcheck = "0.2"
 criterion = "0.3"
 
+[[example]]
+name = "knapsacks"
+
 [[bench]]
 name = "benches"
 harness = false
+

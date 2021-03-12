@@ -58,12 +58,21 @@ pub mod mhd_optimizer {
     pub mod problem;
     pub use self::problem::Problem;
 
-    mod examples;
-    pub use self::examples::{ ProblemSubsetSum, FirstDepthFirstSolver, BestFirstSolver };
-
     pub mod unified_optimizer;
     pub use self::unified_optimizer::find_best_solution;
 
 }
+
+pub mod implementations {
+    pub mod subset_sum_problem;
+    pub use self::subset_sum_problem::ProblemSubsetSum;
+
+    pub mod depth_first_solver;
+    pub use self::depth_first_solver::DepthFirstSolver;
+
+    pub mod best_first_solver;
+    pub use self::best_first_solver::BestFirstSolver;
+}
+
 
 

@@ -1,10 +1,7 @@
 // ## The The Unified Algorithm
 ///
 ///
-/// ```rust
-/// use mhd_mem::mhd_optimizer::{ Solution, TwoSampleSolution };
-/// use mhd_mem::mhd_optimizer::{ Solver, FirstDepthFirstSolver };
-/// ```
+
 
 // use core::fmt::Debug;
 use log::*; // for info, trace, warn, etc.
