@@ -41,22 +41,22 @@ use criterion::measurement::WallTime;
 fn bench_one_size(  group : & mut BenchmarkGroup<WallTime>,
                     size : usize ) {
 
-    let time_limit= Duration::from_secs( size as u64 );
+    let time_limit= Duration::from_secs( size as u64 - 2 );
     group.measurement_time( time_limit ); // size in seconds
 
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
     // First one problem, then another, since they are not mutable
-    let problem_a = ProblemSubsetSum::new( size );
+    let problem_a = ProblemSubsetSum::random( size );
     let prob_name = format!("{} bits, Subset Sum", size );
 
     // ...with the Depth First Solver
     let mut solver_a = DepthFirstSolver::new( size );
     let bench_name = format!( "{}, Depth First", prob_name );
 
-    assert!( problem_a.is_legal() );
-    assert!( solver_a.is_empty() );
+    assert!( problem_a.is_legal(), "illegal subset sum knapsack size {}", size );
+    assert!( solver_a.is_empty(),  "illegal depth first solver size {}", size );
 
     group.bench_function ( BenchmarkId::new("Optimize", bench_name ),
                            |b| b.iter(
@@ -65,25 +65,25 @@ fn bench_one_size(  group : & mut BenchmarkGroup<WallTime>,
 
     // ...and with the Best First Solver
     let mut solver_b = BestFirstSolver::new( size );
-    let bench_name = format!( "{}, Depth First", prob_name );
+    let bench_name = format!( "{}, Best First", prob_name );
 
-    assert!( problem_a.is_legal() );
-    assert!( solver_b.is_empty() );
+    assert!( problem_a.is_legal(), "illegal subset sum knapsack size {}", size );
+    assert!( solver_b.is_empty(),  "illegal best first solver size {}", size );
 
     group.bench_function ( BenchmarkId::new("Optimize", bench_name),
                            |b| b.iter(
                                || bench_optimization( time_limit, & problem_a, & mut solver_b )
                            ));
     // First one problem, then another, since they are not mutable
-    let problem_b = Problem01Knapsack::new( size );
-    let prob_name = "0-1 Knapsack";
+    let problem_b = Problem01Knapsack::random( size );
+    let prob_name = format!("{} bits, 01 Knapsack", size );
 
     // ...with the Depth First Solver
     let mut solver_c = DepthFirstSolver::new( size );
     let bench_name = format!( "{}/Depth First", prob_name );
 
-    assert!( problem_b.is_legal() );
-    assert!( solver_c.is_empty() );
+    assert!( problem_b.is_legal(), "illegal subset 01 knapsack size {}", size );
+    assert!( solver_c.is_empty(),  "illegal depth first solver size {}", size  );
 
     group.bench_function ( BenchmarkId::new("Optimize", bench_name ),
                            |b| b.iter(
@@ -94,8 +94,8 @@ fn bench_one_size(  group : & mut BenchmarkGroup<WallTime>,
     let mut solver_d = BestFirstSolver::new( size );
     let bench_name = format!( "{}/Best First", prob_name );
 
-    assert!( problem_b.is_legal() );
-    assert!( solver_d.is_empty() );
+    assert!( problem_b.is_legal(), "illegal subset 01 knapsack size {}", size );
+    assert!( solver_d.is_empty(),  "illegal best first solver size {}", size  );
 
     group.bench_function ( BenchmarkId::new("Optimize", bench_name),
                            |b| b.iter(
@@ -109,7 +109,7 @@ fn bench_sizes( c: &mut Criterion ) {
 
     let mut group = c.benchmark_group( "Optimization Benches" );
 
-    for bits in [ 4, 6, 8, 10, 14, 18 ].iter() {
+    for bits in [ 4, 5, 6, 8, 10, 12, 14, 16 ].iter() {
         bench_one_size( & mut group, *bits );
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));
