@@ -13,6 +13,10 @@ pub trait Problem< Sol : Solution >
 
     // type ScoreType = Sol::ScoreType;
 
+    // every instance of this struct should have a descriptive name (for tracing, debugging)
+    // TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
+
+    fn name ( & self )  -> &'static str;
     // Constructors
 
     // size is the number of decisions to be made (free variables to assign values to).

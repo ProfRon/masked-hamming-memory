@@ -69,6 +69,8 @@ impl ProblemSubsetSum {
 // Problem Trait Methods
 impl Problem< TwoSampleSolution > for ProblemSubsetSum {
 
+    fn name ( & self )  -> &'static str { "ProblemSubsetSum"  }
+
     fn new( size: usize ) -> Self {
         ProblemSubsetSum {
             weights : vec![ ZERO_SCORE; size ],
@@ -265,6 +267,8 @@ mod tests {
     fn test_random_weights() {
         const TEST_SIZE: usize  = 16;
         let mut rand_sack_a = ProblemSubsetSum::new(TEST_SIZE);
+
+        assert_eq!( rand_sack_a.name(), "ProblemSubsetSum"  );
 
         assert!( ! rand_sack_a.is_legal( ) );
         assert_eq!(rand_sack_a.problem_size( ), TEST_SIZE);

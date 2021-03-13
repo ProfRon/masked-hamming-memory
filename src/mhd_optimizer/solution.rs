@@ -8,6 +8,10 @@ pub trait Solution : Sized + Clone + Ord {
     // Compare <file:///home/ron/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/share/doc/rust/html/book/ch19-03-advanced-traits.html>
     type ScoreType : PartialOrd + Display;
 
+    // every instance of this struct should have a descriptive name (for tracing, debugging)
+    // TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
+    fn name ( & self )  -> &'static str;
+
     // At the moment, we actually have identified no methods we need for Solutions!
     // Still, this is a safe guess...
     // Recall: size is the number of decisions to be made (free variables to assign values to).
@@ -41,6 +45,7 @@ pub trait Solution : Sized + Clone + Ord {
 /// let sol0 = TwoSampleSolution::new( 8 );
 /// let sol1 = TwoSampleSolution::random( 8 );
 ///
+/// assert_eq!( sol0.name(), "TwoSampleSolution");
 /// assert_eq!( sol0.get_score(), ZERO_SCORE );
 /// // assert_eq!( sol0.get_score(), sol1.get_score() );
 /// assert_eq!( sol0.get_best_score(), ZERO_SCORE );
@@ -52,7 +57,6 @@ pub trait Solution : Sized + Clone + Ord {
 /// assert_eq!( sol0.get_decision( 1 ), None );
 /// assert_eq!( sol0.get_decision( 2 ), None );
 /// assert_eq!( sol0.get_decision( 3 ), None );
-///
 /// sol2.make_decision( 0, true );
 /// sol2.make_decision( 1, false );
 /// sol2.make_decision( 2, true );
@@ -113,6 +117,8 @@ impl PartialOrd for TwoSampleSolution {
 impl Solution for TwoSampleSolution {
 
     type ScoreType = ScoreType;
+
+    fn name ( & self )  -> &'static str { "TwoSampleSolution"  }
 
     fn new(     size: usize ) -> Self {
         assert!( size <= NUM_BITS );

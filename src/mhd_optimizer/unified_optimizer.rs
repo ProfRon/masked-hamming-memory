@@ -11,8 +11,8 @@ use ::mhd_optimizer::{ Solver };
 use ::mhd_optimizer::Problem;
 
 use std::time::{Duration, Instant};
-use std::fs::File;
-use std::io::prelude::*;
+use std::io::prelude::*; // for writeln! (write_fmt)
+use std::fs::{ File, OpenOptions };
 use std::error::Error;
 
 pub fn find_best_solution< Sol  : Solution,
@@ -22,19 +22,19 @@ pub fn find_best_solution< Sol  : Solution,
                            problem    : & Prob,
                            time_limit : Duration ) -> Result< Sol, Box<dyn Error> >{
 
-    let filename = "trace.csv";
-    let mut csv_file = File::create( filename )?;
+    let mut microtrace_file = File::create( "microtrace.csv" )
+                                         .expect( "Could not open microtrace.csv");
 
-    writeln!( csv_file, "time; visitations; queue size; score; upper bound" )?; // FIVE fields!
+    writeln!( microtrace_file, "time; visitations; queue size; score; upper bound" )?; // FIVE fields!
 
-    let start_time = Instant::now();
+    let mut start_time = Instant::now();
 
     // define some solution to be "best-so-far"
     let mut num_visitations : i64 = 1;
     let mut best_solution = problem.random_solution( );
     trace!( "Optimizer initializes BEST score {}! after {} visitations",
             best_solution.get_score(), num_visitations );
-    writeln!( csv_file, "{}; {}; {}; {}; {}" , // FIVE fields!
+    writeln!( microtrace_file, "{}; {}; {}; {}; {}" , // FIVE fields!
                           start_time.elapsed().as_nanos(),
                           num_visitations,
                           solver.number_of_solutions(),
@@ -55,16 +55,20 @@ pub fn find_best_solution< Sol  : Solution,
 
         if problem.solution_is_complete( & next_solution ) {
             if problem.better_than( & next_solution, & best_solution ) {
+                // record new best solution.
                 best_solution = next_solution.clone();
                 // record new best solution as trace and as a line in trace.csv
                 trace!( "Optimizer finds new BEST score {}! after {} visitations",
                         best_solution.get_score(), num_visitations );
-                writeln!( csv_file, "{}; {}; {}; {}; {}" , // FIVE fields!
+                writeln!( microtrace_file, "{}; {}; {}; {}; {}" , // FIVE fields!
                           start_time.elapsed().as_nanos(),
                           num_visitations,
                           solver.number_of_solutions(),
                           best_solution.get_score(),
                           best_solution.get_best_score() )?;
+                // Reset timer!
+                // That means we exit if we go for time_limit without a new best solution!
+                start_time = Instant::now();
             }; // end if new solution better than old
         }; // endif next_solution has a score
 
@@ -79,17 +83,33 @@ pub fn find_best_solution< Sol  : Solution,
             || time_limit <= start_time.elapsed( )  {
             info!( "Solver is finished! Unfinished work = {}, visitations = {}, time taken? {:?}",
                    solver.number_of_solutions(), num_visitations, start_time.elapsed( ) );
-            writeln!( csv_file, "{}; {}; {}; {}; {}" , // FIVE fields!
-                      start_time.elapsed().as_nanos(),
-                      num_visitations,
-                      solver.number_of_solutions(),
-                      best_solution.get_score(),
-                      best_solution.get_best_score(),
-                    )?;
             break best_solution;
         }; // end if terminating
 
     };// end loop
+
+    writeln!( microtrace_file, "{}; {}; {}; {}; {}" , // FIVE fields!
+              start_time.elapsed().as_nanos(),
+              num_visitations,
+              solver.number_of_solutions(),
+              result.get_score(),
+              result.get_best_score(),
+            )?;
+
+    let mut macrotrace_file = OpenOptions::new().append(true)
+                                                     .create(true)
+                                                     .open("macrotrace.csv")
+                                                     .expect( "Could not open macrotrace.csv");
+    writeln!( macrotrace_file, "\"{}\", \"{}\", \"{}\", {}; {}; {}; {}; {}" , // EIGHT fields!
+              result.name(),
+              solver.name(),
+              problem.name(),
+              start_time.elapsed().as_nanos(),
+              num_visitations,
+              solver.number_of_solutions(),
+              result.get_score(),
+              result.get_best_score(),
+            )?;
 
     return Ok( result );
 

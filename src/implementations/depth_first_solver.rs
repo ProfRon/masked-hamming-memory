@@ -60,6 +60,7 @@ pub struct DepthFirstSolver {
 impl Solver<TwoSampleSolution> for DepthFirstSolver {
 
     // type Sol = TwoSampleSolution;
+    fn name ( & self )  -> &'static str { "DepthFirstSolver "  }
 
     fn new(  _: usize ) -> Self {
         Self {

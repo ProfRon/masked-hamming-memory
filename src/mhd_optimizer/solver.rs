@@ -8,6 +8,10 @@ pub trait Solver< Sol : Solution >{
     // First, one "associated type"
     // type Sol = S;
 
+    // every instance of this struct should have a descriptive name (for tracing, debugging)
+    // TO DO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
+    fn name ( & self )  -> &'static str;
+
     // Constructors
 
     fn new(     size: usize ) -> Self;

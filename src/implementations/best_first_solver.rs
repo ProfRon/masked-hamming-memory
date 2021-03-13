@@ -18,6 +18,8 @@ pub struct BestFirstSolver {
 
 impl Solver<TwoSampleSolution> for BestFirstSolver {
 
+    fn name ( & self )  -> &'static str { "BestFirstSolver"  }
+
     fn new(  _: usize ) -> Self {
         Self {
             solutions : BinaryHeap::new( )
