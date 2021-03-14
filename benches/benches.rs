@@ -13,20 +13,20 @@ use std::time::Duration;
 fn bench_optimization< Sol  : Solution,
                        Solv : Solver< Sol >,
                        Prob : Problem< Sol > >
-                     ( time_limit : Duration,
-                       problem    : & Prob,
+                     ( problem    : & Prob,
                        solver     : & mut Solv  ) {
 
     solver.clear();
 
-    let _ = black_box(
-                    find_best_solution( solver, problem, time_limit )
+    let the_best = black_box(
+                    find_best_solution( solver, problem,
+                                               Duration::from_secs_f32( 2.5 ) )
                         .expect("could not find best solution on bench") );
 
-    // let best_score = the_best.get_score();
+    let best_score = the_best.get_score();
     // assert!( ZERO_SCORE < best_score );
-    // assert_eq!( best_score, problem.solution_score( & the_best ));
-    // assert_eq!( best_score, problem.solution_best_score( & the_best ));
+    assert_eq!( best_score, problem.solution_score(      & the_best ));
+    assert_eq!( best_score, problem.solution_best_score( & the_best ));
 }
 
 // The following code is from
@@ -36,8 +36,6 @@ fn bench_optimization< Sol  : Solution,
 
 use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, BenchmarkGroup, black_box};
 use criterion::measurement::WallTime;
-
-const TIME_LIMIT: Duration = Duration::from_millis( 3_142 ); // roughly pi seconds
 
 fn bench_one_combo< Sol  : Solution,
                     Solv : Solver< Sol >,
@@ -53,7 +51,7 @@ fn bench_one_combo< Sol  : Solution,
 
     group.bench_function ( BenchmarkId::new(prefix, bench_name ),
                            |b| b.iter(
-                               || bench_optimization( TIME_LIMIT, problem, solver )
+                               || bench_optimization( problem, solver )
                            ));
 
 }
@@ -91,12 +89,12 @@ fn bench_sizes( c: &mut Criterion ) {
 
     let mut group = c.benchmark_group( "Optimization Benches" );
 
-    group.measurement_time( TIME_LIMIT + Duration::from_millis( 250 ) ); // size in seconds
+    group.sample_size( 32 ); // less than default 100
+    // group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
+
+    group.measurement_time( Duration::from_secs( 8 ) ); // size in seconds
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
-
-    group.sample_size( 50 ); // less than default 100 ?!?
-    // group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
 
     for bits in [ 4, 8, 16, 32, 64, 128, 256, 1024 ].iter() {
         bench_one_size( & mut group, *bits );

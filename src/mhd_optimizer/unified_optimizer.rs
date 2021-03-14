@@ -34,12 +34,6 @@ pub fn find_best_solution< Sol  : Solution,
     let mut best_solution = problem.random_solution( );
     trace!( "Optimizer initializes BEST score {}! after {} visitations",
             best_solution.get_score(), num_visitations );
-    writeln!( microtrace_file, "{}; {}; {}; {}; {}" , // FIVE fields!
-                          start_time.elapsed().as_nanos(),
-                          num_visitations,
-                          solver.number_of_solutions(),
-                          best_solution.get_score(),
-                          best_solution.get_best_score() )?;
 
     // start at the root of the tree
     debug_assert!( solver.is_empty() );
@@ -60,17 +54,22 @@ pub fn find_best_solution< Sol  : Solution,
                 // record new best solution as trace and as a line in trace.csv
                 trace!( "Optimizer finds new BEST score {}! after {} visitations",
                         best_solution.get_score(), num_visitations );
-                writeln!( microtrace_file, "{}; {}; {}; {}; {}" , // FIVE fields!
-                          start_time.elapsed().as_nanos(),
-                          num_visitations,
-                          solver.number_of_solutions(),
-                          best_solution.get_score(),
-                          best_solution.get_best_score() )?;
                 // Reset timer!
                 // That means we exit if we go for time_limit without a new best solution!
                 start_time = Instant::now();
             }; // end if new solution better than old
         }; // endif next_solution has a score
+
+        if 0 == num_visitations % 16 { // every 16 vistiations
+            writeln!( microtrace_file, "{}; {}; {}; {}; {}; {}" , // SIX fields!
+                      start_time.elapsed().as_nanos(),
+                      num_visitations,
+                      solver.number_of_solutions(),
+                      next_solution.get_score(),
+                      next_solution.get_best_score(),
+                      best_solution.get_score(),
+            )?;
+        } // end every 16 vistiations
 
         // BOUND
         if problem.can_be_better_than( & next_solution, & best_solution ) {
@@ -88,13 +87,14 @@ pub fn find_best_solution< Sol  : Solution,
 
     };// end loop
 
-    writeln!( microtrace_file, "{}; {}; {}; {}; {}" , // FIVE fields!
+    writeln!( microtrace_file, "{}; {}; {}; {}; {}; {}" , // SIX fields!
               start_time.elapsed().as_nanos(),
               num_visitations,
               solver.number_of_solutions(),
               result.get_score(),
               result.get_best_score(),
-            )?;
+              result.get_score(),
+    )?;
 
     let mut macrotrace_file = OpenOptions::new().append(true)
                                                      .create(true)

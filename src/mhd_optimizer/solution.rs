@@ -2,11 +2,13 @@
 /// ## The Solution Trait
 ///
 
-pub trait Solution : Sized + Clone + Ord {
+use std::fmt::{Debug, Display};
+
+pub trait Solution : Sized + Clone + Ord + Debug {
 
     // First, an "associated type"
     // Compare <file:///home/ron/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/share/doc/rust/html/book/ch19-03-advanced-traits.html>
-    type ScoreType : PartialOrd + Display;
+    type ScoreType : PartialOrd + Debug + Display;
 
     // every instance of this struct should have a descriptive name (for tracing, debugging)
     // TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
@@ -78,7 +80,7 @@ pub trait Solution : Sized + Clone + Ord {
 /// ```
 
 use ::mhd_method::sample::{Sample, ScoreType, NUM_BITS };
-use std::fmt::Display; // Not used: NUM_BYTES
+// use std::fmt::Display <-- Already imported, above
 use std::cmp::Ordering;
 
 #[derive(Debug,Clone)]
