@@ -8,6 +8,8 @@ use mhd_mem::implementations::*;
 
 use std::time::Duration;
 
+// inline because https://bheisler.github.io/criterion.rs/book/getting_started.html
+#[inline]
 fn bench_optimization< Sol  : Solution,
                        Solv : Solver< Sol >,
                        Prob : Problem< Sol > >
@@ -15,14 +17,11 @@ fn bench_optimization< Sol  : Solution,
                        problem    : & Prob,
                        solver     : & mut Solv  ) {
 
-    assert!( solver.is_empty(),  "Will not bench solver which is not empty" );
-    assert!( problem.is_legal(), "Will not bench problem which is illegal" );
+    solver.clear();
 
-    let the_best = find_best_solution( solver, problem, time_limit )
-                                     .expect("could not find best solution on bench");
-
-    assert!( problem.solution_is_legal( & the_best ));
-    assert!( problem.solution_is_complete( & the_best ));
+    let _ = black_box(
+                    find_best_solution( solver, problem, time_limit )
+                        .expect("could not find best solution on bench") );
 
     // let best_score = the_best.get_score();
     // assert!( ZERO_SCORE < best_score );
@@ -35,72 +34,55 @@ fn bench_optimization< Sol  : Solution,
 // or (later) from
 // https://bheisler.github.io/criterion.rs/criterion/struct.BenchmarkGroup.html
 
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, BenchmarkGroup};
+use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, BenchmarkGroup, black_box};
 use criterion::measurement::WallTime;
+
+const TIME_LIMIT: Duration = Duration::from_millis( 3_142 ); // roughly pi seconds
+
+fn bench_one_combo< Sol  : Solution,
+                    Solv : Solver< Sol >,
+                    Prob : Problem< Sol > >(  group   : & mut BenchmarkGroup<WallTime>,
+                                              problem : & Prob,
+                                              solver  : & mut Solv,
+                                              size    : usize ) {
+
+    assert!( problem.is_legal(),   "illegal {} knapsack size {}", problem.name(), size );
+
+    let prefix= format!( "Bench {} bits", size );
+    let bench_name = format!( "{}+{}", problem.name(), solver.name() );
+
+    group.bench_function ( BenchmarkId::new(prefix, bench_name ),
+                           |b| b.iter(
+                               || bench_optimization( TIME_LIMIT, problem, solver )
+                           ));
+
+}
 
 fn bench_one_size(  group : & mut BenchmarkGroup<WallTime>,
                     size : usize ) {
 
-    let time_limit= Duration::from_secs( size as u64 - 2 );
-    group.measurement_time( time_limit ); // size in seconds
-
-    // actually, we should take something of "big O" O(2^size),
-    // but who has the patience?!?
 
     // First one problem, then another, since they are not mutable
     let problem_a = ProblemSubsetSum::random( size );
-    let prob_name = format!("{} bits, Subset Sum", size );
 
     // ...with the Depth First Solver
     let mut solver_a = DepthFirstSolver::new( size );
-    let bench_name = format!( "{}, Depth First", prob_name );
-
-    assert!( problem_a.is_legal(), "illegal subset sum knapsack size {}", size );
-    assert!( solver_a.is_empty(),  "illegal depth first solver size {}", size );
-
-    group.bench_function ( BenchmarkId::new("Optimize", bench_name ),
-                           |b| b.iter(
-                               || bench_optimization( time_limit, & problem_a, & mut solver_a )
-                           ));
+    bench_one_combo(  group, & problem_a, & mut solver_a, size );
 
     // ...and with the Best First Solver
     let mut solver_b = BestFirstSolver::new( size );
-    let bench_name = format!( "{}, Best First", prob_name );
+    bench_one_combo(  group, & problem_a, & mut solver_b, size );
 
-    assert!( problem_a.is_legal(), "illegal subset sum knapsack size {}", size );
-    assert!( solver_b.is_empty(),  "illegal best first solver size {}", size );
-
-    group.bench_function ( BenchmarkId::new("Optimize", bench_name),
-                           |b| b.iter(
-                               || bench_optimization( time_limit, & problem_a, & mut solver_b )
-                           ));
     // First one problem, then another, since they are not mutable
     let problem_b = Problem01Knapsack::random( size );
-    let prob_name = format!("{} bits, 01 Knapsack", size );
 
     // ...with the Depth First Solver
     let mut solver_c = DepthFirstSolver::new( size );
-    let bench_name = format!( "{}/Depth First", prob_name );
-
-    assert!( problem_b.is_legal(), "illegal subset 01 knapsack size {}", size );
-    assert!( solver_c.is_empty(),  "illegal depth first solver size {}", size  );
-
-    group.bench_function ( BenchmarkId::new("Optimize", bench_name ),
-                           |b| b.iter(
-                               || bench_optimization( time_limit, & problem_b, & mut solver_c )
-                           ));
+    bench_one_combo(  group, & problem_b, & mut solver_c, size );
 
     // ...and with the Best First Solver
     let mut solver_d = BestFirstSolver::new( size );
-    let bench_name = format!( "{}/Best First", prob_name );
-
-    assert!( problem_b.is_legal(), "illegal subset 01 knapsack size {}", size );
-    assert!( solver_d.is_empty(),  "illegal best first solver size {}", size  );
-
-    group.bench_function ( BenchmarkId::new("Optimize", bench_name),
-                           |b| b.iter(
-                               || bench_optimization( time_limit, & problem_b, & mut solver_d )
-                           ));
+    bench_one_combo(  group, & problem_b, & mut solver_d, size );
 
 
 }
@@ -109,7 +91,14 @@ fn bench_sizes( c: &mut Criterion ) {
 
     let mut group = c.benchmark_group( "Optimization Benches" );
 
-    for bits in [ 4, 5, 6, 8, 10, 12, 14, 16 ].iter() {
+    group.measurement_time( TIME_LIMIT + Duration::from_millis( 250 ) ); // size in seconds
+    // actually, we should take something of "big O" O(2^size),
+    // but who has the patience?!?
+
+    group.sample_size( 50 ); // less than default 100 ?!?
+    // group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
+
+    for bits in [ 4, 8, 16, 32, 64, 128, 256, 1024 ].iter() {
         bench_one_size( & mut group, *bits );
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));

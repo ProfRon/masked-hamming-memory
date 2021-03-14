@@ -76,12 +76,51 @@ impl Solver<TwoSampleSolution> for DepthFirstSolver {
     fn is_empty( & self ) -> bool {
         self.solutions.is_empty( )
     }
+    fn clear( & mut self ) { self.solutions.clear() }
 
     fn push( & mut self, solution : TwoSampleSolution ) {
         self.solutions.push( solution );
     }
     fn pop( & mut self ) -> Option< TwoSampleSolution > {
         self.solutions.pop( )
+    }
+
+}
+
+///////////////////// TESTs for DepthFirstSolver /////////////////////
+#[cfg(test)]
+mod more_tests {
+    use super::*;
+    use ::mhd_optimizer::Solution;
+
+    const NUM_DECISIONS: usize = 64; // for a start
+
+
+    #[test]
+    fn test_depth_first_solver_solver() {
+        let mut solver = DepthFirstSolver::new(NUM_DECISIONS);
+        assert!(solver.is_empty());
+        let solution = TwoSampleSolution::random(NUM_DECISIONS);
+        solver.push(solution);
+        assert!(!solver.is_empty());
+        assert_eq!(solver.number_of_solutions(), 1);
+        let solution = TwoSampleSolution::random(NUM_DECISIONS);
+        solver.push(solution);
+        assert_eq!(solver.number_of_solutions(), 2);
+
+        let _ = solver.pop();
+        assert_eq!(solver.number_of_solutions(), 1);
+        let _ = solver.pop();
+        assert!(solver.is_empty());
+
+        // Try again, to test clear
+        let solution = TwoSampleSolution::random(NUM_DECISIONS);
+        solver.push(solution);
+        let solution = TwoSampleSolution::random(NUM_DECISIONS);
+        solver.push(solution);
+        assert_eq!(solver.number_of_solutions(), 2);
+        solver.clear();
+        assert!(solver.is_empty());
     }
 
 }

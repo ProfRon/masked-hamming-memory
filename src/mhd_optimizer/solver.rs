@@ -22,6 +22,7 @@ pub trait Solver< Sol : Solution >{
     fn is_empty( & self ) -> bool {
         0 == self.number_of_solutions( )
     }
+    fn clear( & mut self ); // empty out (if not already empty) like std::vec::clear()
 
     fn push( & mut self, solution : Sol );
     fn pop( & mut self ) -> Option< Sol >;
