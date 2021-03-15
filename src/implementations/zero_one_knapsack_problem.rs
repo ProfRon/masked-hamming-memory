@@ -100,8 +100,8 @@ impl Problem< TwoSampleSolution > for Problem01Knapsack {
         ////  They are not independant: The 2nd makes no sense without the first, so either none,
         ////  just the first or both. See below for experimental results.
         // Sort weights
-        self.values.sort_unstable();
-        self.values.reverse();
+        // self.values.sort_unstable();
+        // self.values.reverse();
 
         assert!( num_bits == self.values.len(), "Value size changed in sort?!?");
 
@@ -110,14 +110,12 @@ impl Problem< TwoSampleSolution > for Problem01Knapsack {
 
     fn is_legal( & self ) -> bool {
         // Note: We're NOT testing whether a solution is legal (we do that below),
-        // We're testing if a PROBLEM is non-trivial: if neither the empty knapsack
-        // nor the knapsack with ALL items are obviously optimal solutions.
-        // Note: By definition, the default knapsack is ILLEGAL since all weights are zero, etc.
-        let num_bits = self.problem_size( );
-        return self.sack.is_legal()
-               && ( 0 < self.values[0] )
-               && ( 0 < self.values[num_bits-1] )
-               && ( self.values[num_bits-1] <= self.values[0] ); // Change if not reversing sort
+        // We're testing if a PROBLEM is OK. 
+        // The subset sum part must be legal -- and then the values too...
+        return self.sack.is_legal() 
+               && (self.problem_size( ) == self.values.len() )
+               &&  self.values.iter().all(|&v| 0 < v ) // 0 < values[v] for all v in values
+
     }
 
 
@@ -354,3 +352,28 @@ mod tests {
 
 
 } // end mod tests
+
+/////////// Extra File Input Methods
+
+// Known file formats : ~/src/clones/knapsack/inst/*.dat
+//                      -- one problem per line, many problems per file
+//                      -- solutions in ~/src/clones/knapsack/sol/*.dat
+//
+//                      ~/src/clones/kplib/*/*/*.kp
+//                      - one problem per file; many, many files
+//                      - no solutions, I believe
+//
+//                      ~/src/treeless-mctlsolver/Problems/Knapsack/unicauca_mps/*/*.mps
+//                      -- Problems in mps format :-(
+//                      ~/src/treeless-mctlsolver/Problems/Knapsack/unicauca/*/*
+//                      -- Problems in simple text format
+//                      -- NO file extension!
+//                      -- Optima (values only) in Problems/Knapsack/unicauca/*-optimum/*
+//                      -- Best solution in problem file?!?
+//                      -- Where are the capacities?!?
+//
+//                      ~/Documents/Forschung/PraxUndForsch2021/pisinger-knapsacks/*/*.csv
+//                      -- Problems in quasi free text format -- NOT COMMA seperated!
+//                      -- See Readme.txt in each directory for format! (All 3 readmes identical)
+//                      -- More than one problem per file
+//                      -- Optima solution supplied in third column (!) ... also time for comparison

@@ -25,13 +25,16 @@ pub fn find_best_solution< Sol  : Solution,
     let mut microtrace_file = File::create( "microtrace.csv" )
                                          .expect( "Could not open microtrace.csv");
 
-    writeln!( microtrace_file, "time; visitations; queue size; score; upper bound" )?; // FIVE fields!
+    writeln!( microtrace_file, "nanoseconds; visitations; queue size; current score; current bound; best score" )?; 
+    // SIX fields!
 
     let mut start_time = Instant::now();
 
     // define some solution to be "best-so-far"
     let mut num_visitations : i64 = 1;
     let mut best_solution = problem.random_solution( );
+    assert!( problem.solution_is_complete( & best_solution ) );
+    assert!( problem.solution_is_legal(    & best_solution ) );
     trace!( "Optimizer initializes BEST score {}! after {} visitations",
             best_solution.get_score(), num_visitations );
 
@@ -60,7 +63,7 @@ pub fn find_best_solution< Sol  : Solution,
             }; // end if new solution better than old
         }; // endif next_solution has a score
 
-        if 0 == num_visitations % 16 { // every 16 vistiations
+        if 0 == num_visitations % 32 { // every so many vistiations
             writeln!( microtrace_file, "{}; {}; {}; {}; {}; {}" , // SIX fields!
                       start_time.elapsed().as_nanos(),
                       num_visitations,

@@ -20,7 +20,7 @@ fn bench_optimization< Sol  : Solution,
 
     let the_best = black_box(
                     find_best_solution( solver, problem,
-                                               Duration::from_secs_f32( 2.5 ) )
+                                               Duration::from_secs_f32( 0.5 ) )
                         .expect("could not find best solution on bench") );
 
     let best_score = the_best.get_score();
@@ -92,11 +92,11 @@ fn bench_sizes( c: &mut Criterion ) {
     group.sample_size( 32 ); // less than default 100
     // group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
 
-    group.measurement_time( Duration::from_secs( 8 ) ); // size in seconds
+    // group.measurement_time( Duration::from_secs_f32( 61.0 ) ); // 30 * 2 = 6ß
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
-    for bits in [ 4, 8, 16, 32, 64, 128, 256, 1024 ].iter() {
+    for bits in [ 4, 8, 16, 32, 64, 128, 256, 512, 1024 ].iter() {
         bench_one_size( & mut group, *bits );
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));
