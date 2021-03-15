@@ -60,7 +60,7 @@ impl MHDMemory {
     }
 
     pub fn num_samples(&self) -> usize {
-        return self.samples.len();
+        self.samples.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -118,7 +118,7 @@ impl MHDMemory {
             "sum of scores = {}, sum of weights =  {}, result = {}",
             score_sum, weight_sum, result
         );
-        return result as ScoreType;
+        result as ScoreType
     } // end maked_read
 
     pub fn write_random_sample(&mut self) {

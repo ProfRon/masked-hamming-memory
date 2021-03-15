@@ -31,7 +31,8 @@ impl ProblemSubsetSum {
                 return Some(index);
             };
         } // end for all bits
-        return None;
+          // if we get here, return....
+        None
     }
 
     pub fn make_implicit_decisions(&self, sol: &mut TwoSampleSolution) {
@@ -79,7 +80,7 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
     // fn random( size : usize ) -> Self -- take the default implementation
 
     fn problem_size(&self) -> usize {
-        return self.weights.len();
+        self.weights.len()
     }
 
     fn randomize(&mut self) {
@@ -150,7 +151,7 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
                 result += self.weights[index];
             };
         } // end for all bits
-        return result as ScoreType;
+        result as ScoreType
     } // end solution_is_legal
 
     fn solution_best_score(&self, solution: &TwoSampleSolution) -> ScoreType {
@@ -172,7 +173,7 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
         assert!(
             !self.solution_is_complete(&solution) || (self.solution_score(&solution) == result)
         );
-        return result;
+        result
     }
 
     fn solution_is_legal(&self, solution: &TwoSampleSolution) -> bool {
@@ -182,13 +183,12 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
         // if solution.mask.len() < num_decisions      return false;
         // if solution.decisions.len() < num_decisions return false;
         // and then check capacity anyway...
-        return (self.problem_size() <= NUM_BITS)
-            && (self.solution_score(solution) <= self.capacity);
+        (self.problem_size() <= NUM_BITS) && (self.solution_score(solution) <= self.capacity)
     } // end solution_is_legal
 
     fn solution_is_complete(&self, solution: &TwoSampleSolution) -> bool {
         assert!(self.solution_is_legal(&solution));
-        return None == self.first_open_decision(solution);
+        None == self.first_open_decision(solution)
     } // end solution_is_complete
 
     fn random_solution(&self) -> TwoSampleSolution {
@@ -225,7 +225,7 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
 
         assert!(self.solution_is_legal(&result));
 
-        return result;
+        result
     }
 
     fn starting_solution(&self) -> TwoSampleSolution {
@@ -242,7 +242,7 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
         result.put_best_score(self.capacity);
 
         assert!(self.solution_is_legal(&result));
-        return result;
+        result
     }
 
     // At first, we used the default implementations of:

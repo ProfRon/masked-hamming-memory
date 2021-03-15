@@ -232,7 +232,7 @@ pub fn truncated_distance(masked_bits: u64, left: &[u8], right: &[u8]) -> u64 {
     let mask: u8 = ((0xFF00 >> remainder_bits) & 0xFF) as u8;
 
     assert!(num_mask_bytes < left.len()); // so it's safe to reference left[numberMaskBytes]
-    return subtotal + (mask & (left[num_mask_bytes] ^ right[num_mask_bytes])).count_ones() as u64;
+    subtotal + (mask & (left[num_mask_bytes] ^ right[num_mask_bytes])).count_ones() as u64
 }
 
 // TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS

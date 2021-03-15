@@ -3,6 +3,8 @@ use core::{mem, slice};
 /// Reinterpret as much of `x` as a slice of (correctly aligned) `U`s
 /// as possible. (Same as `slice::align_to` but available in earlier
 /// compilers.)
+/// # Safety
+/// Tricky, this...
 #[inline(never)] // critical for autovectorization in `weight`.
 pub unsafe fn align_to<T, U>(x: &[T]) -> (&[T], &[U], &[T]) {
     let orig_size = mem::size_of::<T>();

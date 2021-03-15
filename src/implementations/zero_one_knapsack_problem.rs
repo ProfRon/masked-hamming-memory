@@ -77,7 +77,7 @@ impl Problem<TwoSampleSolution> for Problem01Knapsack {
     // fn random( size : usize ) -> Self -- take the default implementation
 
     fn problem_size(&self) -> usize {
-        return self.values.len();
+        self.values.len()
     }
 
     fn randomize(&mut self) {
@@ -133,7 +133,7 @@ impl Problem<TwoSampleSolution> for Problem01Knapsack {
                 result += self.values[index];
             };
         } // end for all bits
-        return result as ScoreType;
+        result as ScoreType
     } // end solution_is_legal
 
     fn solution_best_score(&self, solution: &TwoSampleSolution) -> ScoreType {
@@ -150,7 +150,7 @@ impl Problem<TwoSampleSolution> for Problem01Knapsack {
         assert!(
             !self.solution_is_complete(&solution) || (self.solution_score(&solution) == result)
         );
-        return result;
+        result
     }
 
     fn solution_is_legal(&self, solution: &TwoSampleSolution) -> bool {
@@ -171,7 +171,7 @@ impl Problem<TwoSampleSolution> for Problem01Knapsack {
         result.put_best_score(self.solution_best_score(&result));
 
         assert!(self.solution_is_legal(&result));
-        return result;
+        result
     }
 
     fn starting_solution(&self) -> TwoSampleSolution {
@@ -186,7 +186,7 @@ impl Problem<TwoSampleSolution> for Problem01Knapsack {
         result.put_best_score(self.values_sum());
 
         assert!(self.solution_is_legal(&result));
-        return result;
+        result
     }
 
     fn better_than(

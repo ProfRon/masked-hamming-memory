@@ -56,21 +56,21 @@ pub fn find_best_solution<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
             num_visitations
         );
 
-        if problem.solution_is_complete(&next_solution) {
-            if problem.better_than(&next_solution, &best_solution) {
-                // record new best solution.
-                best_solution = next_solution.clone();
-                // record new best solution as trace and as a line in trace.csv
-                trace!(
-                    "Optimizer finds new BEST score {}! after {} visitations",
-                    best_solution.get_score(),
-                    num_visitations
-                );
-                // Reset timer!
-                // That means we exit if we go for time_limit without a new best solution!
-                start_time = Instant::now();
-            }; // end if new solution better than old
-        }; // endif next_solution has a score
+        if problem.solution_is_complete(&next_solution)
+            && problem.better_than(&next_solution, &best_solution)
+        {
+            // record new best solution.
+            best_solution = next_solution.clone();
+            // record new best solution as trace and as a line in trace.csv
+            trace!(
+                "Optimizer finds new BEST score {}! after {} visitations",
+                best_solution.get_score(),
+                num_visitations
+            );
+            // Reset timer!
+            // That means we exit if we go for time_limit without a new best solution!
+            start_time = Instant::now();
+        }; // end solution complete and better than old best solution
 
         if 0 == num_visitations % 32 {
             // every so many vistiations
@@ -133,5 +133,5 @@ pub fn find_best_solution<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
         result.get_best_score(),
     )?;
 
-    return Ok(result);
+    Ok(result)
 } // end find_best_solution
