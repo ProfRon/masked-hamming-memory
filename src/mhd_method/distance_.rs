@@ -1,15 +1,17 @@
 /// # The Masked Hamming Distance Functions
 ///
 
-fn naive(mask:&[u8], x: &[u8], y: &[u8]) -> u64 {
+fn naive(mask: &[u8], x: &[u8], y: &[u8]) -> u64 {
     assert_eq!(mask.len(), x.len());
-    assert_eq!(x.len(),    y.len());
-    mask.iter().zip( x.iter().zip(y) ).fold(0, |a, (m, (b, c)) | a + (*m & (*b ^ *c)).count_ones() as u64)
+    assert_eq!(x.len(), y.len());
+    mask.iter()
+        .zip(x.iter().zip(y))
+        .fold(0, |a, (m, (b, c))| a + (*m & (*b ^ *c)).count_ones() as u64)
 }
 
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
 pub struct DistanceError {
-    _x: ()
+    _x: (),
 }
 
 /// Computes the bitwise **Masked Hamming distance**
@@ -18,7 +20,7 @@ pub struct DistanceError {
 /// ... counting only the differing bits that are also 1 in the mask (!).
 ///
 /// The text below ignores the use of the mask. Keep that in mind.
-/// 
+///
 /// This is a highly optimised version of the following naive version:
 ///
 /// ```rust
@@ -72,7 +74,7 @@ pub struct DistanceError {
 /// assert!(mhd_mem::mhd_method::distance_fast(&m[1..], &x[..999], &y[..999]).is_err());
 /// ```
 pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceError> {
-    assert_eq!(x.len(),    y.len());
+    assert_eq!(x.len(), y.len());
     assert_eq!(mask.len(), y.len());
 
     const M1: u64 = 0x5555555555555555;
@@ -83,15 +85,9 @@ pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceErr
     type T30 = [u64; 30];
 
     // can't fit a single T30 in
-    let (head0, thirty0, tail0) = unsafe {
-        super::util::align_to::<_, T30>(mask)
-    };
-   let (head1, thirty1, tail1) = unsafe {
-       super::util::align_to::<_, T30>(x)
-    };
-    let (head2, thirty2, tail2) = unsafe {
-        super::util::align_to::<_, T30>(y)
-    };
+    let (head0, thirty0, tail0) = unsafe { super::util::align_to::<_, T30>(mask) };
+    let (head1, thirty1, tail1) = unsafe { super::util::align_to::<_, T30>(x) };
+    let (head2, thirty2, tail2) = unsafe { super::util::align_to::<_, T30>(y) };
 
     if (head1.len() != head2.len()) || (head0.len() != head1.len()) {
         // The arrays required different shift amounts, so we can't
@@ -104,19 +100,16 @@ pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceErr
 
     // do the nonaligned stuff at the head and tail the hard way...
     let mut count = naive(head0, head1, head2) + naive(tail0, tail1, tail2);
-    
+
     // now do the aligned stuff in the middle...
-    for ( mask_array, 
-         (array1, array2) ) in thirty0.iter()
-                                      .zip( thirty1.iter()
-                                                   .zip(thirty2) ) {
+    for (mask_array, (array1, array2)) in thirty0.iter().zip(thirty1.iter().zip(thirty2)) {
         let mut acc = 0;
         for j_ in 0..10 {
             let j = j_ * 3;
             // Next 3 lines were all we had to modify for masking!
-            let mut count1 = mask_array[j]   & (array1[j]   ^ array2[j]  );
-            let mut count2 = mask_array[j+1] & (array1[j+1] ^ array2[j+1]);
-            let mut half1  = mask_array[j+1] & (array1[j+2] ^ array2[j+2]);
+            let mut count1 = mask_array[j] & (array1[j] ^ array2[j]);
+            let mut count2 = mask_array[j + 1] & (array1[j + 1] ^ array2[j + 1]);
+            let mut half1 = mask_array[j + 1] & (array1[j + 2] ^ array2[j + 2]);
             let mut half2 = half1;
             half1 &= M1;
             half2 = (half2 >> 1) & M1;
@@ -129,8 +122,8 @@ pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceErr
             acc += (count1 & M4) + ((count1 >> 4) & M4);
         }
         acc = (acc & M8) + ((acc >> 8) & M8);
-        acc =  acc       +  (acc >> 16);
-        acc =  acc       +  (acc >> 32);
+        acc = acc + (acc >> 16);
+        acc = acc + (acc >> 32);
         count += acc & 0xFFFF;
     }
     Ok(count)
@@ -209,21 +202,20 @@ pub fn distance(mask: &[u8], x: &[u8], y: &[u8]) -> u64 {
 /// assert_eq!( 14, mhd_mem::mhd_method::truncated_distance( 14, &lvec, &rvec ) );
 /// ```
 
-pub fn truncated_distance( masked_bits: u64, left: &[u8], right: &[u8]) -> u64 {
+pub fn truncated_distance(masked_bits: u64, left: &[u8], right: &[u8]) -> u64 {
+    assert_eq!(left.len(), right.len());
 
-    assert_eq!( left.len(), right.len() );
-
-    let num_mask_bytes  = (masked_bits / 8) as usize;
+    let num_mask_bytes = (masked_bits / 8) as usize;
     let remainder_bits = masked_bits % 8;
 
-    assert!( num_mask_bytes <= left.len() ); // where left.len() == right.len()
+    assert!(num_mask_bytes <= left.len()); // where left.len() == right.len()
 
     // Turn left and right into slices
-    let left_slice =  &left[0..num_mask_bytes];
+    let left_slice = &left[0..num_mask_bytes];
     let right_slice = &right[0..num_mask_bytes];
 
     // First, byte-wise...
-    let subtotal = hamming::distance( &left_slice, &right_slice );
+    let subtotal = hamming::distance(&left_slice, &right_slice);
 
     // Finally, bit-wise (for the remaining bits in the last byte, if any)
 
@@ -237,13 +229,11 @@ pub fn truncated_distance( masked_bits: u64, left: &[u8], right: &[u8]) -> u64 {
     // i.e. the mask for bit 0 is 128, the mask for bit 1 is 64, for bit 2 is 32...
     // ... for bit 6 is 2 and for bit 7 is 1.
 
-    let mask : u8 = ((0xFF00 >> remainder_bits) & 0xFF) as u8;
+    let mask: u8 = ((0xFF00 >> remainder_bits) & 0xFF) as u8;
 
-    assert!( num_mask_bytes < left.len() ); // so it's safe to reference left[numberMaskBytes]
+    assert!(num_mask_bytes < left.len()); // so it's safe to reference left[numberMaskBytes]
     return subtotal + (mask & (left[num_mask_bytes] ^ right[num_mask_bytes])).count_ones() as u64;
-
 }
-
 
 // TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS TESTS
 
@@ -252,54 +242,56 @@ mod tests {
     #[test]
     fn naive_smoke() {
         let tests: &[(&[u8], &[u8], &[u8], u64)] = &[
-            (&[],       &[],        &[],        0),
-            (&[0],      &[0],       &[0],       0),
-            (&[0x0F],   &[0],       &[0xFF],    4),
+            (&[], &[], &[], 0),
+            (&[0], &[0], &[0], 0),
+            (&[0x0F], &[0], &[0xFF], 4),
             (&[0b11111111], &[0b10101010], &[0b01010101], 8),
             (&[0b11111111], &[0b11111010], &[0b11110101], 4),
             (&[0b00001111], &[0b11111010], &[0b11110101], 4),
-            (&[0; 10],  &[0; 10],   &[0; 10],   0),
+            (&[0; 10], &[0; 10], &[0; 10], 0),
             (&[0xFF; 10], &[0xFF; 10], &[0x0F; 10], 4 * 10),
             (&[0x0F; 10], &[0xFF; 10], &[0x0F; 10], 0),
             (&[0xFF; 10000], &[0x3B; 10000], &[0x3B; 10000], 0),
             (&[0xFF; 10000], &[0x77; 10000], &[0x3B; 10000], 3 * 10000),
             (&[0x00; 10000], &[0x77; 10000], &[0x3B; 10000], 0),
-            ];
+        ];
         for &(mask, x, y, expected) in tests {
             assert_eq!(super::naive(mask, x, y), expected);
             assert_eq!(super::distance(mask, x, y), expected);
         }
     }
-//    use rand;
-//    use quickcheck as qc;
-//    #[test]
-//    fn distance_fast_qc() {
-//        fn prop(m_vec: Vec<u8>, x_vec: Vec<u8>, y_vec: Vec<u8>, misalign: u8) -> qc::TestResult {
-//            let l = ::std::cmp::min(m_vec.len(), ::std::cmp::min(x_vec.len(), y_vec.len()));
-//            if l < misalign as usize {
-//                return qc::TestResult::discard()
-//            }
-//
-//            let mask = &m_vec[misalign as usize..l];
-//            let x    = &x_vec[misalign as usize..l];
-//            let y    = &y_vec[misalign as usize..l];
-//            qc::TestResult::from_bool(super::distance_fast(mask, x, y).unwrap() == super::naive(mask, x, y))
-//        }
-//        // below, size was originally 10_000; 330 works (sometimes), 
-//        // but 333 or more takes over 60 seconds (warning)?!?
-//        qc::QuickCheck::new()
-//            .gen(qc::StdGen::new(rand::thread_rng(), 320 ))  
-//            .quickcheck(prop as fn(Vec<u8>,Vec<u8>,Vec<u8>,u8) -> qc::TestResult)
-//    }
+    //    use rand;
+    //    use quickcheck as qc;
+    //    #[test]
+    //    fn distance_fast_qc() {
+    //        fn prop(m_vec: Vec<u8>, x_vec: Vec<u8>, y_vec: Vec<u8>, misalign: u8) -> qc::TestResult {
+    //            let l = ::std::cmp::min(m_vec.len(), ::std::cmp::min(x_vec.len(), y_vec.len()));
+    //            if l < misalign as usize {
+    //                return qc::TestResult::discard()
+    //            }
+    //
+    //            let mask = &m_vec[misalign as usize..l];
+    //            let x    = &x_vec[misalign as usize..l];
+    //            let y    = &y_vec[misalign as usize..l];
+    //            qc::TestResult::from_bool(super::distance_fast(mask, x, y).unwrap() == super::naive(mask, x, y))
+    //        }
+    //        // below, size was originally 10_000; 330 works (sometimes),
+    //        // but 333 or more takes over 60 seconds (warning)?!?
+    //        qc::QuickCheck::new()
+    //            .gen(qc::StdGen::new(rand::thread_rng(), 320 ))
+    //            .quickcheck(prop as fn(Vec<u8>,Vec<u8>,Vec<u8>,u8) -> qc::TestResult)
+    //    }
     #[test]
     fn distance_fast_smoke_huge() {
-        
         let m = vec![0b1111_1111; 10234567];
         let v = vec![0b1001_1101; 10234567];
         let w = vec![0b1111_1111; v.len()];
 
         assert_eq!(super::distance_fast(&m, &v, &v).unwrap(), 0);
-        assert_eq!(super::distance_fast(&m, &v, &w).unwrap(), 3 * w.len() as u64);
+        assert_eq!(
+            super::distance_fast(&m, &v, &w).unwrap(),
+            3 * w.len() as u64
+        );
     }
     #[test]
     fn distance_smoke() {
@@ -310,38 +302,37 @@ mod tests {
             let len = len_ * 10;
             for i in 0..8 {
                 for j in 0..8 {
-                    assert_eq!(super::distance(&m[i..i+len], &v[i..i+len], &w[j..j+len]),
-                               len as u64 * 8)
+                    assert_eq!(
+                        super::distance(&m[i..i + len], &v[i..i + len], &w[j..j + len]),
+                        len as u64 * 8
+                    )
                 }
             }
         }
     }
     #[test]
     fn truncate_distance_smoke() {
-        let size : usize = 4 * 1024 * 1024;   // number of bytes in vectors
-        let v1   = vec![0xF0; size ];
-        let v2   = vec![0xFF; size ]; // so, v1 ^ v2 = 0x0F = 4 bits / byte
+        let size: usize = 4 * 1024 * 1024; // number of bytes in vectors
+        let v1 = vec![0xF0; size];
+        let v2 = vec![0xFF; size]; // so, v1 ^ v2 = 0x0F = 4 bits / byte
 
         let max_num_bytes = size as u64;
         let max_num_bits = max_num_bytes * 8;
 
         let num_bytes = (max_num_bytes - 2048) + 512 + 3; // arbitrary, but why not?
-        let num_bits = (8 * num_bytes) + 6;               // ditto...
-        let d0 = (num_bits / 2) -1; // -1 because of incomplete last byte
-        let d1    = super::truncated_distance( num_bits, &v1, &v2 );
-        assert_eq!( d0, d1 );
+        let num_bits = (8 * num_bytes) + 6; // ditto...
+        let d0 = (num_bits / 2) - 1; // -1 because of incomplete last byte
+        let d1 = super::truncated_distance(num_bits, &v1, &v2);
+        assert_eq!(d0, d1);
 
-        let other_bits = (8 * (size as u64 -1)) + 6 ;
-        let d2 = (other_bits / 2) -1; // -1 because of incomplete last byte
-        let d3      = super::truncated_distance( other_bits, &v1, &v2 );
-        assert_eq!( d2, d3 );
+        let other_bits = (8 * (size as u64 - 1)) + 6;
+        let d2 = (other_bits / 2) - 1; // -1 because of incomplete last byte
+        let d3 = super::truncated_distance(other_bits, &v1, &v2);
+        assert_eq!(d2, d3);
 
         // simple comparison using ALL bits
         let d4 = max_num_bits / 2;
-        let d5      = super::truncated_distance( max_num_bits, &v1, &v2 );
-        assert_eq!( d4, d5 );
-
-
-
+        let d5 = super::truncated_distance(max_num_bits, &v1, &v2);
+        assert_eq!(d4, d5);
     }
 }

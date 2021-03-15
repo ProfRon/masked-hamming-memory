@@ -1,41 +1,38 @@
 /// # The Unified Decision Optimization Algorithm with the MHD Memory
 /// ## The Solution Trait
 ///
-
 use std::fmt::{Debug, Display};
 
-pub trait Solution : Sized + Clone + Ord + Debug {
-
+pub trait Solution: Sized + Clone + Ord + Debug {
     // First, an "associated type"
     // Compare <file:///home/ron/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/share/doc/rust/html/book/ch19-03-advanced-traits.html>
-    type ScoreType : PartialOrd + Debug + Display;
+    type ScoreType: PartialOrd + Debug + Display;
 
     // every instance of this struct should have a descriptive name (for tracing, debugging)
     // TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
-    fn name ( & self )  -> &'static str;
+    fn name(&self) -> &'static str;
 
     // At the moment, we actually have identified no methods we need for Solutions!
     // Still, this is a safe guess...
     // Recall: size is the number of decisions to be made (free variables to assign values to).
-    fn new(     size: usize ) -> Self;
-    fn random( size : usize ) -> Self {
-        let mut result = Self::new( size );
-        result.randomize( );
+    fn new(size: usize) -> Self;
+    fn random(size: usize) -> Self {
+        let mut result = Self::new(size);
+        result.randomize();
         result
     }
 
-    fn randomize( &mut self );
+    fn randomize(&mut self);
 
     // Getters and Setters
-    fn get_score( & self  ) -> Self::ScoreType; // score is not *calculated*! Just retrieved!
-    fn put_score( & mut self, score : Self::ScoreType );
+    fn get_score(&self) -> Self::ScoreType; // score is not *calculated*! Just retrieved!
+    fn put_score(&mut self, score: Self::ScoreType);
 
-    fn get_best_score( & self  ) -> Self::ScoreType; // "upper" bound, like score, is *not calculated* (here)!
-    fn put_best_score( & mut self, best : Self::ScoreType );
+    fn get_best_score(&self) -> Self::ScoreType; // "upper" bound, like score, is *not calculated* (here)!
+    fn put_best_score(&mut self, best: Self::ScoreType);
 
-    fn get_decision( & self, decision_number : usize  ) -> Option< bool >; // Some(bool) or None
-    fn make_decision( & mut self, decision_number : usize, decision : bool ); // side effect: set mask bit (etc)
-
+    fn get_decision(&self, decision_number: usize) -> Option<bool>; // Some(bool) or None
+    fn make_decision(&mut self, decision_number: usize, decision: bool); // side effect: set mask bit (etc)
 } // end trait Solution
 
 /// ## A Very Simple but Useful Implementation of the Solution Trait
@@ -78,19 +75,18 @@ pub trait Solution : Sized + Clone + Ord + Debug {
 /// assert!( sol2 < sol3 );
 /// assert!( ! (sol2 == sol3) );
 /// ```
-
-use ::mhd_method::sample::{Sample, ScoreType, NUM_BITS };
+use mhd_method::sample::{Sample, ScoreType, NUM_BITS};
 // use std::fmt::Display <-- Already imported, above
 use std::cmp::Ordering;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct TwoSampleSolution {
-    pub mask      : Sample,  // we could have used Vec<u8> (twice) here (and saved two scores),
-    pub decisions : Sample,  // but we wouldn't have the get_bit and set_bit methods!
+    pub mask: Sample, // we could have used Vec<u8> (twice) here (and saved two scores),
+    pub decisions: Sample, // but we wouldn't have the get_bit and set_bit methods!
 }
 
 impl TwoSampleSolution {
-    pub fn estimate( & self ) -> <TwoSampleSolution as Solution>::ScoreType {
+    pub fn estimate(&self) -> <TwoSampleSolution as Solution>::ScoreType {
         (self.get_score() + self.get_best_score()) / 2
     }
 }
@@ -106,66 +102,63 @@ impl Eq for TwoSampleSolution {}
 
 impl Ord for TwoSampleSolution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.estimate( ).cmp( & other.estimate( ) )
+        self.estimate().cmp(&other.estimate())
     }
 }
 
 impl PartialOrd for TwoSampleSolution {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some( self.estimate( ).cmp( & other.estimate( ) ) )
+        Some(self.estimate().cmp(&other.estimate()))
     }
 }
 
 impl Solution for TwoSampleSolution {
-
     type ScoreType = ScoreType;
 
-    fn name ( & self )  -> &'static str { "TwoSampleSolution"  }
+    fn name(&self) -> &'static str {
+        "TwoSampleSolution"
+    }
 
-    fn new(     size: usize ) -> Self {
-        assert!( size <= NUM_BITS );
+    fn new(size: usize) -> Self {
+        assert!(size <= NUM_BITS);
         Self {
-            mask      : Sample::default(), // all zeros == no decision made yet
-            decisions : Sample::default(), // all zeros == all decisions are zero/false
+            mask: Sample::default(),      // all zeros == no decision made yet
+            decisions: Sample::default(), // all zeros == all decisions are zero/false
         }
     }
 
-    fn randomize( &mut self ) {
+    fn randomize(&mut self) {
         // Do **not** call self.mask.randomize();
-        self.decisions.randomize( );
+        self.decisions.randomize();
     }
 
     // Getters and Setters
-    fn get_score( & self  ) -> Self::ScoreType {
+    fn get_score(&self) -> Self::ScoreType {
         // score is not *calculated*! Just retrieved!
         self.decisions.score
     }
-    fn put_score( & mut self, score : Self::ScoreType ) {
+    fn put_score(&mut self, score: Self::ScoreType) {
         self.decisions.score = score;
-
     }
 
-    fn get_best_score( & self  ) -> Self::ScoreType {
+    fn get_best_score(&self) -> Self::ScoreType {
         // best score is not *calculated*! Just retrieved!
         self.mask.score
     }
-    fn put_best_score( & mut self, best : Self::ScoreType ) {
+    fn put_best_score(&mut self, best: Self::ScoreType) {
         self.mask.score = best;
     }
 
-    fn get_decision( & self, decision_number : usize  ) -> Option< bool > {
-        if self.mask.get_bit( decision_number ) {
-            Some( self.decisions.get_bit( decision_number ) )
-        } else { // if NOT self.mask.get_bit( decision_number )
+    fn get_decision(&self, decision_number: usize) -> Option<bool> {
+        if self.mask.get_bit(decision_number) {
+            Some(self.decisions.get_bit(decision_number))
+        } else {
+            // if NOT self.mask.get_bit( decision_number )
             None
         }
     }
-    fn make_decision( & mut self, decision_number : usize, decision : bool ) {
-        self.mask.set_bit(      decision_number, true );
-        self.decisions.set_bit( decision_number, decision );
+    fn make_decision(&mut self, decision_number: usize, decision: bool) {
+        self.mask.set_bit(decision_number, true);
+        self.decisions.set_bit(decision_number, decision);
     }
-
 } // end impl Soluton for TwoSampleSolution
-
-
-

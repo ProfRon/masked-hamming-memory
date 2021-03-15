@@ -56,93 +56,89 @@
 ///
 
 // Following two constants might be turned into global variables later...
-pub const NUM_BITS:  usize = 1024; // Kilobit, not yet a kilobyte....
+pub const NUM_BITS: usize = 1024; // Kilobit, not yet a kilobyte....
 pub const NUM_BYTES: usize = NUM_BITS / 8; // 8 is not really a magic number, is it?
 
 pub type ScoreType = i32; // that can change at any time, so we give it a name
 
-pub const ZERO_SCORE : ScoreType = 0;
+pub const ZERO_SCORE: ScoreType = 0;
 
-#[derive( Default, Clone, PartialEq)] // Debug implemented by hand, see below
+#[derive(Default, Clone, PartialEq)] // Debug implemented by hand, see below
 pub struct Sample {
     // pub bytes:  [u8; NUM_BYTES],
-    pub bytes : Vec< u8 >, // initially empty
-    pub score : ScoreType // we will probably change that ...
+    pub bytes: Vec<u8>,   // initially empty
+    pub score: ScoreType, // we will probably change that ...
 } // end struct Sample
 
 use rand::prelude::*;
 
 impl Sample {
-
     pub fn default() -> Self {
         Sample {
             // bytes : [0;  NUM_BYTES ],
-            bytes : vec![ 0x0; NUM_BYTES ], // start with an empty vector of bytes
-            score : ZERO_SCORE,
+            bytes: vec![0x0; NUM_BYTES], // start with an empty vector of bytes
+            score: ZERO_SCORE,
         }
     }
 
-    pub fn new( starting_score: ScoreType ) -> Self {
+    pub fn new(starting_score: ScoreType) -> Self {
         Sample {
-            score : starting_score,
-            bytes : vec![ 0x0; NUM_BYTES ], // start with an empty vector of bytes
+            score: starting_score,
+            bytes: vec![0x0; NUM_BYTES], // start with an empty vector of bytes
         }
     }
 
-    pub fn new_ones( starting_score: ScoreType ) -> Self {
+    pub fn new_ones(starting_score: ScoreType) -> Self {
         Sample {
-            score : starting_score,
-            bytes : vec![ 0xFF; NUM_BYTES ], // start with an empty vector of bytes
+            score: starting_score,
+            bytes: vec![0xFF; NUM_BYTES], // start with an empty vector of bytes
         }
     }
 
-    pub fn randomize( &mut self ) {
-        let random_byte : i8 = rand::thread_rng().gen(); // can be negative, so -128 <= rb < 128
+    pub fn randomize(&mut self) {
+        let random_byte: i8 = rand::thread_rng().gen(); // can be negative, so -128 <= rb < 128
         self.score = random_byte as ScoreType;
-        rand::thread_rng().fill_bytes( &mut self.bytes  );
+        rand::thread_rng().fill_bytes(&mut self.bytes);
     }
 
-    pub fn random( ) -> Self {
+    pub fn random() -> Self {
         let mut result = Sample::default();
         result.randomize();
         result
     }
 
-    pub fn byte_index( bit_index: usize ) -> usize {
+    pub fn byte_index(bit_index: usize) -> usize {
         let byte_index = bit_index / 8;
-        assert!( byte_index <  NUM_BYTES );
+        assert!(byte_index < NUM_BYTES);
         return byte_index;
     }
 
-    pub fn get_bit( & self, bit_index: usize ) -> bool {
+    pub fn get_bit(&self, bit_index: usize) -> bool {
+        let byte_index = Sample::byte_index(bit_index);
 
-        let byte_index = Sample::byte_index( bit_index );
-
-        let byte = self.bytes[ byte_index ];
+        let byte = self.bytes[byte_index];
         let mask_index = bit_index % 8;
         let bit_mask = 128 >> mask_index;
         return 0 != (byte & bit_mask);
     }
 
-    pub fn set_bit(&mut self, bit_index: usize, bit_value: bool ) {
-
-        let byte_index = Sample::byte_index( bit_index );
+    pub fn set_bit(&mut self, bit_index: usize, bit_value: bool) {
+        let byte_index = Sample::byte_index(bit_index);
 
         let mask_index = bit_index % 8;
         let bit_mask = 128 >> mask_index;
 
         if bit_value {
-            self.bytes[  byte_index ] |=  bit_mask;
+            self.bytes[byte_index] |= bit_mask;
         } else {
-            self.bytes[  byte_index ] &= !bit_mask;
+            self.bytes[byte_index] &= !bit_mask;
         };
     }
-
 } // end impl Sample
 
 impl std::fmt::Debug for Sample {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!( f, "[Sample: score {}, bytes{:x?}]", self.score, self.bytes )
+        write!(f, "[Sample: score {}, bytes{:x?}]", self.score, self.bytes)
     }
 }
 
@@ -157,66 +153,60 @@ mod tests {
         let r = Sample::default();
         assert_eq!(r.bytes[0], 0); // should be 0
         assert_eq!(r.bytes[7], 0); // should be 0
-        assert_eq!(r.score, ZERO_SCORE ); // should be 0
+        assert_eq!(r.score, ZERO_SCORE); // should be 0
 
-        let s = Sample::new(42 );
-        assert_eq!(s.score, 42 as ScoreType ); // should NOT be 0
+        let s = Sample::new(42);
+        assert_eq!(s.score, 42 as ScoreType); // should NOT be 0
         assert!(r.score != s.score);
         // assert!(r.bytes == s.bytes);
-        assert!( r.bytes.eq( &s.bytes ) );
+        assert!(r.bytes.eq(&s.bytes));
 
-        let q = Sample::random( );
-        assert!(r.score != q.score);  // with very high probability
-        assert_ne!( q, r );           // with very high probability
+        let q = Sample::random();
+        assert!(r.score != q.score); // with very high probability
+        assert_ne!(q, r); // with very high probability
 
-        let t = Sample::new_ones( 42 );
+        let t = Sample::new_ones(42);
         assert_eq!(t.bytes[0], 0xFF); // should be 0
         assert_eq!(t.bytes[3], 0xff); // should be 0
         assert_eq!(t.bytes[7], 0xFF); // should be 0
-        assert_eq!(t.score, 42 as ScoreType ); // should NOT be 0
-
+        assert_eq!(t.score, 42 as ScoreType); // should NOT be 0
     } // end test_contructors
 
     #[test]
     fn test_methods() {
-
         let mut row1 = Sample::default();
         assert_eq!(row1.get_bit(62), false); // should be 0
         row1.set_bit(62, true);
-        assert!( row1.get_bit(62));
+        assert!(row1.get_bit(62));
         row1.set_bit(62, false);
-        assert!(! row1.get_bit(62) );
-
+        assert!(!row1.get_bit(62));
     } // end test_methods
 
     #[test]
     fn test_randomization() {
         // Note: This test could fail due to dumb luck.
         // That's very improbable, but _could_ happen.
-        
+
         // Check that randomize() changes its argument
         let starting_point = Sample::default();
         let mut one_step = starting_point.clone();
         one_step.randomize();
-        assert_ne!( starting_point, one_step );
-        
+        assert_ne!(starting_point, one_step);
+
         // Check that re-randomizing changes the sample
         let mut two_steps = one_step.clone();
         two_steps.randomize();
-        assert_ne!( one_step, two_steps );
-        
-        // Check that calling the `random` constructor 
+        assert_ne!(one_step, two_steps);
+
+        // Check that calling the `random` constructor
         // gives a fresh sample.
         let three_steps = Sample::random();
-        assert_ne!( three_steps, starting_point );
-        assert_ne!( two_steps,   three_steps );
+        assert_ne!(three_steps, starting_point);
+        assert_ne!(two_steps, three_steps);
 
-		// Check that calling the `random` constructor 
-		// doesn't always return the same result.
+        // Check that calling the `random` constructor
+        // doesn't always return the same result.
         let final_point = Sample::random();
-        assert_ne!( three_steps, final_point );
+        assert_ne!(three_steps, final_point);
     }
 } // end mod tests
-
-
-

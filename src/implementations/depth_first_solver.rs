@@ -1,9 +1,8 @@
 /// # Example Implementations
 ///
 ///
-
-use ::mhd_optimizer::Solver;
-use ::mhd_optimizer::TwoSampleSolution;
+use mhd_optimizer::Solver;
+use mhd_optimizer::TwoSampleSolution;
 
 /// ## Sample Solver Implementation: Depth First Search
 ///
@@ -52,49 +51,50 @@ use ::mhd_optimizer::TwoSampleSolution;
 ///
 /// ```
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct DepthFirstSolver {
-    pub solutions: Vec< TwoSampleSolution >
+    pub solutions: Vec<TwoSampleSolution>,
 }
 
 impl Solver<TwoSampleSolution> for DepthFirstSolver {
-
     // type Sol = TwoSampleSolution;
-    fn name ( & self )  -> &'static str { "DepthFirstSolver"  }
+    fn name(&self) -> &'static str {
+        "DepthFirstSolver"
+    }
 
-    fn new(  _: usize ) -> Self {
+    fn new(_: usize) -> Self {
         Self {
-            solutions : Vec::new( )
+            solutions: Vec::new(),
         }
     }
 
     // Methods used by the Unified Optimization Algorithm (identified above)
 
-    fn number_of_solutions( & self ) -> usize {
+    fn number_of_solutions(&self) -> usize {
         self.solutions.len()
     }
-    fn is_empty( & self ) -> bool {
-        self.solutions.is_empty( )
+    fn is_empty(&self) -> bool {
+        self.solutions.is_empty()
     }
-    fn clear( & mut self ) { self.solutions.clear() }
-
-    fn push( & mut self, solution : TwoSampleSolution ) {
-        self.solutions.push( solution );
-    }
-    fn pop( & mut self ) -> Option< TwoSampleSolution > {
-        self.solutions.pop( )
+    fn clear(&mut self) {
+        self.solutions.clear()
     }
 
+    fn push(&mut self, solution: TwoSampleSolution) {
+        self.solutions.push(solution);
+    }
+    fn pop(&mut self) -> Option<TwoSampleSolution> {
+        self.solutions.pop()
+    }
 }
 
 ///////////////////// TESTs for DepthFirstSolver /////////////////////
 #[cfg(test)]
 mod more_tests {
     use super::*;
-    use ::mhd_optimizer::Solution;
+    use mhd_optimizer::Solution;
 
     const NUM_DECISIONS: usize = 64; // for a start
-
 
     #[test]
     fn test_depth_first_solver_solver() {
@@ -122,5 +122,4 @@ mod more_tests {
         solver.clear();
         assert!(solver.is_empty());
     }
-
 }

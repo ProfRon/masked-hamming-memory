@@ -23,13 +23,14 @@
 //   #![deny(warnings)]
 // #![cfg_attr(not(test), no_std)]
 
-extern crate hamming;
 extern crate core;
+extern crate hamming;
+extern crate log;
 extern crate rand;
 extern crate rand_distr;
-extern crate log;
 
-#[cfg(test)] extern crate quickcheck;
+#[cfg(test)]
+extern crate quickcheck;
 
 pub mod mhd_method {
 
@@ -39,28 +40,27 @@ pub mod mhd_method {
     pub use self::weight_::weight;
 
     pub mod distance_;
-    pub use self::distance_::{ distance, distance_fast, truncated_distance };
+    pub use self::distance_::{distance, distance_fast, truncated_distance};
 
     pub mod sample;
-    pub use self::sample::{ NUM_BITS, NUM_BYTES, ZERO_SCORE, ScoreType, Sample };
+    pub use self::sample::{Sample, ScoreType, NUM_BITS, NUM_BYTES, ZERO_SCORE};
 
     pub mod mhdmemory;
-    pub use self::mhdmemory::{ MHDMemory };
+    pub use self::mhdmemory::MHDMemory;
 }
 
 pub mod mhd_optimizer {
     pub mod solution;
-    pub use self::solution::{ Solution, TwoSampleSolution };
+    pub use self::solution::{Solution, TwoSampleSolution};
 
     pub mod solver;
-    pub use self::solver::{ Solver };
+    pub use self::solver::Solver;
 
     pub mod problem;
     pub use self::problem::Problem;
 
     pub mod unified_optimizer;
     pub use self::unified_optimizer::find_best_solution;
-
 }
 
 pub mod implementations {
@@ -76,6 +76,3 @@ pub mod implementations {
     pub mod best_first_solver;
     pub use self::best_first_solver::BestFirstSolver;
 }
-
-
-

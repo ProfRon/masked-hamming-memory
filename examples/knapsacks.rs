@@ -46,82 +46,77 @@ struct Opt {
     ///
     #[structopt(name = "FILE", parse(from_os_str))]
     files: Vec<PathBuf>,
-
 } // end struct Opt
 
-const DEPTH_FIRST_BIT : u8 = 1;
-const BEST_FIRST_BIT  : u8 = 2;
+const DEPTH_FIRST_BIT: u8 = 1;
+const BEST_FIRST_BIT: u8 = 2;
 
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
 // use mhd_mem::mhd_method::sample::{ ScoreType }; // used implicitly (only)
-use mhd_mem::mhd_optimizer::{ Solution, TwoSampleSolution };
-use mhd_mem::mhd_optimizer::{ Solver, find_best_solution };
-use mhd_mem::mhd_optimizer::{ Problem };
-use mhd_mem::implementations::{ Problem01Knapsack, DepthFirstSolver, BestFirstSolver };
+use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver, Problem01Knapsack};
+use mhd_mem::mhd_optimizer::Problem;
+use mhd_mem::mhd_optimizer::{find_best_solution, Solver};
+use mhd_mem::mhd_optimizer::{Solution, TwoSampleSolution};
 
-fn test_one_problem( opt      : & Opt,
-                     knapsack : & mut Problem01Knapsack,
-                     solver   : & mut impl Solver<TwoSampleSolution> ) {
-    assert!( 0.0 <=opt.capacity,   "Capacity cannot be negative");
-    assert!( opt.capacity < 100.0, "Capacity cannot be 100% or greater" );
+fn test_one_problem(
+    opt: &Opt,
+    knapsack: &mut Problem01Knapsack,
+    solver: &mut impl Solver<TwoSampleSolution>,
+) {
+    assert!(0.0 <= opt.capacity, "Capacity cannot be negative");
+    assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
     if 0.0 != opt.capacity {
-        knapsack.sack.capacity = (knapsack.weights_sum() as f32 * ( opt.capacity / 100.0 )) as i32;
+        knapsack.sack.capacity = (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as i32;
     }; // else, leave capacity alone remain what the random constructor figured out.
 
-    if ! knapsack.is_legal()  {
-        println!( "Not optimizing ILLEGAL Knapsack!");
+    if !knapsack.is_legal() {
+        println!("Not optimizing ILLEGAL Knapsack!");
         return;
     };
 
-    let time_limit = Duration::from_secs_f32( opt.time );
+    let time_limit = Duration::from_secs_f32(opt.time);
     let start_time = Instant::now();
 
-    let the_best = find_best_solution( solver, knapsack, time_limit )
-                   .expect("Optimization fails?!?");
+    let the_best = find_best_solution(solver, knapsack, time_limit).expect("Optimization fails?!?");
 
-    println!( "with {}, Best Score = {}, weight {} (capacity {}, size = {}) after {:?}",
-              solver.name(),
-              the_best.get_score(),
-              knapsack.sack.solution_score( & the_best ),
-              knapsack.sack.capacity,
-              knapsack.problem_size(),
-              start_time.elapsed()    );
+    println!(
+        "with {}, Best Score = {}, weight {} (capacity {}, size = {}) after {:?}",
+        solver.name(),
+        the_best.get_score(),
+        knapsack.sack.solution_score(&the_best),
+        knapsack.sack.capacity,
+        knapsack.problem_size(),
+        start_time.elapsed()
+    );
 }
-
 
 fn main() {
     let opt = Opt::from_args();
     println!("{:?}\n", opt);
 
     if opt.files.is_empty() {
-
         // FIRST USE CASE : No files, random data
 
         for prob_num in 0..opt.num_problems {
-            let mut knapsack =  Problem01Knapsack::random( opt.size );
+            let mut knapsack = Problem01Knapsack::random(opt.size);
             if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
-                    print!( "Knapsack {}: ", prob_num+1 );
-                    test_one_problem( & opt,
-                                      & mut knapsack,
-                                       & mut DepthFirstSolver::new( opt.size ) );
+                print!("Knapsack {}: ", prob_num + 1);
+                test_one_problem(&opt, &mut knapsack, &mut DepthFirstSolver::new(opt.size));
             }; // endif depth first
             if 0 != (opt.algorithms & BEST_FIRST_BIT) {
-                print!( "Knapsack {}: ", prob_num+1 );
-                   test_one_problem( & opt,
-                                     & mut knapsack,
-                                     & mut BestFirstSolver::new( opt.size ) );
+                print!("Knapsack {}: ", prob_num + 1);
+                test_one_problem(&opt, &mut knapsack, &mut BestFirstSolver::new(opt.size));
             }; // end if best first
-        }; // for 0 <= prob_num < num_problems
+        } // for 0 <= prob_num < num_problems
+    } else {
+        // if opt.files NOT empty
 
-   } else { // if opt.files NOT empty
-
-       // SECOND USE CASE : No files, random data
+        // SECOND USE CASE : No files, random data
 
         for file_name in opt.files.iter() {
-            println!("Processing Filename: {:?}", file_name );
+            println!("Processing Filename: {:?}", file_name);
         }
     }
-
 }

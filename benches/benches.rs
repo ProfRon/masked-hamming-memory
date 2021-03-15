@@ -1,32 +1,30 @@
-extern crate mhd_mem;
 extern crate criterion;
+extern crate mhd_mem;
 
 // use mhd_mem::mhd_method::*;
-use mhd_mem::mhd_optimizer::*;
-use mhd_mem::mhd_optimizer::{ Solution, Problem, Solver };
 use mhd_mem::implementations::*;
+use mhd_mem::mhd_optimizer::*;
+use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
 
 use std::time::Duration;
 
 // inline because https://bheisler.github.io/criterion.rs/book/getting_started.html
 #[inline]
-fn bench_optimization< Sol  : Solution,
-                       Solv : Solver< Sol >,
-                       Prob : Problem< Sol > >
-                     ( problem    : & Prob,
-                       solver     : & mut Solv  ) {
-
+fn bench_optimization<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
+    problem: &Prob,
+    solver: &mut Solv,
+) {
     solver.clear();
 
     let the_best = black_box(
-                    find_best_solution( solver, problem,
-                                               Duration::from_secs_f32( 0.5 ) )
-                        .expect("could not find best solution on bench") );
+        find_best_solution(solver, problem, Duration::from_secs_f32(0.5))
+            .expect("could not find best solution on bench"),
+    );
 
     let best_score = the_best.get_score();
     // assert!( ZERO_SCORE < best_score );
-    assert_eq!( best_score, problem.solution_score(      & the_best ));
-    assert_eq!( best_score, problem.solution_best_score( & the_best ));
+    assert_eq!(best_score, problem.solution_score(&the_best));
+    assert_eq!(best_score, problem.solution_best_score(&the_best));
 }
 
 // The following code is from
@@ -34,70 +32,68 @@ fn bench_optimization< Sol  : Solution,
 // or (later) from
 // https://bheisler.github.io/criterion.rs/criterion/struct.BenchmarkGroup.html
 
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, BenchmarkGroup, black_box};
 use criterion::measurement::WallTime;
+use criterion::{
+    black_box, criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion,
+};
 
-fn bench_one_combo< Sol  : Solution,
-                    Solv : Solver< Sol >,
-                    Prob : Problem< Sol > >(  group   : & mut BenchmarkGroup<WallTime>,
-                                              problem : & Prob,
-                                              solver  : & mut Solv,
-                                              size    : usize ) {
+fn bench_one_combo<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
+    group: &mut BenchmarkGroup<WallTime>,
+    problem: &Prob,
+    solver: &mut Solv,
+    size: usize,
+) {
+    assert!(
+        problem.is_legal(),
+        "illegal {} knapsack size {}",
+        problem.name(),
+        size
+    );
 
-    assert!( problem.is_legal(),   "illegal {} knapsack size {}", problem.name(), size );
+    let prefix = format!("Bench {} bits", size);
+    let bench_name = format!("{}+{}", problem.name(), solver.name());
 
-    let prefix= format!( "Bench {} bits", size );
-    let bench_name = format!( "{}+{}", problem.name(), solver.name() );
-
-    group.bench_function ( BenchmarkId::new(prefix, bench_name ),
-                           |b| b.iter(
-                               || bench_optimization( problem, solver )
-                           ));
-
+    group.bench_function(BenchmarkId::new(prefix, bench_name), |b| {
+        b.iter(|| bench_optimization(problem, solver))
+    });
 }
 
-fn bench_one_size(  group : & mut BenchmarkGroup<WallTime>,
-                    size : usize ) {
-
-
+fn bench_one_size(group: &mut BenchmarkGroup<WallTime>, size: usize) {
     // First one problem, then another, since they are not mutable
-    let problem_a = ProblemSubsetSum::random( size );
+    let problem_a = ProblemSubsetSum::random(size);
 
     // ...with the Depth First Solver
-    let mut solver_a = DepthFirstSolver::new( size );
-    bench_one_combo(  group, & problem_a, & mut solver_a, size );
+    let mut solver_a = DepthFirstSolver::new(size);
+    bench_one_combo(group, &problem_a, &mut solver_a, size);
 
     // ...and with the Best First Solver
-    let mut solver_b = BestFirstSolver::new( size );
-    bench_one_combo(  group, & problem_a, & mut solver_b, size );
+    let mut solver_b = BestFirstSolver::new(size);
+    bench_one_combo(group, &problem_a, &mut solver_b, size);
 
     // First one problem, then another, since they are not mutable
-    let problem_b = Problem01Knapsack::random( size );
+    let problem_b = Problem01Knapsack::random(size);
 
     // ...with the Depth First Solver
-    let mut solver_c = DepthFirstSolver::new( size );
-    bench_one_combo(  group, & problem_b, & mut solver_c, size );
+    let mut solver_c = DepthFirstSolver::new(size);
+    bench_one_combo(group, &problem_b, &mut solver_c, size);
 
     // ...and with the Best First Solver
-    let mut solver_d = BestFirstSolver::new( size );
-    bench_one_combo(  group, & problem_b, & mut solver_d, size );
-
-
+    let mut solver_d = BestFirstSolver::new(size);
+    bench_one_combo(group, &problem_b, &mut solver_d, size);
 }
 
-fn bench_sizes( c: &mut Criterion ) {
+fn bench_sizes(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Optimization Benches");
 
-    let mut group = c.benchmark_group( "Optimization Benches" );
-
-    group.sample_size( 32 ); // less than default 100
-    // group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
+    group.sample_size(32); // less than default 100
+                           // group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
 
     // group.measurement_time( Duration::from_secs_f32( 61.0 ) ); // 30 * 2 = 6ß
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
-    for bits in [ 4, 8, 16, 32, 64, 128, 256, 512, 1024 ].iter() {
-        bench_one_size( & mut group, *bits );
+    for bits in [4, 8, 16, 32, 64, 128, 256, 512, 1024].iter() {
+        bench_one_size(&mut group, *bits);
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));
         // let parameter_string = "Optimize Series";
@@ -110,7 +106,7 @@ fn bench_sizes( c: &mut Criterion ) {
     group.finish();
 }
 
-criterion_group!(benches, bench_sizes );
+criterion_group!(benches, bench_sizes);
 criterion_main!(benches);
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************
