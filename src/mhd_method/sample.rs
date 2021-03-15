@@ -110,7 +110,7 @@ impl Sample {
     pub fn byte_index(bit_index: usize) -> usize {
         let byte_index = bit_index / 8;
         assert!(byte_index < NUM_BYTES);
-        return byte_index;
+        byte_index
     }
 
     pub fn get_bit(&self, bit_index: usize) -> bool {
@@ -119,7 +119,7 @@ impl Sample {
         let byte = self.bytes[byte_index];
         let mask_index = bit_index % 8;
         let bit_mask = 128 >> mask_index;
-        return 0 != (byte & bit_mask);
+        0 != (byte & bit_mask)
     }
 
     pub fn set_bit(&mut self, bit_index: usize, bit_value: bool) {
