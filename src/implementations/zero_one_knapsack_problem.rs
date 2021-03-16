@@ -366,28 +366,3 @@ mod tests {
         assert_eq!(best_score, little_knapsack.solution_best_score(&the_best));
     }
 } // end mod tests
-
-/////////// Extra File Input Methods
-
-// Known file formats : ~/src/clones/knapsack/inst/*.dat
-//                      -- one problem per line, many problems per file
-//                      -- solutions in ~/src/clones/knapsack/sol/*.dat
-//
-//                      ~/src/clones/kplib/*/*/*.kp
-//                      - one problem per file; many, many files
-//                      - no solutions, I believe
-//
-//                      ~/src/treeless-mctlsolver/Problems/Knapsack/unicauca_mps/*/*.mps
-//                      -- Problems in mps format :-(
-//                      ~/src/treeless-mctlsolver/Problems/Knapsack/unicauca/*/*
-//                      -- Problems in simple text format
-//                      -- NO file extension!
-//                      -- Optima (values only) in Problems/Knapsack/unicauca/*-optimum/*
-//                      -- Best solution in problem file?!?
-//                      -- Where are the capacities?!?
-//
-//                      ~/Documents/Forschung/PraxUndForsch2021/pisinger-knapsacks/*/*.csv
-//                      -- Problems in quasi free text format -- NOT COMMA seperated!
-//                      -- See Readme.txt in each directory for format! (All 3 readmes identical)
-//                      -- More than one problem per file
-//                      -- Optima solution supplied in third column (!) ... also time for comparison

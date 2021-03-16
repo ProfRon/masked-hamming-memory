@@ -30,15 +30,25 @@ pub fn find_best_solution<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
     let mut start_time = Instant::now();
 
     // define some solution to be "best-so-far"
-    let mut num_visitations: i64 = 1;
+    let mut num_visitations: i64 = 0;
     let mut best_solution = problem.random_solution();
     assert!(problem.solution_is_complete(&best_solution));
     assert!(problem.solution_is_legal(&best_solution));
-    trace!(
-        "Optimizer initializes BEST score {}! after {} visitations",
+    trace!("First Best: {:?}", best_solution);
+    trace!("Optimizer initializes BEST score {}", best_solution.get_score() );
+
+    // Add the starting random "best" solution to the microtrace file
+    // (to see if we ever do better, and if so, how quickly).
+    writeln!(
+        microtrace_file,
+        "{}; {}; {}; {}; {}; {}", // SIX fields!
+        start_time.elapsed().as_nanos(),
+        num_visitations,
+        solver.number_of_solutions(),
         best_solution.get_score(),
-        num_visitations
-    );
+        best_solution.get_best_score(),
+        best_solution.get_score(),
+    )?;
 
     // start at the root of the tree
     debug_assert!(solver.is_empty());
@@ -51,9 +61,10 @@ pub fn find_best_solution<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
             .pop()
             .expect("solver's queue should not be empty but could not pop");
         trace!(
-            "Optimizer pops solution with score {} after {} visitations",
+            "Optimizer pops solution with score {} <= bound {} after {} visitations",
             next_solution.get_score(),
-            num_visitations
+            next_solution.get_best_score(),
+            num_visitations,
         );
 
         if problem.solution_is_complete(&next_solution)
@@ -132,6 +143,9 @@ pub fn find_best_solution<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
         result.get_score(),
         result.get_best_score(),
     )?;
+
+    trace!("Optimizer solves problem {:?}",        problem);
+    trace!( "Optimizer converges on soution {:?}", result);
 
     Ok(result)
 } // end find_best_solution

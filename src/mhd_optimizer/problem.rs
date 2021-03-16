@@ -3,7 +3,9 @@
 use mhd_optimizer::Solution;
 use mhd_optimizer::Solver;
 
-pub trait Problem<Sol: Solution>
+use std::fmt::Debug;
+
+pub trait Problem<Sol: Solution> : Clone + Debug
 where
     Self: Sized,
 {

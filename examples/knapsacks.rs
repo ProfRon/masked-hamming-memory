@@ -5,6 +5,10 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "knapsacks")]
 struct Opt {
+    /// To Trace or Not to Trace
+    #[structopt(short, long)]
+    verbose: bool,
+
     /// Number of items (dimensions, choices)
     #[structopt(short, long, default_value = "256")]
     size: usize,
@@ -18,8 +22,8 @@ struct Opt {
     #[structopt(short, long, default_value = "0")]
     capacity: f32,
 
-    /// Time limit in seconds (per optimization run)
-    #[structopt(short, long, default_value = "1")]
+    /// Time limit in seconds (floating point; defines convergance)
+    #[structopt(short, long, default_value = "1.0")]
     time: f32,
 
     /// Algorithms (solvers) : 1 = depth first, 2 = best first, 3 = both
@@ -92,9 +96,24 @@ fn test_one_problem(
     );
 }
 
+extern crate log;
+extern crate simplelog;
+use log::*;
+use simplelog::*;
+use std::fs::File;
+
 fn main() {
     let opt = Opt::from_args();
     println!("{:?}\n", opt);
+
+    if opt.verbose {
+        CombinedLogger::init(
+            vec![
+                TermLogger::new( LevelFilter::Warn, Config::default(), TerminalMode::Mixed),
+                WriteLogger::new(LevelFilter::Trace, Config::default(), File::create("trace.log").unwrap()),
+            ]
+        ).unwrap();
+    }; // end if verbose
 
     if opt.files.is_empty() {
         // FIRST USE CASE : No files, random data

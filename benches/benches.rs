@@ -17,7 +17,7 @@ fn bench_optimization<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
     solver.clear();
 
     let the_best = black_box(
-        find_best_solution(solver, problem, Duration::from_secs_f32(0.5))
+        find_best_solution(solver, problem, Duration::from_secs_f32(1.0 ))
             .expect("could not find best solution on bench"),
     );
 
@@ -92,7 +92,7 @@ fn bench_sizes(c: &mut Criterion) {
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
-    for bits in [4, 8, 16, 32, 64, 128, 256, 512, 1024].iter() {
+    for bits in [8, 16, 32, 64, 128, 256, 512, 1024].iter() {
         bench_one_size(&mut group, *bits);
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));

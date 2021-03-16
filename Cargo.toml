@@ -24,8 +24,8 @@ hamming      = "0.1"
 rand         = "0.8"
 rand_distr   = "0.4"
 log          = "0.4"
+simplelog    = "0.9"
 structopt    = "0.3"
-# clap = "2.33"
 
 [dev-dependencies]
 quickcheck   = "0.2"
