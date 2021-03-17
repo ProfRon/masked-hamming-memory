@@ -1,64 +1,273 @@
+use std::error::Error;
 /// ## The Problem Trait
 ///
+use std::fmt::Debug;
+use std::time::Duration;
+
+use mhd_method::{ScoreType, NUM_BITS}; // Not used: NUM_BYTES
 use mhd_optimizer::Solution;
 use mhd_optimizer::Solver;
 
-use std::fmt::Debug;
+pub trait Problem: Sized + Clone + Debug {
+    // Every Problem will probably need it's own "associated" solution type
+    type Sol: Solution;
 
-pub trait Problem<Sol: Solution> : Clone + Debug
-where
-    Self: Sized,
-{
-    // First, three "associated type"
-    // type Sol       : Solution;
-    // type Slvr      : Solver< Self:Sol >;
-
-    // type ScoreType = Sol::ScoreType;
-
-    // every instance of this struct should have a descriptive name (for tracing, debugging)
-    // TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
-
+    /// every instance of this struct should have a descriptive name (for tracing, debugging)
+    /// TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
     fn name(&self) -> &'static str;
     // Constructors
 
-    // size is the number of decisions to be made (free variables to assign values to).
-    // `new` creates a default ("zero") instance of the problem.
-    // `random` creates a full-fledged
+    /// Every instance should have a SHORT description for Debugging,
+    /// giving things like a knapsack's capacity, pehaps more.
+    fn short_description(&self) -> String;
+
+    /// `new` creates a default ("zero") instance of the problem,
+    /// where `size` is the number of decisions to be made (free variables to assign values to).
     fn new(size: usize) -> Self;
+
+    /// `random` creates a full-fledged, i.e. complete but random instance of the problem,
+    /// where `size` is the number of decisions to be made (free variables to assign values to).
+    /// Do not confuse with `random_solution`!
     fn random(size: usize) -> Self {
+        assert!( size <= NUM_BITS );
         let mut result = Self::new(size);
         result.randomize();
         result
     }
 
-    // Utilities
-
-    // See note on size, above (size is the number of decisions to be made).
+    /// The number of decisions to be made (free variables to assign values to)-
     fn problem_size(&self) -> usize;
+
+    /// Given a solution (self), reset all the values at random, while preserving legality.
     fn randomize(&mut self);
 
-    // Note: is_leagal tests whether a problem -- not whether a solution -- is legal
-    // (the Solution trait has its own is_legal method).
-    // We're testing if an instance of a PROBLEM is correct, solvable and non-trivial.
+    /// is_legal tests whether a problem -- not whether a solution -- is legal
+    /// (the Solution trait has its own is_legal method).
+    /// For example, are all of the weights of a knapsack greater than zero, is the dimension
+    /// greater than zero, is the capacity OK, etc.
+    /// In other words, is a valid soution possible (not whether a given solution valid).
     fn is_legal(&self) -> bool;
 
-    // Solution attributest that only the problem can evaluate
-    fn solution_score(&self, solution: &Sol) -> Sol::ScoreType;
-    fn solution_best_score(&self, solution: &Sol) -> Sol::ScoreType; // "upper bound"
+    /// ## Solution attributes that only the problem can evaluate
+    /// What is the score of a given Solution?
+    fn solution_score(&self, solution: &Self::Sol) -> ScoreType;
 
-    fn solution_is_legal(&self, solution: &Sol) -> bool;
-    fn solution_is_complete(&self, solution: &Sol) -> bool;
+    /// What is the "upper" bound of the score of a given Solution?
+    /// Note: If we're maximizing, this is the upper bound,
+    /// but if we're minimizing, this is the lower bound.
+    fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType;
 
-    // Methods used by the Unified Optimization Algorithm (identified above)
+    /// Is a given solution legal *for this problem*?
+    fn solution_is_legal(&self, solution: &Self::Sol) -> bool;
 
-    fn random_solution(&self) -> Sol;
-    fn starting_solution(&self) -> Sol;
+    /// Is a given solution complete *for this problem*?
+    fn solution_is_complete(&self, solution: &Self::Sol) -> bool;
 
-    fn better_than(&self, new_solution: &Sol, old_solution: &Sol) -> bool {
-        self.solution_score(old_solution) < self.solution_score(new_solution)
+    /// ## Methods used by the Unified Optimization Algorithm (identified above)
+    ///
+    /// Create a random complete solution of this problem:
+    fn random_solution(&self) -> Self::Sol;
+
+    /// Create a (clone of) the starting solution for this problem,
+    /// i.e. the solution with NO decisions made yet.
+    fn starting_solution(&self) -> Self::Sol;
+
+    /// Is new_solution better than old_solution?
+    /// Note that the default version assumes we're maximizing.
+    fn better_than(&self, new_solution: &Self::Sol, old_solution: &Self::Sol) -> bool {
+        old_solution.get_best_score() <= new_solution.get_best_score()
     }
-    fn can_be_better_than(&self, new_solution: &Sol, old_solution: &Sol) -> bool {
+
+    /// Is the "upper bound" of new_solution better than score the old solution?
+    /// Note that the default version assumes we're maximizing.
+    fn can_be_better_than(&self, new_solution: &Self::Sol, old_solution: &Self::Sol) -> bool {
         self.solution_best_score(old_solution) <= self.solution_best_score(new_solution)
     }
-    fn register_children_of(&self, parent: &Sol, solver: &mut impl Solver<Sol>);
+
+    /// Find the index of the next decision to make (bit to set), if any,
+    /// or return None if there are no more open decisions.
+    fn first_open_decision(&self, solution: &Self::Sol) -> Option<usize>;
+
+    /// Find the largest index of a closed decision, if any,
+    /// or return None if there are no closed decisions
+    /// (which defines the starting solution, by the way).
+    fn last_closed_decision(&self, solution: &Self::Sol) -> Option<usize>;
+
+    /// Apply this problem's only logic to check if any decisions are implicitly already decided.
+    /// Example: if some items are heavier than a knapsack's remainng capacity, we don't have
+    /// to consider putting them into the knapsack.
+    fn make_implicit_decisions(&self, sol: &mut Self::Sol);
+
+    /// Create a child of a parent solution, given a decision and a decision to make
+    /// (i.e. decision index and boolean value) -- and iff the solution is good, add it to the
+    /// solver (otherwise discard).
+    fn register_one_child(
+        &self,
+        parent: &Self::Sol,
+        solver: &mut impl Solver<Self::Sol>,
+        index: usize,
+        decision: bool,
+    );
+
+    /// Create and then register all (usually both) children of a parent solution;
+    /// compare `register_one_child` method.
+    fn register_children_of(&self, parent: &Self::Sol, solver: &mut impl Solver<Self::Sol>) {
+        assert!(self.solution_is_legal(parent));
+        match self.first_open_decision(parent) {
+            None => {} // do nothing!
+            Some(index) => {
+                self.register_one_child(parent, solver, index, false);
+                self.register_one_child(parent, solver, index, true);
+            } // end if found Some(index) -- an open decision
+        } // end match
+    } // end register_children
+
+    /*******************************************************************************/
+    /// This is the crux of this whole project: The `find_best_solution` method.
+    /// It does what it says here.
+    /// Originally outside this (Problem) Trait, but the compiler is making this difficult...
+    fn find_best_solution<Solv: Solver<Self::Sol>>(
+        &self,
+        solver: &mut Solv,
+        time_limit: Duration,
+    ) -> Result<Self::Sol, Box<dyn Error>> {
+        use log::*; // for info, trace, warn, etc.
+        use std::fs::{File, OpenOptions};
+        use std::io::prelude::*; // for writeln! (write_fmt)
+        use std::time::Instant;
+
+        let mut microtrace_file =
+            File::create("microtrace.csv").expect("Could not open microtrace.csv");
+
+        writeln!(
+            microtrace_file,
+            "nanoseconds; visitations; queue size; current score; current bound; best score"
+        )?;
+        // SIX fields!
+
+        let mut start_time = Instant::now();
+
+        // define some solution to be "best-so-far"
+        let mut num_visitations: i64 = 0;
+        let mut best_solution = self.random_solution();
+        assert!(self.solution_is_complete(&best_solution));
+        assert!(self.solution_is_legal(&best_solution));
+        trace!("First Best: {:?}", best_solution);
+        trace!(
+            "Optimizer initializes BEST score {}",
+            best_solution.get_score()
+        );
+
+        // Add the starting random "best" solution to the microtrace file
+        // (to see if we ever do better, and if so, how quickly).
+        writeln!(
+            microtrace_file,
+            "{}; {}; {}; {}; {}; {}", // SIX fields!
+            start_time.elapsed().as_nanos(),
+            num_visitations,
+            solver.number_of_solutions(),
+            best_solution.get_score(),
+            best_solution.get_best_score(),
+            best_solution.get_score(),
+        )?;
+
+        // start at the root of the tree
+        debug_assert!(solver.is_empty());
+        solver.push(self.starting_solution());
+
+        let result = loop {
+            num_visitations += 1;
+
+            let next_solution = solver
+                .pop()
+                .expect("solver's queue should not be empty but could not pop");
+            trace!(
+                "Optimizer pops solution with score {} <= bound {} after {} visitations",
+                next_solution.get_score(),
+                next_solution.get_best_score(),
+                num_visitations,
+            );
+
+            if self.solution_is_complete(&next_solution)
+                && self.better_than(&next_solution, &best_solution)
+            {
+                // record new best solution.
+                best_solution = next_solution.clone();
+                // record new best solution as trace and as a line in trace.csv
+                trace!(
+                    "Optimizer finds new BEST score {}! after {} visitations",
+                    best_solution.get_score(),
+                    num_visitations
+                );
+                // Reset timer!
+                // That means we exit if we go for time_limit without a new best solution!
+                start_time = Instant::now();
+            }; // end solution complete and better than old best solution
+
+            if 0 == num_visitations % 32 {
+                // every so many vistiations
+                writeln!(
+                    microtrace_file,
+                    "{}; {}; {}; {}; {}; {}", // SIX fields!
+                    start_time.elapsed().as_nanos(),
+                    num_visitations,
+                    solver.number_of_solutions(),
+                    next_solution.get_score(),
+                    next_solution.get_best_score(),
+                    best_solution.get_score(),
+                )?;
+            } // end every 16 vistiations
+
+            // BOUND
+            if self.can_be_better_than(&next_solution, &best_solution) {
+                // BRANCH
+                self.register_children_of(&next_solution, solver);
+            }; // end if not bounded
+
+            // Terminate out if loop?
+            if solver.is_empty() || time_limit <= start_time.elapsed() {
+                info!(
+                    "Solver is finished! Unfinished work = {}, visitations = {}, time taken? {:?}",
+                    solver.number_of_solutions(),
+                    num_visitations,
+                    start_time.elapsed()
+                );
+                break best_solution;
+            }; // end if terminating
+        }; // end loop
+
+        writeln!(
+            microtrace_file,
+            "{}; {}; {}; {}; {}; {}", // SIX fields!
+            start_time.elapsed().as_nanos(),
+            num_visitations,
+            solver.number_of_solutions(),
+            result.get_score(),
+            result.get_best_score(),
+            result.get_score(),
+        )?;
+
+        let mut macrotrace_file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open("macrotrace.csv")
+            .expect("Could not open macrotrace.csv");
+        writeln!(
+            macrotrace_file,
+            "\"{}\", \"{}\", \"{}\", {}; {}; {}; {}; {}", // EIGHT fields!
+            result.name(),
+            solver.name(),
+            self.name(),
+            start_time.elapsed().as_nanos(),
+            num_visitations,
+            solver.number_of_solutions(),
+            result.get_score(),
+            result.get_best_score(),
+        )?;
+
+        trace!("Optimizer find best solution in {:?}", self);
+        trace!("Optimizer converges on soution {:?}", result);
+
+        Ok(result)
+    } // end default find_best_solution implementation
 } // end trait Problem

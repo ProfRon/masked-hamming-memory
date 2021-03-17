@@ -2,48 +2,282 @@
 ///
 /// ## Example Problem Implementation: 0-1 Knapsack
 ///
-/// This struct extends the subset sum struct to implenent the "real" or "full valued"
+/// This struct extends the subset sum struct to implement the "real" or "full valued"
 /// zero-one knapsack problem.
 /// Each item that can go in the knapsack has a value.
 /// The function to optimize (maximize) is now the sum of the values (a.k.a. profits) of
-/// the items in tzhe knapsack,
+/// the items in the knapsack,
 /// while still maintaining the constraint on the sum of the weights (the "capacity").
+///
 extern crate rand_distr;
 
-use rand_distr::{Distribution, Exp};
+use rand::prelude::*;
+use rand_distr::{Distribution, Poisson};
 
 use implementations::ProblemSubsetSum;
-use mhd_method::sample::{ScoreType, NUM_BITS, ZERO_SCORE}; // Not used: NUM_BYTES
+use mhd_method::{ScoreType, NUM_BITS, ZERO_SCORE}; // Not used: NUM_BYTES
+use mhd_optimizer::{MinimalSolution, Solution};
 use mhd_optimizer::{Problem, Solver};
-use mhd_optimizer::{Solution, TwoSampleSolution};
+
+///## Customized Solution Type for the 0/1 Knapsack
+/// The MinimalSolution will not suffice here (experience teaches us).
+/// So we define our own before we go further.
+///
 
 #[derive(Debug, Clone)]
+pub struct ZeroOneKnapsackSolution {
+    pub basis: MinimalSolution,
+    pub score: ScoreType,
+    pub best_score: ScoreType, // best score possible
+}
+
+impl Solution for ZeroOneKnapsackSolution {
+    // type ScoreType = ScoreType;
+
+    fn name(&self) -> &'static str {
+        "ZeroOneKnapsackSolution"
+    }
+
+    fn short_description(&self) -> String {
+        format!(
+            "{}: weight {}, score {}, best score {}",
+            self.name(),
+            self.basis.get_score(),
+            self.get_score(),
+            self.get_best_score()
+        )
+    }
+
+    fn new(size: usize) -> Self {
+        assert!(NUM_BITS <= size);
+        Self {
+            basis: MinimalSolution::new(size),
+            score: 0 as ScoreType,
+            best_score: 0 as ScoreType,
+        }
+    }
+
+    fn randomize(&mut self) {
+        self.basis.randomize();
+        let mut generator = rand::thread_rng();
+        self.score = generator.gen();
+        self.best_score = self.score + generator.gen::<ScoreType>();
+    }
+
+    // Getters and Setters
+    fn get_score(&self) -> ScoreType {
+        self.score
+    }
+
+    fn put_score(&mut self, score: ScoreType) {
+        self.score = score;
+    }
+
+    fn get_best_score(&self) -> ScoreType {
+        self.best_score
+    }
+
+    fn put_best_score(&mut self, best: ScoreType) {
+        self.best_score = best;
+    }
+
+    fn get_decision(&self, decision_number: usize) -> Option<bool> {
+        self.basis.get_decision( decision_number )
+    }
+
+    fn make_decision(&mut self, decision_number: usize, decision: bool) {
+        self.basis.make_decision(decision_number, decision);
+    }
+} // end impl Soluton for ZeroOneKnapsackSolution
+
+/// ## Default Sorting Implementations (hopefully allowed)
+use std::cmp::*;
+
+// Ord requires Eq, which requires PartialEq
+impl PartialEq for ZeroOneKnapsackSolution {
+    fn eq(&self, other: &Self) -> bool {
+        self.estimate() == other.estimate()
+    }
+}
+
+impl Eq for ZeroOneKnapsackSolution {}
+
+impl Ord for ZeroOneKnapsackSolution {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.estimate().cmp(&other.estimate())
+    }
+}
+
+impl PartialOrd for ZeroOneKnapsackSolution {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.estimate().cmp(&other.estimate()))
+    }
+}
+
+/// ## Example Problem Implementation: 0-1 Knapsack
+/// Here the actual Struct:
+#[derive(Debug, Clone)]
 pub struct Problem01Knapsack {
-    pub sack: ProblemSubsetSum,
+    pub basis: ProblemSubsetSum,
     pub values: Vec<ScoreType>,
 } // end struct Problem01Knapsack
 
 // Utility Methods (not part of the Problem trait)
 impl Problem01Knapsack {
+    // type ScoreType = ZeroOneKnapsackSolution::ScoreType;
+
     pub fn weights_sum(&self) -> ScoreType {
-        self.sack.weights_sum()
+        self.basis.weights_sum()
     }
 
     pub fn values_sum(&self) -> ScoreType {
         self.values.iter().sum()
     }
 
-    pub fn first_open_decision(&self, solution: &TwoSampleSolution) -> Option<usize> {
-        self.sack.first_open_decision(solution)
+    pub fn capacity(&self) -> ScoreType {
+        self.basis.capacity
     }
 
-    pub fn make_implicit_decisions(&self, sol: &mut TwoSampleSolution) {
-        self.sack.make_implicit_decisions(sol)
+    pub fn solution_from_basis( & self, starter_basis: & MinimalSolution ) -> ZeroOneKnapsackSolution {
+        let mut result = ZeroOneKnapsackSolution {
+            basis : starter_basis.clone( ),
+            score : ZERO_SCORE,
+            best_score : ZERO_SCORE
+        };
+        result.put_score(self.solution_score(&result));
+        result.put_best_score(self.solution_best_score(&result));
+        debug_assert!( self.solution_is_legal( &result ) );
+        result
     }
-    pub fn register_one_child(
+
+}
+
+// Problem Trait Methods
+impl Problem for Problem01Knapsack {
+    type Sol = ZeroOneKnapsackSolution;
+
+    fn name(&self) -> &'static str {
+        "Problem01Knapsack"
+    }
+
+    fn short_description(&self) -> String {
+        format!(
+            "{} {}, value sum {}",
+            self.name(),
+            self.basis.short_description(),
+            self.values_sum()
+        )
+    }
+
+    fn new(size: usize) -> Self {
+        Self {
+            basis: ProblemSubsetSum::new(size),
+            values: vec![ZERO_SCORE; size],
+        }
+    }
+
+    // fn random( size : usize ) -> Self -- take the default implementation
+
+    fn problem_size(&self) -> usize {
+        self.values.len()
+    }
+
+    fn randomize(&mut self) {
+        self.basis.randomize(); // Sets weights and capacity
+        let num_bits = self.problem_size();
+        assert_eq!(num_bits, self.values.len(), "Values vector has wrong size");
+
+        self.basis.randomize();
+
+        // self.weights =  (0..self.problem_size()).map( |_| fancy_random_int( ) ).collect();
+        let mut rng = rand::thread_rng();
+        let distr = Poisson::new(50.0).unwrap();
+
+        self.values = (0..num_bits)
+            .map(|_| (distr.sample(&mut rng) + 1.0) as ScoreType)
+            .collect();
+
+        // This has been removed to not make the problem TOO easy...
+        // self.values.sort_unstable();
+        // self.values.reverse();
+
+        assert!(self.is_legal());
+    }
+
+    fn is_legal(&self) -> bool {
+        // Note: We're NOT testing whether a solution is legal (we do that below),
+        // We're testing if a PROBLEM is OK.
+        // The subset sum part must be legal -- and then the values too...
+        return self.basis.is_legal()
+            && (self.problem_size() == self.values.len())
+            && self.values.iter().all(|&v| 0 < v); // 0 < values[v] for all v in values
+    }
+
+    // first, methods not defined previously, but which arose while implemeneting the others (see below)
+    fn solution_score(&self, solution: &Self::Sol) -> ScoreType {
+        let mut result = ZERO_SCORE;
+        // Note to self -- later we can be faster here by doing this byte-wise
+        for index in 0..self.problem_size() {
+            if let Some(decision) = solution.get_decision(index) {
+                if decision {
+                    result += self.values[index];
+                }
+            }
+        } // end for all bits
+        result as ScoreType
+    } // end solution_is_legal
+
+    fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType {
+        assert!(self.solution_is_legal(solution));
+        let mut result = self.solution_score(&solution);
+        for index in 0..self.problem_size() {
+            if None == solution.get_decision(index) {
+                result += self.values[index];
+            }
+        } // end for all bits
+        assert!(self.solution_score(&solution) <= result);
+        assert!(
+            !self.solution_is_complete(&solution) || (self.solution_score(&solution) == result)
+        );
+        result
+    }
+
+    fn solution_is_legal(&self, solution: &Self::Sol) -> bool {
+        self.basis.solution_is_legal(&solution.basis )
+    } // end solution_is_legal
+
+    fn solution_is_complete(&self, solution: &Self::Sol) -> bool {
+        self.basis.solution_is_complete(&solution.basis )
+    } // end solution_is_complete
+
+    fn random_solution(&self) -> Self::Sol {
+        self.solution_from_basis( &self.basis.random_solution() )
+    }
+
+    fn starting_solution(&self) -> Self::Sol {
+        self.solution_from_basis( &self.basis.starting_solution() )
+    }
+
+    // Take the default better_than() method
+    // Take the default can_be_better_than() method
+
+    fn first_open_decision(&self, solution: &Self::Sol) -> Option<usize> {
+        self.basis.first_open_decision(&solution.basis)
+    }
+
+    fn last_closed_decision(&self, solution: &Self::Sol) -> Option<usize> {
+        self.basis.last_closed_decision(&solution.basis)
+    }
+
+    fn make_implicit_decisions(&self, sol: &mut Self::Sol) {
+        self.basis.make_implicit_decisions(&mut sol.basis);
+        // If there were any constraints on decisions that depeded on values,
+        // we would have to do more work -- but there aren't (are there?), so we're done!
+    }
+    fn register_one_child(
         &self,
-        parent: &TwoSampleSolution,
-        solver: &mut impl Solver<TwoSampleSolution>,
+        parent: &Self::Sol,
+        solver: &mut impl Solver<Self::Sol>,
         index: usize,
         decision: bool,
     ) {
@@ -59,156 +293,8 @@ impl Problem01Knapsack {
             solver.push(new_solution);
         } // else if solution is illegal, do nothinng
     }
-}
 
-// Problem Trait Methods
-impl Problem<TwoSampleSolution> for Problem01Knapsack {
-    fn name(&self) -> &'static str {
-        "Problem01Knapsack"
-    }
-
-    fn new(size: usize) -> Self {
-        Self {
-            sack: ProblemSubsetSum::new(size),
-            values: vec![ZERO_SCORE; size],
-        }
-    }
-
-    // fn random( size : usize ) -> Self -- take the default implementation
-
-    fn problem_size(&self) -> usize {
-        self.values.len()
-    }
-
-    fn randomize(&mut self) {
-        let num_bits = self.problem_size();
-        assert!(
-            1 < num_bits,
-            "Randomize not defined when problem_size = {}",
-            num_bits
-        );
-        assert_eq!(num_bits, self.values.len(), "Values vector has wrong size");
-
-        self.sack.randomize();
-
-        // self.weights =  (0..self.problem_size()).map( |_| fancy_random_int( ) ).collect();
-        let mut rng = rand::thread_rng();
-        let expo_distr = Exp::new(4.0 / 16.0).unwrap();
-
-        self.values = (0..num_bits)
-            .map(|_| (expo_distr.sample(&mut rng) * 100.0 + 1.0) as ScoreType)
-            .collect();
-
-        ///// The next two lines are optional. Experimentation still going on to see if they help.
-        ////  They are not independant: The 2nd makes no sense without the first, so either none,
-        ////  just the first or both. See below for experimental results.
-        // Sort weights
-        // self.values.sort_unstable();
-        // self.values.reverse();
-
-        assert!(
-            num_bits == self.values.len(),
-            "Value size changed in sort?!?"
-        );
-
-        assert!(self.is_legal());
-    }
-
-    fn is_legal(&self) -> bool {
-        // Note: We're NOT testing whether a solution is legal (we do that below),
-        // We're testing if a PROBLEM is OK.
-        // The subset sum part must be legal -- and then the values too...
-        return self.sack.is_legal()
-            && (self.problem_size() == self.values.len())
-            && self.values.iter().all(|&v| 0 < v); // 0 < values[v] for all v in values
-    }
-
-    // first, methods not defined previously, but which arose while implemeneting the others (see below)
-    fn solution_score(&self, solution: &TwoSampleSolution) -> ScoreType {
-        assert!(self.problem_size() <= NUM_BITS);
-        let mut result = ZERO_SCORE;
-        // Note to self -- later we can be faster here by doing this byte-wise
-        for index in 0..self.problem_size() {
-            if solution.mask.get_bit(index) && solution.decisions.get_bit(index) {
-                result += self.values[index];
-            };
-        } // end for all bits
-        result as ScoreType
-    } // end solution_is_legal
-
-    fn solution_best_score(&self, solution: &TwoSampleSolution) -> ScoreType {
-        assert!(self.problem_size() <= NUM_BITS);
-        assert!(self.solution_is_legal(solution));
-        let mut result = self.solution_score(&solution);
-        for index in 0..self.problem_size() {
-            if !solution.mask.get_bit(index) {
-                // open decision! So we COULD put this item in the knapsack...
-                result += self.values[index];
-            };
-        } // end for all bits
-        assert!(self.solution_score(&solution) <= result);
-        assert!(
-            !self.solution_is_complete(&solution) || (self.solution_score(&solution) == result)
-        );
-        result
-    }
-
-    fn solution_is_legal(&self, solution: &TwoSampleSolution) -> bool {
-        self.sack.solution_is_legal(solution)
-    } // end solution_is_legal
-
-    fn solution_is_complete(&self, solution: &TwoSampleSolution) -> bool {
-        assert!(self.solution_is_legal(&solution));
-        self.sack.solution_is_complete(solution)
-    } // end solution_is_complete
-
-    fn random_solution(&self) -> TwoSampleSolution {
-        let mut result = self.sack.random_solution();
-
-        // store the solutions's score in the solution
-        // self.sack did this already, but did it WRONG.
-        result.put_score(self.solution_score(&result));
-        result.put_best_score(self.solution_best_score(&result));
-
-        assert!(self.solution_is_legal(&result));
-        result
-    }
-
-    fn starting_solution(&self) -> TwoSampleSolution {
-        // We want an "innocent" solution, before any decision as been made,
-        // So all mask bits are one. It doesn't matter what the decisions are,
-        // but we set them all to false.
-        let mut result = self.sack.starting_solution();
-
-        // store the solutions's score in the solution
-        // self.sack did this already, but did it WRONG.
-        result.put_score(self.solution_score(&result));
-        result.put_best_score(self.values_sum());
-
-        assert!(self.solution_is_legal(&result));
-        result
-    }
-
-    fn better_than(
-        &self,
-        new_solution: &TwoSampleSolution,
-        old_solution: &TwoSampleSolution,
-    ) -> bool {
-        old_solution.get_score() < new_solution.get_score()
-    }
-    fn can_be_better_than(
-        &self,
-        new_solution: &TwoSampleSolution,
-        old_solution: &TwoSampleSolution,
-    ) -> bool {
-        old_solution.get_best_score() <= new_solution.get_best_score()
-    }
-
-    fn register_children_of(
-        &self,
-        parent: &TwoSampleSolution,
-        solver: &mut impl Solver<TwoSampleSolution>,
-    ) {
+    fn register_children_of(&self, parent: &Self::Sol, solver: &mut impl Solver<Self::Sol>) {
         // it would be nice to just call self.sack.register_children_of(),
         // since we're not changing the codem,
         // but it would call the wrong self.register_one_chilld (!).
@@ -228,12 +314,12 @@ impl Problem<TwoSampleSolution> for Problem01Knapsack {
 mod tests {
 
     use super::*;
-    use implementations::DepthFirstSolver;
-    use mhd_optimizer::find_best_solution;
+    use implementations::{DepthFirstSolver, Problem01Knapsack, ZeroOneKnapsackSolution};
+    use mhd_optimizer::{Problem, Solution};
 
     #[test]
     fn test_random_weights() {
-        const TEST_SIZE: usize = 16;
+        const TEST_SIZE: usize = 8;
         let mut rand_sack_a = Problem01Knapsack::new(TEST_SIZE);
 
         assert_eq!(rand_sack_a.name(), "Problem01Knapsack");
@@ -249,7 +335,7 @@ mod tests {
 
         assert_ne!(rand_sack_a.weights_sum(), 0);
         assert_ne!(rand_sack_a.values_sum(), 0);
-        assert_ne!(rand_sack_a.sack.capacity, 0);
+        assert_ne!(rand_sack_a.capacity(), 0);
 
         let rand_sack_b = Problem01Knapsack::random(TEST_SIZE);
 
@@ -257,7 +343,7 @@ mod tests {
         assert_eq!(rand_sack_b.problem_size(), TEST_SIZE);
         assert_ne!(rand_sack_b.weights_sum(), 0);
         assert_ne!(rand_sack_b.values_sum(), 0);
-        assert_ne!(rand_sack_b.sack.capacity, 0);
+        assert_ne!(rand_sack_b.capacity(), 0);
 
         let starter = rand_sack_b.starting_solution();
         assert!(rand_sack_b.is_legal());
@@ -287,7 +373,7 @@ mod tests {
 
     #[test]
     fn test_random_knapsacks() {
-        for size in [2, 3, 4, 5, 6, 7, 8, 16, 32, 64, 128, 256].iter() {
+        for size in [ 4, 5, 6, 7, 8, 16, 32, 64, 128, 256].iter() {
             let sack = Problem01Knapsack::random(*size);
             assert!(
                 sack.is_legal(),
@@ -305,7 +391,7 @@ mod tests {
         let problem = Problem01Knapsack::random(NUM_BITS); // a lot smaller
         assert!(problem.is_legal());
 
-        let mut solver = DepthFirstSolver::new(NUM_BITS);
+        let mut solver = DepthFirstSolver::<ZeroOneKnapsackSolution>::new(NUM_BITS);
 
         solver.push(problem.starting_solution());
         assert!(!solver.is_empty());
@@ -347,7 +433,7 @@ mod tests {
     fn test_find_depth_first_solution() {
         const NUM_DECISIONS: usize = 4; // for a start
 
-        let mut little_knapsack = Problem01Knapsack::random(NUM_DECISIONS);
+        let little_knapsack = Problem01Knapsack::random(NUM_DECISIONS);
         let mut first_solver = DepthFirstSolver::new(NUM_DECISIONS);
 
         use std::time::Duration;
@@ -355,7 +441,8 @@ mod tests {
 
         assert!(little_knapsack.is_legal());
 
-        let the_best = find_best_solution(&mut first_solver, &mut little_knapsack, time_limit)
+        let the_best = little_knapsack
+            .find_best_solution(&mut first_solver, time_limit)
             .expect("could not find best solution");
         assert!(little_knapsack.solution_is_legal(&the_best));
         assert!(little_knapsack.solution_is_complete(&the_best));

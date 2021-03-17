@@ -1,16 +1,23 @@
 /// # Example Implementations
 ///
-/// ## Example Problem Implementation: Subset Sum 0-1 Knapsack
+/// ## Example -- the Subset Sum 0-1 Knapsack
 ///
+/// This is a version of the knapsack problem without values:
+/// Every item which can go into the knapsack has a weight. Period.
+/// The goal is to get the weight of the (filled) knapsack as close to its capacity
+/// as possible.
+/// This is a subset of the "zero/one" knapsack problem, since we do not consider the
+/// possibility of putting two or three or _n_ instances of an item in the sack --
+/// every item is either in the sack or out of it.
 ///
+/// Note: This problem does not need its own, customized associated solution type;
+/// it ("just") uses the MinimalSolution struct from the mhd_optimization module.
 extern crate rand_distr;
 
-use rand_distr::{Bernoulli, Distribution, Exp};
+use rand_distr::{Bernoulli, Distribution, Poisson}; // formerly used: Exp
 
-use mhd_method::sample::{Sample, ScoreType, NUM_BITS, ZERO_SCORE}; // Not used: NUM_BYTES
-
-use mhd_optimizer::{Problem, Solver};
-use mhd_optimizer::{Solution, TwoSampleSolution};
+use mhd_method::{ScoreType, NUM_BITS, ZERO_SCORE}; // Not used: NUM_BYTES
+use mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
 
 #[derive(Debug, Clone)]
 pub struct ProblemSubsetSum {
@@ -23,54 +30,27 @@ impl ProblemSubsetSum {
     pub fn weights_sum(&self) -> ScoreType {
         self.weights.iter().sum()
     }
-
-    pub fn first_open_decision(&self, solution: &TwoSampleSolution) -> Option<usize> {
-        // Note to self -- later we can be faster here by doing this byte-wise
-        for index in 0..self.problem_size() {
-            if !solution.mask.get_bit(index) {
-                return Some(index);
-            };
-        } // end for all bits
-          // if we get here, return....
-        None
-    }
-
-    pub fn make_implicit_decisions(&self, sol: &mut TwoSampleSolution) {
-        if self.solution_is_legal(&sol) && !self.solution_is_complete(&sol) {
-            let headroom = self.capacity - sol.get_score();
-            for bit in 0..self.problem_size() {
-                if None == sol.get_decision(bit) && headroom < self.weights[bit] {
-                    // found an unmade decision which cannot legally be made
-                    sol.make_decision(bit, false);
-                } // end if implicit false decision
-            } // end for all bits
-        } // end if incomplete decision
-    }
-    pub fn register_one_child(
-        &self,
-        parent: &TwoSampleSolution,
-        solver: &mut impl Solver<TwoSampleSolution>,
-        index: usize,
-        decision: bool,
-    ) {
-        let mut new_solution = parent.clone();
-        new_solution.make_decision(index, decision);
-        self.make_implicit_decisions(&mut new_solution);
-        if self.solution_is_legal(&new_solution) {
-            new_solution.put_score(self.solution_score(&new_solution));
-            new_solution.put_best_score(self.solution_best_score(&new_solution));
-            solver.push(new_solution);
-        } // else if solution is illegal, do nothing
-    }
 }
 
 // Problem Trait Methods
-impl Problem<TwoSampleSolution> for ProblemSubsetSum {
+impl Problem for ProblemSubsetSum {
+    type Sol = MinimalSolution; // !!!!
+
     fn name(&self) -> &'static str {
         "ProblemSubsetSum"
     }
 
+    fn short_description(&self) -> String {
+        format!(
+            "{}: capacity {} <= weight sum {}",
+            self.name(),
+            self.capacity,
+            self.weights_sum()
+        )
+    }
+
     fn new(size: usize) -> Self {
+        assert!(size <= NUM_BITS);
         ProblemSubsetSum {
             weights: vec![ZERO_SCORE; size],
             capacity: 0,
@@ -86,16 +66,16 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
     fn randomize(&mut self) {
         let num_bits = self.problem_size();
         assert!(
-            1 < num_bits,
+            2 < num_bits,
             "Randomize not defined when problem_size = {}",
             num_bits
         );
         // self.weights =  (0..self.problem_size()).map( |_| fancy_random_int( ) ).collect();
         let mut rng = rand::thread_rng();
-        let expo_distr = Exp::new(3.0 / 16.0).unwrap();
+        let distr = Poisson::new(500.0).unwrap();
 
         self.weights = (0..num_bits)
-            .map(|_| (expo_distr.sample(&mut rng) * 1000.0 + 1.0) as ScoreType)
+            .map(|_| (distr.sample(&mut rng) + 1.0) as ScoreType)
             .collect();
 
         ///// The next two lines are optional. Experimentation still going on to see if they help.
@@ -142,24 +122,26 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
     }
 
     // first, methods not defined previously, but which arose while implemeneting the others (see below)
-    fn solution_score(&self, solution: &TwoSampleSolution) -> ScoreType {
+    fn solution_score(&self, solution: &Self::Sol) -> ScoreType {
         assert!(self.problem_size() <= NUM_BITS);
         let mut result = ZERO_SCORE;
         // Note to self -- later we can be faster here by doing this byte-wise
         for index in 0..self.problem_size() {
-            if solution.mask.get_bit(index) && solution.decisions.get_bit(index) {
-                result += self.weights[index];
-            };
+            if let Some(decision) = solution.get_decision(index) {
+                if decision {
+                    result += self.weights[index];
+                }
+            }
         } // end for all bits
         result as ScoreType
     } // end solution_is_legal
 
-    fn solution_best_score(&self, solution: &TwoSampleSolution) -> ScoreType {
+    fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType {
         assert!(self.problem_size() <= NUM_BITS);
         assert!(self.solution_is_legal(solution));
         let mut result = self.solution_score(&solution);
         for index in 0..self.problem_size() {
-            if !solution.mask.get_bit(index) {
+            if None == solution.get_decision( index ) {
                 // open decision! So we COULD put this item in the knapsack...
                 result += self.weights[index];
                 if self.capacity < result {
@@ -176,7 +158,7 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
         result
     }
 
-    fn solution_is_legal(&self, solution: &TwoSampleSolution) -> bool {
+    fn solution_is_legal(&self, solution: &Self::Sol) -> bool {
         // Note for the future:
         // If we ever get rid of the NUM_BITS constant, we'll need to do this:
         // let num_decisions = self.problem_size();
@@ -186,98 +168,116 @@ impl Problem<TwoSampleSolution> for ProblemSubsetSum {
         (self.problem_size() <= NUM_BITS) && (self.solution_score(solution) <= self.capacity)
     } // end solution_is_legal
 
-    fn solution_is_complete(&self, solution: &TwoSampleSolution) -> bool {
-        assert!(self.solution_is_legal(&solution));
+    fn solution_is_complete(&self, solution: &Self::Sol) -> bool {
+        // assert!(self.solution_is_legal(&solution)); NOT NECESSARY!
         None == self.first_open_decision(solution)
     } // end solution_is_complete
 
-    fn random_solution(&self) -> TwoSampleSolution {
+    fn random_solution(&self) -> Self::Sol {
         // We want a complete, final solution -- so all mask bits are one --
         // which has a random selection of things in the knapsack.
-        let mut result = TwoSampleSolution {
-            mask: Sample::new_ones(ZERO_SCORE),
-            decisions: Sample::random(),
-        };
-
+        let mut result = Self::Sol::random(self.problem_size());
+        debug_assert!( self.solution_is_complete( &result));
         // Take items out of knapsack iff necessary, as long as necessary, until light enough.
         if !self.solution_is_legal(&result) {
             // while illegal -- i.e. too much in knapsack (?!?)
-            assert!(self.problem_size() <= NUM_BITS);
             let mut weight = self.solution_score(&result);
-            assert!(self.capacity < weight);
+            debug_assert!(self.capacity < weight);
             // Note to self -- later we can be faster here by doing this byte-wise
             for index in 0..self.problem_size() {
-                if result.mask.get_bit(index) && result.decisions.get_bit(index) {
-                    weight -= self.weights[index];
-                    result.decisions.set_bit(index, false);
-                    if weight < self.capacity {
-                        break;
-                    } // leave for loop.
-                };
+                if let Some(decision) = result.get_decision(index) {
+                    if decision {
+                        result.make_decision(index, false);
+                        weight -= self.weights[index];
+                        if weight < self.capacity {
+                            break;
+                        } // leave for loop!!
+                    }
+                }
             } // end for all bits in solution
-            assert!(weight == self.solution_score(&result));
-            assert!(weight <= self.capacity);
+            debug_assert_eq!(weight, self.solution_score(&result));
+            debug_assert!(weight <= self.capacity);
         }; // end if illegal
 
         // store the solutions's score in the solution
         result.put_score(self.solution_score(&result));
         result.put_best_score(self.solution_best_score(&result));
 
-        assert!(self.solution_is_legal(&result));
+        debug_assert!(self.solution_is_legal(&result));
+        debug_assert!(self.solution_is_complete( &result ));
 
         result
     }
 
-    fn starting_solution(&self) -> TwoSampleSolution {
+    fn starting_solution(&self) -> Self::Sol {
         // We want an "innocent" solution, before any decision as been made,
         // So all mask bits are one. It doesn't matter what the decisions are,
         // but we set them all to false.
-        let mut result = TwoSampleSolution {
-            mask: Sample::new(0),
-            decisions: Sample::new(0),
-        };
+        let mut result = Self::Sol::new(self.problem_size());
 
         // store the solutions's score in the solution
-        result.put_score(self.solution_score(&result));
+        // result.put_score(self.solution_score(&result));
+        debug_assert_eq!(ZERO_SCORE, result.get_score());
         result.put_best_score(self.capacity);
 
-        assert!(self.solution_is_legal(&result));
+        debug_assert!(self.solution_is_legal(&result));
         result
     }
 
-    // At first, we used the default implementations of:
-    // fn better_than(        & self, new_solution : & Sol, old_solution : & Sol ) -> bool   and
-    // fn can_be_better_than( & self, new_solution : & Sol, old_solution : & Sol ) -> bool
-    // These are faster:
-    fn better_than(
-        &self,
-        new_solution: &TwoSampleSolution,
-        old_solution: &TwoSampleSolution,
-    ) -> bool {
-        old_solution.get_score() < new_solution.get_score()
-    }
-    fn can_be_better_than(
-        &self,
-        new_solution: &TwoSampleSolution,
-        old_solution: &TwoSampleSolution,
-    ) -> bool {
-        old_solution.get_best_score() <= new_solution.get_best_score()
+    //Use the default implementation of better_than()
+    //Use the default implementation of can_be_better_than()
+
+    fn first_open_decision(&self, solution: &Self::Sol) -> Option<usize> {
+        // Note to self -- later we can be faster here by doing this byte-wise
+        for index in 0..self.problem_size() {
+            if None == solution.get_decision(index) {
+                return Some(index);
+            };
+        } // end for all bits
+          // if we get here, return....
+        None
     }
 
-    fn register_children_of(
+    fn last_closed_decision(&self, solution: &Self::Sol) -> Option<usize> {
+        // Note to self -- later we can be faster here by doing this byte-wise
+        for index in self.problem_size()..0 {
+            if None != solution.get_decision(index) {
+                return Some(index);
+            };
+        } // end for all bits
+          // if we get here, return....
+        None
+    }
+
+    fn make_implicit_decisions(&self, sol: &mut Self::Sol) {
+        if self.solution_is_legal(&sol) && !self.solution_is_complete(&sol) {
+            let headroom = self.capacity - sol.get_score();
+            for bit in 0..self.problem_size() {
+                if None == sol.get_decision(bit) && headroom < self.weights[bit] {
+                    // found an unmade decision which cannot legally be made
+                    sol.make_decision(bit, false);
+                } // end if implicit false decision
+            } // end for all bits
+        } // end if incomplete decision
+    }
+    fn register_one_child(
         &self,
-        parent: &TwoSampleSolution,
-        solver: &mut impl Solver<TwoSampleSolution>,
+        parent: &Self::Sol,
+        solver: &mut impl Solver<Self::Sol>,
+        index: usize,
+        decision: bool,
     ) {
-        assert!(self.solution_is_legal(parent));
-        match self.first_open_decision(parent) {
-            None => {} // do nothing!
-            Some(index) => {
-                self.register_one_child(parent, solver, index, false);
-                self.register_one_child(parent, solver, index, true);
-            } // end if found Some(index) -- an open decision
-        } // end match
-    } // end register_children
+        let mut new_solution = parent.clone();
+        new_solution.make_decision(index, decision);
+        self.make_implicit_decisions(&mut new_solution);
+        if self.solution_is_legal(&new_solution) {
+            new_solution.put_score(self.solution_score(&new_solution));
+            new_solution.put_best_score(self.solution_best_score(&new_solution));
+            solver.push(new_solution);
+        } // else if solution is illegal, do nothing
+    }
+
+    // take the default register_children_of
 } // end impl ProblemSubsetSum
 
 ///////////////////// TESTs for ProblemSubsetSum with  FirstDepthFirstSolver /////////////////////
@@ -286,7 +286,6 @@ mod tests {
 
     use super::*;
     use implementations::DepthFirstSolver;
-    use mhd_optimizer::find_best_solution;
 
     #[test]
     fn test_random_weights() {
@@ -353,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_random_knapsacks() {
-        for size in [2, 3, 4, 5, 6, 7, 8, 16, 32, 64, 128, 256].iter() {
+        for size in [ 4, 5, 6, 7, 8, 16, 32, 64, 128, 256].iter() {
             let sack = ProblemSubsetSum::random(*size);
             assert!(
                 sack.is_legal(),
@@ -413,7 +412,7 @@ mod tests {
     fn test_find_depth_first_solution() {
         const NUM_DECISIONS: usize = 4; // for a start
 
-        let mut little_knapsack = ProblemSubsetSum::random(NUM_DECISIONS);
+        let little_knapsack = ProblemSubsetSum::random(NUM_DECISIONS);
         let mut first_solver = DepthFirstSolver::new(NUM_DECISIONS);
 
         use std::time::Duration;
@@ -421,7 +420,8 @@ mod tests {
 
         assert!(little_knapsack.is_legal());
 
-        let the_best = find_best_solution(&mut first_solver, &mut little_knapsack, time_limit)
+        let the_best = little_knapsack
+            .find_best_solution(&mut first_solver, time_limit)
             .expect("could not find best solution");
 
         assert!(little_knapsack.solution_is_legal(&the_best));

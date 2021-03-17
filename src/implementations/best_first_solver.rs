@@ -2,22 +2,34 @@
 ///
 ///
 ///
-use mhd_optimizer::Solver;
-use mhd_optimizer::TwoSampleSolution;
+use mhd_optimizer::{Solution, Solver};
 
 /// ## Example Problem Implementation: Depth First Search
 ///
 ///
+use mhd_method::ZERO_SCORE; // ScoreType not needed (?!?)
 use std::collections::BinaryHeap;
 
 #[derive(Debug, Clone)]
-pub struct BestFirstSolver {
-    pub solutions: BinaryHeap<TwoSampleSolution>,
+pub struct BestFirstSolver<Sol: Solution> {
+    pub solutions: BinaryHeap<Sol>,
 }
 
-impl Solver<TwoSampleSolution> for BestFirstSolver {
+impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
     fn name(&self) -> &'static str {
         "BestFirstSolver "
+    }
+
+    fn short_description(&self) -> String {
+        format!(
+            "{} holding {} solutions, best score {}",
+            self.name(),
+            self.number_of_solutions(),
+            match self.solutions.peek() {
+                None => ZERO_SCORE,
+                Some(sol) => sol.get_score(),
+            }
+        )
     }
 
     fn new(_: usize) -> Self {
@@ -38,10 +50,10 @@ impl Solver<TwoSampleSolution> for BestFirstSolver {
         self.solutions.clear()
     }
 
-    fn push(&mut self, solution: TwoSampleSolution) {
+    fn push(&mut self, solution: Sol) {
         self.solutions.push(solution);
     }
-    fn pop(&mut self) -> Option<TwoSampleSolution> {
+    fn pop(&mut self) -> Option<Sol> {
         self.solutions.pop()
     }
 } // end imp Solver for BestFirstSolver
@@ -51,19 +63,20 @@ impl Solver<TwoSampleSolution> for BestFirstSolver {
 mod more_tests {
     use super::*;
     use implementations::ProblemSubsetSum;
-    use mhd_optimizer::{find_best_solution, Problem, Solution};
+    use mhd_optimizer::{MinimalSolution, Solution};
+    use mhd_optimizer::{Problem, Solver};
 
-    const NUM_DECISIONS: usize = 64; // for a start
 
     #[test]
     fn test_best_first_solver_solver() {
-        let mut solver = BestFirstSolver::new(NUM_DECISIONS);
+        const NUM_DECISIONS: usize = 64; // for a start
+        let mut solver = BestFirstSolver::<MinimalSolution>::new(NUM_DECISIONS);
         assert!(solver.is_empty());
-        let solution = TwoSampleSolution::random(NUM_DECISIONS);
+        let solution = MinimalSolution::random(NUM_DECISIONS);
         solver.push(solution);
         assert!(!solver.is_empty());
         assert_eq!(solver.number_of_solutions(), 1);
-        let solution = TwoSampleSolution::random(NUM_DECISIONS);
+        let solution = MinimalSolution::random(NUM_DECISIONS);
         solver.push(solution);
         assert_eq!(solver.number_of_solutions(), 2);
 
@@ -73,9 +86,9 @@ mod more_tests {
         assert!(solver.is_empty());
 
         // Try again, to test clear
-        let solution = TwoSampleSolution::random(NUM_DECISIONS);
+        let solution = MinimalSolution::random(NUM_DECISIONS);
         solver.push(solution);
-        let solution = TwoSampleSolution::random(NUM_DECISIONS);
+        let solution = MinimalSolution::random(NUM_DECISIONS);
         solver.push(solution);
         assert_eq!(solver.number_of_solutions(), 2);
         solver.clear();
@@ -84,22 +97,25 @@ mod more_tests {
 
     #[test]
     fn test_find_best_first_solution() {
-        let mut little_knapsack = ProblemSubsetSum::random(NUM_DECISIONS);
-        let mut second_solver = BestFirstSolver::new(NUM_DECISIONS);
+        const FEW_DECISIONS: usize = 4; // so we can be sure to find THE optimum!
+        let knapsack = ProblemSubsetSum::random(FEW_DECISIONS);
+        let mut second_solver = BestFirstSolver::<MinimalSolution>::new(FEW_DECISIONS);
 
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        assert!(little_knapsack.is_legal());
+        assert!(knapsack.is_legal());
 
-        let the_best = find_best_solution(&mut second_solver, &mut little_knapsack, time_limit)
+        let the_best = knapsack
+            .find_best_solution(&mut second_solver, time_limit)
             .expect("could not find best solution");
 
+        assert!( knapsack.solution_is_legal( &the_best) );
+        assert!( knapsack.solution_is_complete( &the_best ));
         assert_eq!(
-            little_knapsack.solution_score(&the_best),
-            little_knapsack.capacity
+            knapsack.solution_score(&the_best),
+            knapsack.capacity
         );
-        assert_eq!(the_best.get_score(), little_knapsack.capacity);
-        assert_eq!(the_best.get_best_score(), little_knapsack.capacity);
+        assert_eq!(the_best.get_score(), knapsack.capacity);
     }
 }

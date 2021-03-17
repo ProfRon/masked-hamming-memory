@@ -59,20 +59,20 @@ use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
 // use mhd_mem::mhd_method::sample::{ ScoreType }; // used implicitly (only)
-use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver, Problem01Knapsack};
-use mhd_mem::mhd_optimizer::Problem;
-use mhd_mem::mhd_optimizer::{find_best_solution, Solver};
-use mhd_mem::mhd_optimizer::{Solution, TwoSampleSolution};
+use mhd_mem::mhd_optimizer::{ Solution, Solver, Problem};
+use mhd_mem::implementations::{ DepthFirstSolver, BestFirstSolver };
+use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
+
 
 fn test_one_problem(
     opt: &Opt,
     knapsack: &mut Problem01Knapsack,
-    solver: &mut impl Solver<TwoSampleSolution>,
+    solver: &mut impl Solver<ZeroOneKnapsackSolution>,
 ) {
     assert!(0.0 <= opt.capacity, "Capacity cannot be negative");
     assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
     if 0.0 != opt.capacity {
-        knapsack.sack.capacity = (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as i32;
+        knapsack.basis.capacity = (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as i32;
     }; // else, leave capacity alone remain what the random constructor figured out.
 
     if !knapsack.is_legal() {
@@ -83,15 +83,15 @@ fn test_one_problem(
     let time_limit = Duration::from_secs_f32(opt.time);
     let start_time = Instant::now();
 
-    let the_best = find_best_solution(solver, knapsack, time_limit).expect("Optimization fails?!?");
+    let the_best = knapsack
+        .find_best_solution(solver, time_limit)
+        .expect("Optimization fails?!?");
 
     println!(
-        "with {}, Best Score = {}, weight {} (capacity {}, size = {}) after {:?}",
+        "with {}, found best solution = {} in knapsack {} after {:?}",
         solver.name(),
-        the_best.get_score(),
-        knapsack.sack.solution_score(&the_best),
-        knapsack.sack.capacity,
-        knapsack.problem_size(),
+        the_best.short_description(),
+        knapsack.short_description(),
         start_time.elapsed()
     );
 }
@@ -107,12 +107,15 @@ fn main() {
     println!("{:?}\n", opt);
 
     if opt.verbose {
-        CombinedLogger::init(
-            vec![
-                TermLogger::new( LevelFilter::Warn, Config::default(), TerminalMode::Mixed),
-                WriteLogger::new(LevelFilter::Trace, Config::default(), File::create("trace.log").unwrap()),
-            ]
-        ).unwrap();
+        CombinedLogger::init(vec![
+            TermLogger::new(LevelFilter::Warn, Config::default(), TerminalMode::Mixed),
+            WriteLogger::new(
+                LevelFilter::Trace,
+                Config::default(),
+                File::create("trace.log").unwrap(),
+            ),
+        ])
+        .unwrap();
     }; // end if verbose
 
     if opt.files.is_empty() {

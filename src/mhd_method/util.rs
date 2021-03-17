@@ -1,5 +1,30 @@
 use core::{mem, slice};
 
+#[inline]
+pub fn get_bit(bytes: &[u8], bit_index: usize) -> bool {
+    let byte_index = bit_index / 8;
+    assert!(byte_index < bytes.len());
+    let mask_index = bit_index % 8;
+    let bit_mask: u8 = 1u8 << mask_index;
+    // Now, the result....
+    0 != bytes[byte_index] & bit_mask
+}
+
+#[inline]
+pub fn put_bit(bytes: &mut [u8], bit_index: usize, new_value: bool) {
+    let byte_index = bit_index / 8;
+    assert!(byte_index < bytes.len());
+    let mask_index = bit_index % 8;
+    let bit_mask: u8 = 1u8 << mask_index;
+    let not_bit_mask: u8 = !bit_mask;
+
+    bytes[byte_index] &= not_bit_mask; // bitwise AND -- clears bit
+
+    if new_value {
+        bytes[byte_index] |= bit_mask; // boolean OR to set bit... maybe!
+    } // bitwise OR -- sets bit, maybe
+}
+
 /// Reinterpret as much of `x` as a slice of (correctly aligned) `U`s
 /// as possible. (Same as `slice::align_to` but available in earlier
 /// compilers.)
@@ -38,6 +63,30 @@ pub unsafe fn align_to<T, U>(x: &[T]) -> (&[T], &[U], &[T]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_get_and_put_bit() {
+        let mut buncha_bits = vec![0u8; 8 ]; // 64 bits
+        assert!(!get_bit(&buncha_bits, 0));
+        assert!(!get_bit(&buncha_bits, 7));
+        assert!(!get_bit(&buncha_bits, 21));
+        assert!(!get_bit(&buncha_bits, 28));
+        assert!(!get_bit(&buncha_bits, 63));
+
+        put_bit(&mut buncha_bits, 0, true);
+        put_bit(&mut buncha_bits, 42, true);
+        put_bit(&mut buncha_bits, 63, true);
+        assert!(get_bit(&buncha_bits, 0));
+        assert!(get_bit(&buncha_bits, 42));
+        assert!(get_bit(&buncha_bits, 63));
+
+        put_bit(&mut buncha_bits, 0, false);
+        put_bit(&mut buncha_bits, 42, false);
+        put_bit(&mut buncha_bits, 63, false);
+        assert!(!get_bit(&buncha_bits, 0));
+        assert!(!get_bit(&buncha_bits, 42));
+        assert!(!get_bit(&buncha_bits, 63));
+    }
 
     fn align_to_test(
         from: usize,

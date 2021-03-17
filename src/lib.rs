@@ -51,7 +51,7 @@ pub mod mhd_method {
 
 pub mod mhd_optimizer {
     pub mod solution;
-    pub use self::solution::{Solution, TwoSampleSolution};
+    pub use self::solution::{MinimalSolution, Solution};
 
     pub mod solver;
     pub use self::solver::Solver;
@@ -59,8 +59,8 @@ pub mod mhd_optimizer {
     pub mod problem;
     pub use self::problem::Problem;
 
-    pub mod unified_optimizer;
-    pub use self::unified_optimizer::find_best_solution;
+    // pub mod unified_optimizer;
+    // pub use self::unified_optimizer::find_best_solution;
 }
 
 pub mod implementations {
@@ -68,7 +68,7 @@ pub mod implementations {
     pub use self::subset_sum_problem::ProblemSubsetSum;
 
     pub mod zero_one_knapsack_problem;
-    pub use self::zero_one_knapsack_problem::Problem01Knapsack;
+    pub use self::zero_one_knapsack_problem::{Problem01Knapsack, ZeroOneKnapsackSolution};
 
     pub mod depth_first_solver;
     pub use self::depth_first_solver::DepthFirstSolver;

@@ -1,57 +1,90 @@
 /// # The Unified Decision Optimization Algorithm with the MHD Memory
 /// ## The Solution Trait
 ///
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
+
+use mhd_method::{ScoreType, NUM_BITS};
 
 pub trait Solution: Sized + Clone + Ord + Debug {
     // First, an "associated type"
     // Compare <file:///home/ron/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/share/doc/rust/html/book/ch19-03-advanced-traits.html>
-    type ScoreType: PartialOrd + Debug + Display;
+    // type ScoreType: PartialOrd + Debug + Display;
 
-    // every instance of this struct should have a descriptive name (for tracing, debugging)
-    // TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
+    /// every instance of this struct should have a descriptive name (for tracing, debugging)
+    /// TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
     fn name(&self) -> &'static str;
 
-    // At the moment, we actually have identified no methods we need for Solutions!
-    // Still, this is a safe guess...
-    // Recall: size is the number of decisions to be made (free variables to assign values to).
+    /// Every instance should have a SHORT description for Debugging,
+    /// giving things like a knapsack's weight, etc.
+    fn short_description(&self) -> String;
+
+    /// Constructor for a "blank" solution (with no decisions made yet) where
+    /// size is the number of decisions to be made (free variables to assign values to).
     fn new(size: usize) -> Self;
+
+    /// Constructor for a complete random solution, where
+    /// size is the number of decisions to be made (free variables to assign values to).
     fn random(size: usize) -> Self {
         let mut result = Self::new(size);
         result.randomize();
         result
     }
 
+    /// `randomize` takes a solution and sets all the open decisions at random.
+    /// This does NOT mean that the mask is randomized -- it is set to all ones.
+    /// Note that this will almost never produce a valid, legal solution to any given problem,
+    /// which is why each problem implementation has its own `random_solution` method,
+    /// but these usually call Solution::randomize( self ) as a starting step.
     fn randomize(&mut self);
 
-    // Getters and Setters
-    fn get_score(&self) -> Self::ScoreType; // score is not *calculated*! Just retrieved!
-    fn put_score(&mut self, score: Self::ScoreType);
+    /// #  Getters and Setters
+    ///
+    /// `estimate` is used for sorting (used in turn in the Solver trait):
+    /// Note that it works with get_score() and get_best_score() -- and NO problems-specific
+    /// information!
+    fn estimate(&self) -> ScoreType {
+        (self.get_score() + self.get_best_score()) / 2
+    }
 
-    fn get_best_score(&self) -> Self::ScoreType; // "upper" bound, like score, is *not calculated* (here)!
-    fn put_best_score(&mut self, best: Self::ScoreType);
+    /// Return the score stored with this solution.
+    /// Note that the score is not _calculated_  -- only a problem instance can do that.
+    fn get_score(&self) -> ScoreType; // score is not *calculated*! Just retrieved!
 
+    /// Store a score for this solution.
+    fn put_score(&mut self, score: ScoreType);
+
+    /// Get the "upper" bound (which is an upper bound iff this is a maximization problem).
+    fn get_best_score(&self) -> ScoreType; // "upper" bound, like score, is *not calculated* (here)!
+
+    /// Store the "upper" bound (which is an upper bound iff this is a maximization problem).
+    fn put_best_score(&mut self, best: ScoreType);
+
+    /// Return whether this decision has been made; if not, return None,
+    /// otherwise, return the decision (true of false)
     fn get_decision(&self, decision_number: usize) -> Option<bool>; // Some(bool) or None
+
+    /// Record a decision which has been made -- unmask it and note whether true or false.
     fn make_decision(&mut self, decision_number: usize, decision: bool); // side effect: set mask bit (etc)
+
 } // end trait Solution
 
-/// ## A Very Simple but Useful Implementation of the Solution Trait
+/// ## A Very Simple but Useful Implementation of the Solution Trait: `MinimalSolution`
 ///
 /// Examples:
 /// ```rust
 /// use mhd_mem::mhd_method::{ ScoreType, ZERO_SCORE };
-/// use mhd_mem::mhd_optimizer::{ Solution, TwoSampleSolution };
-/// let sol0 = TwoSampleSolution::new( 8 );
-/// let sol1 = TwoSampleSolution::random( 8 );
+/// use mhd_mem::mhd_optimizer::{ Solution, MinimalSolution };
+/// let sol0 = MinimalSolution::new( 8 );
+/// let sol1 = MinimalSolution::random( 8 );
 ///
-/// assert_eq!( sol0.name(), "TwoSampleSolution");
+/// assert_eq!( sol0.name(), "MinimalSolution");
 /// assert_eq!( sol0.get_score(), ZERO_SCORE );
 /// // assert_eq!( sol0.get_score(), sol1.get_score() );
 /// assert_eq!( sol0.get_best_score(), ZERO_SCORE );
 /// // assert_eq!( sol0.get_best_score(), sol1.get_best_score() );
 /// assert_eq!( sol0.get_decision( 0 ), None );
 ///
-/// let mut sol2 = TwoSampleSolution::new( 4 );
+/// let mut sol2 = MinimalSolution::new( 4 );
 /// assert_eq!( sol0.get_decision( 0 ), None );
 /// assert_eq!( sol0.get_decision( 1 ), None );
 /// assert_eq!( sol0.get_decision( 2 ), None );
@@ -69,96 +102,114 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 /// assert_eq!( sol2.get_score(),      42 as ScoreType );
 /// assert_eq!( sol2.get_best_score(), 88 as ScoreType );
 ///
-/// let mut sol3 = TwoSampleSolution::new( 4 );
+/// let mut sol3 = MinimalSolution::new( 4 );
 /// sol3.put_score(      64 as ScoreType );
 /// sol3.put_best_score( 88 as ScoreType );
 /// assert!( sol2 < sol3 );
 /// assert!( ! (sol2 == sol3) );
 /// ```
-use mhd_method::sample::{Sample, ScoreType, NUM_BITS};
-// use std::fmt::Display <-- Already imported, above
+use rand::prelude::*;
 use std::cmp::Ordering;
 
+use mhd_method::util::*; // pub fn get_bit( bytes: &[u8], bit_index: usize ) -> bool
+                         // use std::fmt::Display <-- Already imported, above
+
 #[derive(Debug, Clone)]
-pub struct TwoSampleSolution {
-    pub mask: Sample, // we could have used Vec<u8> (twice) here (and saved two scores),
-    pub decisions: Sample, // but we wouldn't have the get_bit and set_bit methods!
+pub struct MinimalSolution {
+    pub mask: Vec<u8>, // we could have used Vec<u8> (twice) here (and saved two scores),
+    pub decisions: Vec<u8>, // but we wouldn't have the get_bit and set_bit methods!
+    pub score: ScoreType,
+    pub best_score: ScoreType, // best score possible
 }
 
-impl TwoSampleSolution {
-    pub fn estimate(&self) -> <TwoSampleSolution as Solution>::ScoreType {
-        (self.get_score() + self.get_best_score()) / 2
+impl Solution for MinimalSolution {
+    // type ScoreType = ScoreType; // mhd_method::ScoreType;
+
+    fn name(&self) -> &'static str {
+        "MinimalSolution"
     }
-}
+
+    fn short_description(&self) -> String {
+        format!(
+            "{}: score {}, best score {}",
+            self.name(),
+            self.get_score(),
+            self.get_best_score()
+        )
+    }
+
+    fn new(size: usize) -> Self {
+        assert!(size <= NUM_BITS);
+        let num_bytes = (size / 8) + (size % 8);
+        Self {
+            mask: vec![0x0; num_bytes],      // all zeros == no decision made yet
+            decisions: vec![0x0; num_bytes], // all zeros == all decisions are false (zero)
+            score: 0 as ScoreType,
+            best_score: 0 as ScoreType,
+        }
+    }
+
+    fn randomize(&mut self) {
+        const TOP_SCORE : ScoreType = 1000;
+        let mut generator = thread_rng();
+        self.mask = vec![0xFF; self.mask.len()];
+        generator.fill_bytes(&mut self.decisions);
+        self.score = generator.gen_range(1..=TOP_SCORE); //  as ScoreType;
+        self.best_score = self.score + generator.gen_range(1..=TOP_SCORE); // as ScoreType
+    }
+
+    // Getters and Setters
+    fn get_score(&self) -> ScoreType {
+        self.score
+    }
+
+    fn put_score(&mut self, score: ScoreType) {
+        self.score = score;
+    }
+
+    fn get_best_score(&self) -> ScoreType {
+        self.best_score
+    }
+
+    fn put_best_score(&mut self, best: ScoreType) {
+        self.best_score = best;
+    }
+
+    fn get_decision(&self, decision_number: usize) -> Option<bool> {
+        if !get_bit(&self.mask, decision_number) {
+            None
+        } else {
+            // if bit is masked ==> Decision is made
+            Some(get_bit(&self.decisions, decision_number))
+        }
+    }
+
+    fn make_decision(&mut self, decision_number: usize, decision: bool) {
+        put_bit(&mut self.mask, decision_number, true);
+        put_bit(&mut self.decisions, decision_number, decision);
+    }
+} // end impl Soluton for MinimalSolution
+
+/// ## Default Sorting Implementations (hopefully allowed)
+use std::cmp::*;
 
 // Ord requires Eq, which requires PartialEq
-impl PartialEq for TwoSampleSolution {
+impl PartialEq for MinimalSolution {
     fn eq(&self, other: &Self) -> bool {
         self.estimate() == other.estimate()
     }
 }
 
-impl Eq for TwoSampleSolution {}
+impl Eq for MinimalSolution {}
 
-impl Ord for TwoSampleSolution {
+impl Ord for MinimalSolution {
     fn cmp(&self, other: &Self) -> Ordering {
         self.estimate().cmp(&other.estimate())
     }
 }
 
-impl PartialOrd for TwoSampleSolution {
+impl PartialOrd for MinimalSolution {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.estimate().cmp(&other.estimate()))
     }
 }
-
-impl Solution for TwoSampleSolution {
-    type ScoreType = ScoreType;
-
-    fn name(&self) -> &'static str {
-        "TwoSampleSolution"
-    }
-
-    fn new(size: usize) -> Self {
-        assert!(size <= NUM_BITS);
-        Self {
-            mask: Sample::default(),      // all zeros == no decision made yet
-            decisions: Sample::default(), // all zeros == all decisions are zero/false
-        }
-    }
-
-    fn randomize(&mut self) {
-        // Do **not** call self.mask.randomize();
-        self.decisions.randomize();
-    }
-
-    // Getters and Setters
-    fn get_score(&self) -> Self::ScoreType {
-        // score is not *calculated*! Just retrieved!
-        self.decisions.score
-    }
-    fn put_score(&mut self, score: Self::ScoreType) {
-        self.decisions.score = score;
-    }
-
-    fn get_best_score(&self) -> Self::ScoreType {
-        // best score is not *calculated*! Just retrieved!
-        self.mask.score
-    }
-    fn put_best_score(&mut self, best: Self::ScoreType) {
-        self.mask.score = best;
-    }
-
-    fn get_decision(&self, decision_number: usize) -> Option<bool> {
-        if self.mask.get_bit(decision_number) {
-            Some(self.decisions.get_bit(decision_number))
-        } else {
-            // if NOT self.mask.get_bit( decision_number )
-            None
-        }
-    }
-    fn make_decision(&mut self, decision_number: usize, decision: bool) {
-        self.mask.set_bit(decision_number, true);
-        self.decisions.set_bit(decision_number, decision);
-    }
-} // end impl Soluton for TwoSampleSolution

@@ -3,23 +3,24 @@ extern crate mhd_mem;
 
 // use mhd_mem::mhd_method::*;
 use mhd_mem::implementations::*;
-use mhd_mem::mhd_optimizer::*;
-use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
+use mhd_mem::mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
 
 use std::time::Duration;
 
 // inline because https://bheisler.github.io/criterion.rs/book/getting_started.html
 #[inline]
-fn bench_optimization<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
+fn bench_optimization<
+    Solv: Solver<<Prob as Problem>::Sol>,
+    Prob: Problem,
+>(
     problem: &Prob,
     solver: &mut Solv,
 ) {
     solver.clear();
 
-    let the_best = black_box(
-        find_best_solution(solver, problem, Duration::from_secs_f32(1.0 ))
-            .expect("could not find best solution on bench"),
-    );
+    let the_best = problem
+        .find_best_solution(solver, Duration::from_secs_f32(1.0))
+        .expect("could not find best solution on bench");
 
     let best_score = the_best.get_score();
     // assert!( ZERO_SCORE < best_score );
@@ -33,11 +34,12 @@ fn bench_optimization<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
 // https://bheisler.github.io/criterion.rs/criterion/struct.BenchmarkGroup.html
 
 use criterion::measurement::WallTime;
-use criterion::{
-    black_box, criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion,
-};
+use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion};
 
-fn bench_one_combo<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol>>(
+fn bench_one_combo<
+    Solv: Solver<<Prob as Problem>::Sol>,
+    Prob: Problem,
+>(
     group: &mut BenchmarkGroup<WallTime>,
     problem: &Prob,
     solver: &mut Solv,
@@ -63,22 +65,22 @@ fn bench_one_size(group: &mut BenchmarkGroup<WallTime>, size: usize) {
     let problem_a = ProblemSubsetSum::random(size);
 
     // ...with the Depth First Solver
-    let mut solver_a = DepthFirstSolver::new(size);
+    let mut solver_a = DepthFirstSolver::<MinimalSolution>::new(size);
     bench_one_combo(group, &problem_a, &mut solver_a, size);
 
     // ...and with the Best First Solver
-    let mut solver_b = BestFirstSolver::new(size);
+    let mut solver_b = BestFirstSolver::<MinimalSolution>::new(size);
     bench_one_combo(group, &problem_a, &mut solver_b, size);
 
     // First one problem, then another, since they are not mutable
     let problem_b = Problem01Knapsack::random(size);
 
     // ...with the Depth First Solver
-    let mut solver_c = DepthFirstSolver::new(size);
+    let mut solver_c = DepthFirstSolver::<ZeroOneKnapsackSolution>::new(size);
     bench_one_combo(group, &problem_b, &mut solver_c, size);
 
     // ...and with the Best First Solver
-    let mut solver_d = BestFirstSolver::new(size);
+    let mut solver_d = BestFirstSolver::<ZeroOneKnapsackSolution>::new(size);
     bench_one_combo(group, &problem_b, &mut solver_d, size);
 }
 
@@ -92,7 +94,7 @@ fn bench_sizes(c: &mut Criterion) {
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
-    for bits in [8, 16, 32, 64, 128, 256, 512, 1024].iter() {
+    for bits in [ 4, 8, 16, 32, 64, 128, 256, 512, 1024].iter() {
         bench_one_size(&mut group, *bits);
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));
