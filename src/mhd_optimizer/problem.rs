@@ -8,6 +8,8 @@ use mhd_method::{ScoreType, NUM_BITS}; // Not used: NUM_BYTES
 use mhd_optimizer::Solution;
 use mhd_optimizer::Solver;
 
+static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs( 8 ); // can be changed
+
 pub trait Problem: Sized + Clone + Debug {
     // Every Problem will probably need it's own "associated" solution type
     type Sol: Solution;
@@ -142,6 +144,7 @@ pub trait Problem: Sized + Clone + Debug {
         use std::io::prelude::*; // for writeln! (write_fmt)
         use std::time::Instant;
 
+        let global_start_time = Instant::now();
         let mut start_time = Instant::now();
 
         // define some solution to be "best-so-far"
@@ -200,7 +203,9 @@ pub trait Problem: Sized + Clone + Debug {
             }; // end if not bounded
 
             // Terminate out if loop?
-            if solver.is_empty() || time_limit <= start_time.elapsed() {
+            if solver.is_empty()
+               || time_limit < start_time.elapsed()
+               || GLOBAL_TIME_LIMIT < global_start_time.elapsed() {
                 info!(
                     "Solver is finished! Unfinished work = {}, visitations = {}, time taken? {:?}",
                     solver.number_of_solutions(),

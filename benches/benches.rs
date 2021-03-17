@@ -39,7 +39,11 @@ fn bench_one_combo<Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem>(
     solver: &mut Solv,
     size: usize,
 ) {
-    assert!( problem.is_legal(), "illegal knapsack {}", problem.short_description() );
+    assert!(
+        problem.is_legal(),
+        "illegal knapsack {}",
+        problem.short_description()
+    );
 
     let prefix = format!("Bench {} bits", size);
     let bench_name = format!("{}+{}", problem.name(), solver.name());
