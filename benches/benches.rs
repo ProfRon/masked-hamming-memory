@@ -9,10 +9,7 @@ use std::time::Duration;
 
 // inline because https://bheisler.github.io/criterion.rs/book/getting_started.html
 #[inline]
-fn bench_optimization<
-    Solv: Solver<<Prob as Problem>::Sol>,
-    Prob: Problem,
->(
+fn bench_optimization<Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem>(
     problem: &Prob,
     solver: &mut Solv,
 ) {
@@ -36,10 +33,7 @@ fn bench_optimization<
 use criterion::measurement::WallTime;
 use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion};
 
-fn bench_one_combo<
-    Solv: Solver<<Prob as Problem>::Sol>,
-    Prob: Problem,
->(
+fn bench_one_combo<Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem>(
     group: &mut BenchmarkGroup<WallTime>,
     problem: &Prob,
     solver: &mut Solv,
@@ -94,7 +88,7 @@ fn bench_sizes(c: &mut Criterion) {
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
-    for bits in [ 4, 8, 16, 32, 64, 128, 256, 512, 1024].iter() {
+    for bits in [4, 8, 16, 32, 64, 128, 256, 512, 1024].iter() {
         bench_one_size(&mut group, *bits);
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));

@@ -65,7 +65,6 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 
     /// Record a decision which has been made -- unmask it and note whether true or false.
     fn make_decision(&mut self, decision_number: usize, decision: bool); // side effect: set mask bit (etc)
-
 } // end trait Solution
 
 /// ## A Very Simple but Useful Implementation of the Solution Trait: `MinimalSolution`
@@ -150,7 +149,7 @@ impl Solution for MinimalSolution {
     }
 
     fn randomize(&mut self) {
-        const TOP_SCORE : ScoreType = 1000;
+        const TOP_SCORE: ScoreType = 1000;
         let mut generator = thread_rng();
         self.mask = vec![0xFF; self.mask.len()];
         generator.fill_bytes(&mut self.decisions);
@@ -183,7 +182,6 @@ impl Solution for MinimalSolution {
             Some(get_bit(&self.decisions, decision_number))
         }
     }
-
 
     fn make_decision(&mut self, decision_number: usize, decision: bool) {
         put_bit(&mut self.mask, decision_number, true);

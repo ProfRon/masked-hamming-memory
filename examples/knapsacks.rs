@@ -59,10 +59,9 @@ use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
 // use mhd_mem::mhd_method::sample::{ ScoreType }; // used implicitly (only)
-use mhd_mem::mhd_optimizer::{ Solution, Solver, Problem};
-use mhd_mem::implementations::{ DepthFirstSolver, BestFirstSolver };
+use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
 use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
-
+use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
 
 fn test_one_problem(
     opt: &Opt,

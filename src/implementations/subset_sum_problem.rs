@@ -141,7 +141,7 @@ impl Problem for ProblemSubsetSum {
         assert!(self.solution_is_legal(solution));
         let mut result = self.solution_score(&solution);
         for index in 0..self.problem_size() {
-            if None == solution.get_decision( index ) {
+            if None == solution.get_decision(index) {
                 // open decision! So we COULD put this item in the knapsack...
                 result += self.weights[index];
                 if self.capacity < result {
@@ -177,7 +177,7 @@ impl Problem for ProblemSubsetSum {
         // We want a complete, final solution -- so all mask bits are one --
         // which has a random selection of things in the knapsack.
         let mut result = Self::Sol::random(self.problem_size());
-        debug_assert!( self.solution_is_complete( &result));
+        debug_assert!(self.solution_is_complete(&result));
         // Take items out of knapsack iff necessary, as long as necessary, until light enough.
         if !self.solution_is_legal(&result) {
             // while illegal -- i.e. too much in knapsack (?!?)
@@ -204,7 +204,7 @@ impl Problem for ProblemSubsetSum {
         result.put_best_score(self.solution_best_score(&result));
 
         debug_assert!(self.solution_is_legal(&result));
-        debug_assert!(self.solution_is_complete( &result ));
+        debug_assert!(self.solution_is_complete(&result));
 
         result
     }
@@ -271,7 +271,7 @@ impl Problem for ProblemSubsetSum {
         new_solution.make_decision(index, decision);
         self.make_implicit_decisions(&mut new_solution);
         if self.solution_is_legal(&new_solution) {
-            self.fix_scores( &mut new_solution);
+            self.fix_scores(&mut new_solution);
             solver.push(new_solution);
         } // else if solution is illegal, do nothing
     }
@@ -351,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_random_knapsacks() {
-        for size in [ 4, 5, 6, 7, 8, 16, 32, 64, 128, 256].iter() {
+        for size in [4, 5, 6, 7, 8, 16, 32, 64, 128, 256].iter() {
             let sack = ProblemSubsetSum::random(*size);
             assert!(
                 sack.is_legal(),

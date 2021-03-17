@@ -66,7 +66,6 @@ mod more_tests {
     use mhd_optimizer::{MinimalSolution, Solution};
     use mhd_optimizer::{Problem, Solver};
 
-
     #[test]
     fn test_best_first_solver_solver() {
         const NUM_DECISIONS: usize = 64; // for a start
@@ -110,12 +109,9 @@ mod more_tests {
             .find_best_solution(&mut second_solver, time_limit)
             .expect("could not find best solution");
 
-        assert!( knapsack.solution_is_legal( &the_best) );
-        assert!( knapsack.solution_is_complete( &the_best ));
-        assert_eq!(
-            knapsack.solution_score(&the_best),
-            knapsack.capacity
-        );
+        assert!(knapsack.solution_is_legal(&the_best));
+        assert!(knapsack.solution_is_complete(&the_best));
+        assert_eq!(knapsack.solution_score(&the_best), knapsack.capacity);
         assert_eq!(the_best.get_score(), knapsack.capacity);
     }
 }

@@ -29,7 +29,7 @@ pub trait Problem: Sized + Clone + Debug {
     /// where `size` is the number of decisions to be made (free variables to assign values to).
     /// Do not confuse with `random_solution`!
     fn random(size: usize) -> Self {
-        assert!( size <= NUM_BITS );
+        assert!(size <= NUM_BITS);
         let mut result = Self::new(size);
         result.randomize();
         result
@@ -58,9 +58,9 @@ pub trait Problem: Sized + Clone + Debug {
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType;
 
     /// Helper function to record the score and best score of a given solution
-    fn fix_scores( &self, solution: &mut Self::Sol) {
-        solution.put_score( self.solution_score( solution ));
-        solution.put_best_score( self.solution_best_score( solution ));
+    fn fix_scores(&self, solution: &mut Self::Sol) {
+        solution.put_score(self.solution_score(solution));
+        solution.put_best_score(self.solution_best_score(solution));
     }
 
     /// Is a given solution legal *for this problem*?
@@ -149,9 +149,11 @@ pub trait Problem: Sized + Clone + Debug {
         let mut best_solution = self.random_solution();
         assert!(self.solution_is_complete(&best_solution));
         assert!(self.solution_is_legal(&best_solution));
-        trace!( "Optimizing Problem (short) {}", self.short_description() );
-        trace!( "First Random Solution (short) {}", best_solution.short_description() );
-
+        trace!("Optimizing Problem (short) {}", self.short_description());
+        trace!(
+            "First Random Solution (short) {}",
+            best_solution.short_description()
+        );
 
         // start at the root of the tree
         debug_assert!(solver.is_empty());
@@ -165,9 +167,13 @@ pub trait Problem: Sized + Clone + Debug {
                 .expect("solver's queue should not be empty but could not pop");
             trace!(
                 "Optimizer pops {} solution {} at depth {}, high score {}",
-                if self.solution_is_complete(&next_solution) {"  COMPLETE"} else {"incomplete"},
+                if self.solution_is_complete(&next_solution) {
+                    "  COMPLETE"
+                } else {
+                    "incomplete"
+                },
                 next_solution.short_description(),
-                self.first_open_decision( &next_solution ).unwrap_or(99999999 ),
+                self.first_open_decision(&next_solution).unwrap_or(99999999),
                 best_solution.get_score()
             );
 

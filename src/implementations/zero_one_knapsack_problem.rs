@@ -82,7 +82,7 @@ impl Solution for ZeroOneKnapsackSolution {
     }
 
     fn get_decision(&self, decision_number: usize) -> Option<bool> {
-        self.basis.get_decision( decision_number )
+        self.basis.get_decision(decision_number)
     }
 
     fn make_decision(&mut self, decision_number: usize, decision: bool) {
@@ -138,18 +138,17 @@ impl Problem01Knapsack {
         self.basis.capacity
     }
 
-    pub fn solution_from_basis( & self, starter_basis: & MinimalSolution ) -> ZeroOneKnapsackSolution {
+    pub fn solution_from_basis(&self, starter_basis: &MinimalSolution) -> ZeroOneKnapsackSolution {
         let mut result = ZeroOneKnapsackSolution {
-            basis : starter_basis.clone( ),
-            score : ZERO_SCORE,
-            best_score : ZERO_SCORE
+            basis: starter_basis.clone(),
+            score: ZERO_SCORE,
+            best_score: ZERO_SCORE,
         };
         result.put_score(self.solution_score(&result));
         result.put_best_score(self.solution_best_score(&result));
-        debug_assert!( self.solution_is_legal( &result ) );
+        debug_assert!(self.solution_is_legal(&result));
         result
     }
-
 }
 
 // Problem Trait Methods
@@ -243,19 +242,19 @@ impl Problem for Problem01Knapsack {
     }
 
     fn solution_is_legal(&self, solution: &Self::Sol) -> bool {
-        self.basis.solution_is_legal(&solution.basis )
+        self.basis.solution_is_legal(&solution.basis)
     } // end solution_is_legal
 
     fn solution_is_complete(&self, solution: &Self::Sol) -> bool {
-        self.basis.solution_is_complete(&solution.basis )
+        self.basis.solution_is_complete(&solution.basis)
     } // end solution_is_complete
 
     fn random_solution(&self) -> Self::Sol {
-        self.solution_from_basis( &self.basis.random_solution() )
+        self.solution_from_basis(&self.basis.random_solution())
     }
 
     fn starting_solution(&self) -> Self::Sol {
-        self.solution_from_basis( &self.basis.starting_solution() )
+        self.solution_from_basis(&self.basis.starting_solution())
     }
 
     // Take the default better_than() method
@@ -287,14 +286,15 @@ impl Problem for Problem01Knapsack {
         let mut new_solution = parent.clone();
         new_solution.make_decision(index, decision);
         // Add weight (may be taken off later)
-        self.basis.fix_scores( &mut new_solution.basis );
+        self.basis.fix_scores(&mut new_solution.basis);
         self.make_implicit_decisions(&mut new_solution);
         if self.solution_is_legal(&new_solution) {
-            self.fix_scores( &mut new_solution );
-            debug_assert_eq!( new_solution.get_score(),
-                              self.solution_score( &new_solution ));
-            debug_assert_eq!( new_solution.basis.get_score(),
-                              self.basis.solution_score( &new_solution.basis ));
+            self.fix_scores(&mut new_solution);
+            debug_assert_eq!(new_solution.get_score(), self.solution_score(&new_solution));
+            debug_assert_eq!(
+                new_solution.basis.get_score(),
+                self.basis.solution_score(&new_solution.basis)
+            );
             solver.push(new_solution);
         } // else if solution is illegal, do nothinng
     }
@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn test_random_knapsacks() {
-        for size in [ 4, 5, 6, 7, 8, 16, 32, 64, 128, 256].iter() {
+        for size in [4, 5, 6, 7, 8, 16, 32, 64, 128, 256].iter() {
             let sack = Problem01Knapsack::random(*size);
             assert!(
                 sack.is_legal(),

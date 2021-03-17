@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_get_and_put_bit() {
-        let mut buncha_bits = vec![0u8; 8 ]; // 64 bits
+        let mut buncha_bits = vec![0u8; 8]; // 64 bits
         assert!(!get_bit(&buncha_bits, 0));
         assert!(!get_bit(&buncha_bits, 7));
         assert!(!get_bit(&buncha_bits, 21));
