@@ -138,7 +138,7 @@ pub trait Problem: Sized + Clone + Debug {
         time_limit: Duration,
     ) -> Result<Self::Sol, Box<dyn Error>> {
         use log::*; // for info, trace, warn, etc.
-        use std::fs::OpenOptions; // and/or File, if we want to overwrite a file... 
+        use std::fs::OpenOptions; // and/or File, if we want to overwrite a file...
         use std::io::prelude::*; // for writeln! (write_fmt)
         use std::time::Instant;
 

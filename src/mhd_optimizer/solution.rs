@@ -197,7 +197,7 @@ use std::cmp::*;
 // Ord requires Eq, which requires PartialEq
 impl PartialEq for MinimalSolution {
     fn eq(&self, other: &Self) -> bool {
-        self.estimate() == other.estimate()
+        self.get_score() == other.get_score()
     }
 }
 
@@ -205,12 +205,12 @@ impl Eq for MinimalSolution {}
 
 impl Ord for MinimalSolution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.estimate().cmp(&other.estimate())
+        self.get_score().cmp(&other.get_score())
     }
 }
 
 impl PartialOrd for MinimalSolution {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.estimate().cmp(&other.estimate()))
+        Some(self.get_score().cmp(&other.get_score()))
     }
 }

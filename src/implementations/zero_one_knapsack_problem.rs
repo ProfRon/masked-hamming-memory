@@ -96,7 +96,7 @@ use std::cmp::*;
 // Ord requires Eq, which requires PartialEq
 impl PartialEq for ZeroOneKnapsackSolution {
     fn eq(&self, other: &Self) -> bool {
-        self.estimate() == other.estimate()
+        self.get_score() == other.get_score()
     }
 }
 
@@ -104,13 +104,13 @@ impl Eq for ZeroOneKnapsackSolution {}
 
 impl Ord for ZeroOneKnapsackSolution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.estimate().cmp(&other.estimate())
+        self.get_score().cmp(&other.get_score())
     }
 }
 
 impl PartialOrd for ZeroOneKnapsackSolution {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.estimate().cmp(&other.estimate()))
+        Some(self.get_score().cmp(&other.get_score()))
     }
 }
 
