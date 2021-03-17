@@ -57,6 +57,12 @@ pub trait Problem: Sized + Clone + Debug {
     /// but if we're minimizing, this is the lower bound.
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType;
 
+    /// Helper function to record the score and best score of a given solution
+    fn fix_scores( &self, solution: &mut Self::Sol) {
+        solution.put_score( self.solution_score( solution ));
+        solution.put_best_score( self.solution_best_score( solution ));
+    }
+
     /// Is a given solution legal *for this problem*?
     fn solution_is_legal(&self, solution: &Self::Sol) -> bool;
 
@@ -132,18 +138,9 @@ pub trait Problem: Sized + Clone + Debug {
         time_limit: Duration,
     ) -> Result<Self::Sol, Box<dyn Error>> {
         use log::*; // for info, trace, warn, etc.
-        use std::fs::{File, OpenOptions};
+        use std::fs::OpenOptions; // and/or File, if we want to overwrite a file... 
         use std::io::prelude::*; // for writeln! (write_fmt)
         use std::time::Instant;
-
-        let mut microtrace_file =
-            File::create("microtrace.csv").expect("Could not open microtrace.csv");
-
-        writeln!(
-            microtrace_file,
-            "nanoseconds; visitations; queue size; current score; current bound; best score"
-        )?;
-        // SIX fields!
 
         let mut start_time = Instant::now();
 
@@ -152,24 +149,9 @@ pub trait Problem: Sized + Clone + Debug {
         let mut best_solution = self.random_solution();
         assert!(self.solution_is_complete(&best_solution));
         assert!(self.solution_is_legal(&best_solution));
-        trace!("First Best: {:?}", best_solution);
-        trace!(
-            "Optimizer initializes BEST score {}",
-            best_solution.get_score()
-        );
+        trace!( "Optimizing Problem (short) {}", self.short_description() );
+        trace!( "First Random Solution (short) {}", best_solution.short_description() );
 
-        // Add the starting random "best" solution to the microtrace file
-        // (to see if we ever do better, and if so, how quickly).
-        writeln!(
-            microtrace_file,
-            "{}; {}; {}; {}; {}; {}", // SIX fields!
-            start_time.elapsed().as_nanos(),
-            num_visitations,
-            solver.number_of_solutions(),
-            best_solution.get_score(),
-            best_solution.get_best_score(),
-            best_solution.get_score(),
-        )?;
 
         // start at the root of the tree
         debug_assert!(solver.is_empty());
@@ -182,10 +164,11 @@ pub trait Problem: Sized + Clone + Debug {
                 .pop()
                 .expect("solver's queue should not be empty but could not pop");
             trace!(
-                "Optimizer pops solution with score {} <= bound {} after {} visitations",
-                next_solution.get_score(),
-                next_solution.get_best_score(),
-                num_visitations,
+                "Optimizer pops {} solution {} at depth {}, high score {}",
+                if self.solution_is_complete(&next_solution) {"  COMPLETE"} else {"incomplete"},
+                next_solution.short_description(),
+                self.first_open_decision( &next_solution ).unwrap_or(99999999 ),
+                best_solution.get_score()
             );
 
             if self.solution_is_complete(&next_solution)
@@ -204,20 +187,6 @@ pub trait Problem: Sized + Clone + Debug {
                 start_time = Instant::now();
             }; // end solution complete and better than old best solution
 
-            if 0 == num_visitations % 32 {
-                // every so many vistiations
-                writeln!(
-                    microtrace_file,
-                    "{}; {}; {}; {}; {}; {}", // SIX fields!
-                    start_time.elapsed().as_nanos(),
-                    num_visitations,
-                    solver.number_of_solutions(),
-                    next_solution.get_score(),
-                    next_solution.get_best_score(),
-                    best_solution.get_score(),
-                )?;
-            } // end every 16 vistiations
-
             // BOUND
             if self.can_be_better_than(&next_solution, &best_solution) {
                 // BRANCH
@@ -235,17 +204,6 @@ pub trait Problem: Sized + Clone + Debug {
                 break best_solution;
             }; // end if terminating
         }; // end loop
-
-        writeln!(
-            microtrace_file,
-            "{}; {}; {}; {}; {}; {}", // SIX fields!
-            start_time.elapsed().as_nanos(),
-            num_visitations,
-            solver.number_of_solutions(),
-            result.get_score(),
-            result.get_best_score(),
-            result.get_score(),
-        )?;
 
         let mut macrotrace_file = OpenOptions::new()
             .append(true)

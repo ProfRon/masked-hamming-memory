@@ -286,10 +286,15 @@ impl Problem for Problem01Knapsack {
         // Fascinatingly, it DOES work if we cut and paste the code!  :-\
         let mut new_solution = parent.clone();
         new_solution.make_decision(index, decision);
+        // Add weight (may be taken off later)
+        self.basis.fix_scores( &mut new_solution.basis );
         self.make_implicit_decisions(&mut new_solution);
         if self.solution_is_legal(&new_solution) {
-            new_solution.put_score(self.solution_score(&new_solution));
-            new_solution.put_best_score(self.solution_best_score(&new_solution));
+            self.fix_scores( &mut new_solution );
+            debug_assert_eq!( new_solution.get_score(),
+                              self.solution_score( &new_solution ));
+            debug_assert_eq!( new_solution.basis.get_score(),
+                              self.basis.solution_score( &new_solution.basis ));
             solver.push(new_solution);
         } // else if solution is illegal, do nothinng
     }

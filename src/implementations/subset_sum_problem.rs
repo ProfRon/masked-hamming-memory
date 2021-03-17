@@ -271,8 +271,7 @@ impl Problem for ProblemSubsetSum {
         new_solution.make_decision(index, decision);
         self.make_implicit_decisions(&mut new_solution);
         if self.solution_is_legal(&new_solution) {
-            new_solution.put_score(self.solution_score(&new_solution));
-            new_solution.put_best_score(self.solution_best_score(&new_solution));
+            self.fix_scores( &mut new_solution);
             solver.push(new_solution);
         } // else if solution is illegal, do nothing
     }

@@ -184,6 +184,7 @@ impl Solution for MinimalSolution {
         }
     }
 
+
     fn make_decision(&mut self, decision_number: usize, decision: bool) {
         put_bit(&mut self.mask, decision_number, true);
         put_bit(&mut self.decisions, decision_number, decision);
