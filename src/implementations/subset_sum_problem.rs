@@ -65,7 +65,7 @@ impl Problem for ProblemSubsetSum {
 
     fn randomize(&mut self) {
         let num_bits = self.problem_size();
-        assert!(
+        debug_assert!(
             2 < num_bits,
             "Randomize not defined when problem_size = {}",
             num_bits
@@ -84,13 +84,13 @@ impl Problem for ProblemSubsetSum {
         // Sort weights
         self.weights.sort_unstable();
         self.weights.reverse();
-        assert!(
+        debug_assert!(
             num_bits == self.problem_size(),
             "Problem size changed in sort?!?"
         );
-        assert!(0 < self.weights[0]);
-        assert!(0 < self.weights[num_bits - 1]);
-        assert!(self.weights[num_bits - 1] <= self.weights[0]); // Change if not reversing sort
+        debug_assert!(0 < self.weights[0]);
+        debug_assert!(0 < self.weights[num_bits - 1]);
+        debug_assert!(self.weights[num_bits - 1] <= self.weights[0]); // Change if not reversing sort
 
         // Choose Capacity as the sum of a random selection of the weights
         let berno_distr = Bernoulli::new(0.5).unwrap();
@@ -123,7 +123,7 @@ impl Problem for ProblemSubsetSum {
 
     // first, methods not defined previously, but which arose while implemeneting the others (see below)
     fn solution_score(&self, solution: &Self::Sol) -> ScoreType {
-        assert!(self.problem_size() <= NUM_BITS);
+        debug_assert!(self.problem_size() <= NUM_BITS);
         let mut result = ZERO_SCORE;
         // Note to self -- later we can be faster here by doing this byte-wise
         for index in 0..self.problem_size() {
@@ -137,8 +137,8 @@ impl Problem for ProblemSubsetSum {
     } // end solution_is_legal
 
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType {
-        assert!(self.problem_size() <= NUM_BITS);
-        assert!(self.solution_is_legal(solution));
+        debug_assert!(self.problem_size() <= NUM_BITS);
+        debug_assert!(self.solution_is_legal(solution));
         let mut result = self.solution_score(&solution);
         for index in 0..self.problem_size() {
             if None == solution.get_decision(index) {
@@ -150,9 +150,9 @@ impl Problem for ProblemSubsetSum {
             };
         } // end for all bits
           // if we're here, then upper_bound is less than capacity
-        assert!(result <= self.capacity);
-        assert!(self.solution_score(&solution) <= result);
-        assert!(
+        debug_assert!(result <= self.capacity);
+        debug_assert!(self.solution_score(&solution) <= result);
+        debug_assert!(
             !self.solution_is_complete(&solution) || (self.solution_score(&solution) == result)
         );
         result

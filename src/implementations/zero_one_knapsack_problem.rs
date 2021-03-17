@@ -200,7 +200,7 @@ impl Problem for Problem01Knapsack {
         // self.values.sort_unstable();
         // self.values.reverse();
 
-        assert!(self.is_legal());
+        debug_assert!(self.is_legal());
     }
 
     fn is_legal(&self) -> bool {
@@ -227,15 +227,15 @@ impl Problem for Problem01Knapsack {
     } // end solution_is_legal
 
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType {
-        assert!(self.solution_is_legal(solution));
+        debug_assert!(self.solution_is_legal(solution));
         let mut result = self.solution_score(&solution);
         for index in 0..self.problem_size() {
             if None == solution.get_decision(index) {
                 result += self.values[index];
             }
         } // end for all bits
-        assert!(self.solution_score(&solution) <= result);
-        assert!(
+        debug_assert!(self.solution_score(&solution) <= result);
+        debug_assert!(
             !self.solution_is_complete(&solution) || (self.solution_score(&solution) == result)
         );
         result
@@ -303,7 +303,7 @@ impl Problem for Problem01Knapsack {
         // it would be nice to just call self.sack.register_children_of(),
         // since we're not changing the codem,
         // but it would call the wrong self.register_one_chilld (!).
-        assert!(self.solution_is_legal(parent));
+        debug_assert!(self.solution_is_legal(parent));
         match self.first_open_decision(parent) {
             None => {} // do nothing!
             Some(index) => {

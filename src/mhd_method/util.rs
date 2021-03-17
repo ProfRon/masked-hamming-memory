@@ -3,7 +3,7 @@ use core::{mem, slice};
 #[inline]
 pub fn get_bit(bytes: &[u8], bit_index: usize) -> bool {
     let byte_index = bit_index / 8;
-    assert!(byte_index < bytes.len());
+    debug_assert!(byte_index < bytes.len());
     let mask_index = bit_index % 8;
     let bit_mask: u8 = 1u8 << mask_index;
     // Now, the result....
@@ -13,7 +13,7 @@ pub fn get_bit(bytes: &[u8], bit_index: usize) -> bool {
 #[inline]
 pub fn put_bit(bytes: &mut [u8], bit_index: usize, new_value: bool) {
     let byte_index = bit_index / 8;
-    assert!(byte_index < bytes.len());
+    debug_assert!(byte_index < bytes.len());
     let mask_index = bit_index % 8;
     let bit_mask: u8 = 1u8 << mask_index;
     let not_bit_mask: u8 = !bit_mask;
@@ -53,7 +53,7 @@ pub unsafe fn align_to<T, U>(x: &[T]) -> (&[T], &[U], &[T]) {
 
     let (head, middle) = x.split_at(byte_distance / orig_size);
 
-    assert!(middle.as_ptr() as usize % alignment == 0);
+    debug_assert!(middle.as_ptr() as usize % alignment == 0);
     let cast_middle = slice::from_raw_parts(middle.as_ptr() as *const U, middle.len() / size_ratio);
     let tail = &middle[cast_middle.len() * size_ratio..];
 

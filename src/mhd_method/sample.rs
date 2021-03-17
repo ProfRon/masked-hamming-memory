@@ -109,7 +109,7 @@ impl Sample {
 
     pub fn byte_index(bit_index: usize) -> usize {
         let byte_index = bit_index / 8;
-        assert!(byte_index < NUM_BYTES);
+        debug_assert!(byte_index < NUM_BYTES);
         byte_index
     }
 

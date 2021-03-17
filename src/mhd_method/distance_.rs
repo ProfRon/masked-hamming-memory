@@ -208,7 +208,7 @@ pub fn truncated_distance(masked_bits: u64, left: &[u8], right: &[u8]) -> u64 {
     let num_mask_bytes = (masked_bits / 8) as usize;
     let remainder_bits = masked_bits % 8;
 
-    assert!(num_mask_bytes <= left.len()); // where left.len() == right.len()
+    debug_assert!(num_mask_bytes <= left.len()); // where left.len() == right.len()
 
     // Turn left and right into slices
     let left_slice = &left[0..num_mask_bytes];
@@ -231,7 +231,7 @@ pub fn truncated_distance(masked_bits: u64, left: &[u8], right: &[u8]) -> u64 {
 
     let mask: u8 = ((0xFF00 >> remainder_bits) & 0xFF) as u8;
 
-    assert!(num_mask_bytes < left.len()); // so it's safe to reference left[numberMaskBytes]
+    debug_assert!(num_mask_bytes < left.len()); // so it's safe to reference left[numberMaskBytes]
     subtotal + (mask & (left[num_mask_bytes] ^ right[num_mask_bytes])).count_ones() as u64
 }
 

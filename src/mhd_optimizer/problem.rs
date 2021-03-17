@@ -118,7 +118,7 @@ pub trait Problem: Sized + Clone + Debug {
     /// Create and then register all (usually both) children of a parent solution;
     /// compare `register_one_child` method.
     fn register_children_of(&self, parent: &Self::Sol, solver: &mut impl Solver<Self::Sol>) {
-        assert!(self.solution_is_legal(parent));
+        debug_assert!(self.solution_is_legal(parent));
         match self.first_open_decision(parent) {
             None => {} // do nothing!
             Some(index) => {
@@ -147,8 +147,8 @@ pub trait Problem: Sized + Clone + Debug {
         // define some solution to be "best-so-far"
         let mut num_visitations: i64 = 0;
         let mut best_solution = self.random_solution();
-        assert!(self.solution_is_complete(&best_solution));
-        assert!(self.solution_is_legal(&best_solution));
+        debug_assert!(self.solution_is_complete(&best_solution));
+        debug_assert!(self.solution_is_legal(&best_solution));
         trace!("Optimizing Problem (short) {}", self.short_description());
         trace!(
             "First Random Solution (short) {}",
