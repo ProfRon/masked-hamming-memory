@@ -8,7 +8,7 @@ use mhd_method::{ScoreType, NUM_BITS}; // Not used: NUM_BYTES
 use mhd_optimizer::Solution;
 use mhd_optimizer::Solver;
 
-static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs( 8 ); // can be changed
+static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs( 6 ); // can be changed
 
 pub trait Problem: Sized + Clone + Debug {
     // Every Problem will probably need it's own "associated" solution type

@@ -19,6 +19,7 @@ use mhd_method::{ScoreType, NUM_BITS, ZERO_SCORE}; // Not used: NUM_BYTES
 use mhd_optimizer::{MinimalSolution, Solution};
 use mhd_optimizer::{Problem, Solver};
 
+/********************************************************************************************/
 ///## Customized Solution Type for the 0/1 Knapsack
 /// The MinimalSolution will not suffice here (experience teaches us).
 /// So we define our own before we go further.
@@ -64,6 +65,14 @@ impl Solution for ZeroOneKnapsackSolution {
         self.best_score = self.score + generator.gen::<ScoreType>();
     }
 
+    // Experimental heuristic!!
+    // Here, we estimate the urgendy (scheduling priority) of a solution
+    // as its value (its score) divied by its weight (the score of the basis),
+    // i.e. the density of the value per kilogram, so to apeak...
+    // Note: We add one to weight to avoid dividing by zero,
+    // and multiply by 100 to get percent, actually to compensate for integer return value
+    fn estimate(&self) -> ScoreType { 100 * self.get_score() / (1 + self.basis.get_score()) }
+
     // Getters and Setters
     fn get_score(&self) -> ScoreType {
         self.score
@@ -96,7 +105,7 @@ use std::cmp::*;
 // Ord requires Eq, which requires PartialEq
 impl PartialEq for ZeroOneKnapsackSolution {
     fn eq(&self, other: &Self) -> bool {
-        self.get_score() == other.get_score()
+        self.estimate() == other.estimate()
     }
 }
 
@@ -104,16 +113,17 @@ impl Eq for ZeroOneKnapsackSolution {}
 
 impl Ord for ZeroOneKnapsackSolution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_score().cmp(&other.get_score())
+        self.estimate().cmp(&other.estimate())
     }
 }
 
 impl PartialOrd for ZeroOneKnapsackSolution {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.get_score().cmp(&other.get_score()))
+        Some(self.estimate().cmp(&other.estimate()))
     }
 }
 
+/********************************************************************************************/
 /// ## Example Problem Implementation: 0-1 Knapsack
 /// Here the actual Struct:
 #[derive(Debug, Clone)]
@@ -314,7 +324,8 @@ impl Problem for Problem01Knapsack {
     } // end register_children
 } // end impl ProblemSubsetSum
 
-///////////////////// TESTs for ProblemSubsetSum with  FirstDepthFirstSolver /////////////////////
+/********************************************************************************************/
+///////////////////// TESTs for ProblemSubsetSum with  FirstDepthFirstSolver /////////////////
 #[cfg(test)]
 mod tests {
 

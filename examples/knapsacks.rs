@@ -58,7 +58,7 @@ const BEST_FIRST_BIT: u8 = 2;
 use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
-// use mhd_mem::mhd_method::sample::{ ScoreType }; // used implicitly (only)
+use mhd_mem::mhd_method::sample::{ ScoreType }; // used implicitly (only)
 use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
 use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
 use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
@@ -67,7 +67,7 @@ fn test_one_problem(
     opt: &Opt,
     knapsack: &mut Problem01Knapsack,
     solver: &mut impl Solver<ZeroOneKnapsackSolution>,
-) {
+) -> ScoreType {
     assert!(0.0 <= opt.capacity, "Capacity cannot be negative");
     assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
     if 0.0 != opt.capacity {
@@ -76,7 +76,7 @@ fn test_one_problem(
 
     if !knapsack.is_legal() {
         println!("Not optimizing ILLEGAL Knapsack!");
-        return;
+        return 0 as ScoreType;
     };
 
     let time_limit = Duration::from_secs_f32(opt.time);
@@ -93,6 +93,7 @@ fn test_one_problem(
         knapsack.short_description(),
         start_time.elapsed()
     );
+    the_best.get_score( )
 }
 
 extern crate log;
@@ -100,6 +101,7 @@ extern crate simplelog;
 use log::*;
 use simplelog::*;
 use std::fs::File;
+// use mhd_mem::mhd_method::ScoreType; -- already imported above
 
 fn main() {
     let opt = Opt::from_args();
@@ -120,17 +122,28 @@ fn main() {
     if opt.files.is_empty() {
         // FIRST USE CASE : No files, random data
 
+        let mut ratio : f32 = 1.0;
+
         for prob_num in 0..opt.num_problems {
             let mut knapsack = Problem01Knapsack::random(opt.size);
+            let mut dfs_score : ScoreType = 1;
+            let mut bfs_score : ScoreType = 1;
             if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
                 print!("Knapsack {}: ", prob_num + 1);
-                test_one_problem(&opt, &mut knapsack, &mut DepthFirstSolver::new(opt.size));
+                dfs_score = test_one_problem(&opt, &mut knapsack, &mut DepthFirstSolver::new(opt.size));
             }; // endif depth first
             if 0 != (opt.algorithms & BEST_FIRST_BIT) {
                 print!("Knapsack {}: ", prob_num + 1);
-                test_one_problem(&opt, &mut knapsack, &mut BestFirstSolver::new(opt.size));
+                bfs_score = test_one_problem(&opt, &mut knapsack, &mut BestFirstSolver::new(opt.size));
             }; // end if best first
+            if 3 == opt.algorithms {
+                let test_ratio : f32 = (bfs_score as f32) / (dfs_score as f32);
+                ratio *= test_ratio;
+                println!( "test ratio = {}, ratio = {}", test_ratio, ratio );
+            }; // end if 3
+
         } // for 0 <= prob_num < num_problems
+
     } else {
         // if opt.files NOT empty
 
