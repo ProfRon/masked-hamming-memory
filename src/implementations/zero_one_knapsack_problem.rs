@@ -71,7 +71,10 @@ impl Solution for ZeroOneKnapsackSolution {
     // i.e. the density of the value per kilogram, so to apeak...
     // Note: We add one to weight to avoid dividing by zero,
     // and multiply by 100 to get percent, actually to compensate for integer return value
-    fn estimate(&self) -> ScoreType { 100 * self.get_score() / (1 + self.basis.get_score()) }
+    fn estimate(&self) -> ScoreType {
+        // 100 * self.get_score() / (1 + self.basis.get_score())
+        self.get_score( )
+    }
 
     // Getters and Setters
     fn get_score(&self) -> ScoreType {
@@ -217,9 +220,9 @@ impl Problem for Problem01Knapsack {
         // Note: We're NOT testing whether a solution is legal (we do that below),
         // We're testing if a PROBLEM is OK.
         // The subset sum part must be legal -- and then the values too...
-        return self.basis.is_legal()
-            && (self.problem_size() == self.values.len())
-            && self.values.iter().all(|&v| 0 < v); // 0 < values[v] for all v in values
+        // We used to check if there were zero values, but now we don't...
+        // Some of the files we've parsed have zero values. OK...  Why not?!?
+        self.basis.is_legal() && (self.problem_size() == self.values.len())
     }
 
     // first, methods not defined previously, but which arose while implemeneting the others (see below)

@@ -28,6 +28,8 @@ extern crate hamming;
 extern crate log;
 extern crate rand;
 extern crate rand_distr;
+extern crate simplelog;
+extern crate structopt;
 
 #[cfg(test)]
 extern crate quickcheck;
@@ -75,4 +77,7 @@ pub mod implementations {
 
     pub mod best_first_solver;
     pub use self::best_first_solver::BestFirstSolver;
+
+    pub mod parsers;
+    pub use self::parsers::parse_dot_dat_string;
 }

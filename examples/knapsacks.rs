@@ -5,11 +5,12 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "knapsacks")]
 struct Opt {
-    /// To Trace or Not to Trace
-    #[structopt(short, long)]
-    verbose: bool,
+    // The number of occurrences of the `v/verbose` flag
+    /// Verbose mode (-v or -vv)
+    #[structopt(short, long, parse(from_occurrences))]
+    verbose: u8,
 
-    /// Number of items (dimensions, choices)
+    /// Number of items (dimensions, choices).
     #[structopt(short, long, default_value = "256")]
     size: usize,
 
@@ -18,7 +19,6 @@ struct Opt {
     /// Capacity is interpreted as percentage of sum of weights.
     /// Capacity must be in the range : 0 <= capacity < 100.
     /// A capacity of zero will be replaced by a customized random capacity (this is the default).
-    ///
     #[structopt(short, long, default_value = "0")]
     capacity: f32,
 
@@ -26,19 +26,19 @@ struct Opt {
     #[structopt(short, long, default_value = "1.0")]
     time: f32,
 
-    /// Algorithms (solvers) : 1 = depth first, 2 = best first, 3 = both
+    /// Algorithms (solvers) : 1 = depth first, 2 = best first, 3 = both.
     #[structopt(short, long, default_value = "3", possible_values=&["1","2","3"])]
     algorithms: u8,
 
     /// Number of problems to solve
     ///
     /// If no file is given, num problems will be created with random numbers.
-    ///
+    /// In this case, the default is 1 (and not 1000).
     /// Note that some files have more than one problem.
     /// num_problems specifies the maximum number of problems per file,
     /// if (and only if) at least one file is specified.
     ///
-    #[structopt(short, long, default_value = "1")]
+    #[structopt(short, long, default_value = "1000")]
     num_problems: u16,
 
     /// Files to process
@@ -47,7 +47,6 @@ struct Opt {
     ///
     /// Known file formats:
     /// csv (Pisinger format).
-    ///
     #[structopt(name = "FILE", parse(from_os_str))]
     files: Vec<PathBuf>,
 } // end struct Opt
@@ -58,25 +57,26 @@ const BEST_FIRST_BIT: u8 = 2;
 use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
-use mhd_mem::mhd_method::sample::{ ScoreType }; // used implicitly (only)
+use mhd_mem::implementations::parse_dot_dat_string;
 use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
 use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
+use mhd_mem::mhd_method::sample::ScoreType; // used implicitly (only)
 use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
 
 fn test_one_problem(
     opt: &Opt,
-    knapsack: &mut Problem01Knapsack,
+    knapsack: &Problem01Knapsack,
     solver: &mut impl Solver<ZeroOneKnapsackSolution>,
 ) -> ScoreType {
-    assert!(0.0 <= opt.capacity, "Capacity cannot be negative");
-    assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
-    if 0.0 != opt.capacity {
-        knapsack.basis.capacity = (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as i32;
-    }; // else, leave capacity alone remain what the random constructor figured out.
-
     if !knapsack.is_legal() {
-        println!("Not optimizing ILLEGAL Knapsack!");
-        return 0 as ScoreType;
+        println!("Not optimizing ILLEGAL Knapsack! {:?}", knapsack);
+        println!(
+            "ILLEGAL Knapsack has dim {}, weights {}, capacity {}",
+            knapsack.problem_size(),
+            knapsack.weights_sum(),
+            knapsack.capacity()
+        );
+        return -99999 as ScoreType;
     };
 
     let time_limit = Duration::from_secs_f32(opt.time);
@@ -87,13 +87,13 @@ fn test_one_problem(
         .expect("Optimization fails?!?");
 
     println!(
-        "with {}, found best solution = {} in knapsack {} after {:?}",
+        "with {}, found best score {} in knapsack with dim {} after {:?}",
         solver.name(),
-        the_best.short_description(),
-        knapsack.short_description(),
+        the_best.get_score(),
+        knapsack.problem_size(),
         start_time.elapsed()
     );
-    the_best.get_score( )
+    the_best.get_score()
 }
 
 extern crate log;
@@ -101,15 +101,24 @@ extern crate simplelog;
 use log::*;
 use simplelog::*;
 use std::fs::File;
+use std::io;
 // use mhd_mem::mhd_method::ScoreType; -- already imported above
 
 fn main() {
-    let opt = Opt::from_args();
+    let mut opt = Opt::from_args();
     println!("{:?}\n", opt);
 
-    if opt.verbose {
+    assert!(0.0 <= opt.capacity, "Capacity cannot be negative");
+    assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
+
+    if 0 < opt.verbose {
+        let term_filter = if 1 == opt.verbose {
+            LevelFilter::Info
+        } else {
+            LevelFilter::Debug
+        };
         CombinedLogger::init(vec![
-            TermLogger::new(LevelFilter::Warn, Config::default(), TerminalMode::Mixed),
+            TermLogger::new(term_filter, Config::default(), TerminalMode::Mixed),
             WriteLogger::new(
                 LevelFilter::Trace,
                 Config::default(),
@@ -119,31 +128,38 @@ fn main() {
         .unwrap();
     }; // end if verbose
 
+    let mut ratio: f32 = 1.0;
+
     if opt.files.is_empty() {
         // FIRST USE CASE : No files, random data
 
-        let mut ratio : f32 = 1.0;
-
+        if 1000 <= opt.num_problems {
+            opt.num_problems = 1;
+        }
         for prob_num in 0..opt.num_problems {
             let mut knapsack = Problem01Knapsack::random(opt.size);
-            let mut dfs_score : ScoreType = 1;
-            let mut bfs_score : ScoreType = 1;
+            if 0.0 != opt.capacity {
+                knapsack.basis.capacity =
+                    (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as i32;
+            }; // else, leave capacity alone remain what the random constructor figured out.
+            let mut dfs_score: ScoreType = 1;
+            let mut bfs_score: ScoreType = 1;
             if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
                 print!("Knapsack {}: ", prob_num + 1);
-                dfs_score = test_one_problem(&opt, &mut knapsack, &mut DepthFirstSolver::new(opt.size));
+                dfs_score =
+                    test_one_problem(&opt, &mut knapsack, &mut DepthFirstSolver::new(opt.size));
             }; // endif depth first
             if 0 != (opt.algorithms & BEST_FIRST_BIT) {
                 print!("Knapsack {}: ", prob_num + 1);
-                bfs_score = test_one_problem(&opt, &mut knapsack, &mut BestFirstSolver::new(opt.size));
+                bfs_score =
+                    test_one_problem(&opt, &mut knapsack, &mut BestFirstSolver::new(opt.size));
             }; // end if best first
             if 3 == opt.algorithms {
-                let test_ratio : f32 = (bfs_score as f32) / (dfs_score as f32);
+                let test_ratio: f32 = (bfs_score as f32) / (dfs_score as f32);
                 ratio *= test_ratio;
-                println!( "test ratio = {}, ratio = {}", test_ratio, ratio );
+                println!("test ratio = {}, ratio = {}", test_ratio, ratio);
             }; // end if 3
-
         } // for 0 <= prob_num < num_problems
-
     } else {
         // if opt.files NOT empty
 
@@ -151,6 +167,41 @@ fn main() {
 
         for file_name in opt.files.iter() {
             println!("Processing Filename: {:?}", file_name);
+            let file = std::fs::File::open(file_name).unwrap();
+            let mut input = io::BufReader::new(file);
+            for prob_num in 0..opt.num_problems {
+                // or end of file
+                match parse_dot_dat_string(&mut input) {
+                    Err(_) => break,
+                    Ok(knapsack) => {
+                        // Should we respect the org.capacity flag?!?
+                        debug!("knapsack is {:?}", knapsack);
+                        let mut dfs_score: ScoreType = 1;
+                        let mut bfs_score: ScoreType = 1;
+                        if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
+                            print!("Line {} Depth First: ", prob_num+1 );
+                            dfs_score = test_one_problem(
+                                &opt,
+                                &knapsack,
+                                &mut DepthFirstSolver::new(opt.size),
+                            );
+                        }; // endif depth first
+                        if 0 != (opt.algorithms & BEST_FIRST_BIT) {
+                            print!("Line {} Best First : ", prob_num+1 );
+                            bfs_score = test_one_problem(
+                                &opt,
+                                &knapsack,
+                                &mut BestFirstSolver::new(opt.size),
+                            );
+                        }; // end if best first
+                        if 3 == opt.algorithms {
+                            let test_ratio: f32 = (bfs_score as f32) / (dfs_score as f32);
+                            ratio *= test_ratio;
+                            println!("test ratio = {}, ratio = {}", test_ratio, ratio);
+                        }; // end if 3
+                    } // end on match OK( Knapsack )
+                } // end match Result<knapsack>
+            } // end for
         }
     }
 }

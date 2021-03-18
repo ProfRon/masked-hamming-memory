@@ -12,6 +12,8 @@
 ///
 /// Note: This problem does not need its own, customized associated solution type;
 /// it ("just") uses the MinimalSolution struct from the mhd_optimization module.
+use log::*;
+
 extern crate rand_distr;
 
 use rand_distr::{Bernoulli, Distribution, Poisson}; // formerly used: Exp
@@ -118,7 +120,18 @@ impl Problem for ProblemSubsetSum {
         // We're testing if a PROBLEM is non-trivial: if neither the empty knapsack
         // nor the knapsack with ALL items are obviously optimal solutions.
         // Note: By definition, the default knapsack is ILLEGAL since all weights are zero, etc.
-        (0 < self.problem_size()) && (0 < self.capacity) && (self.capacity < self.weights_sum())
+        //
+        // Revision: We're going to allow overly large capacity after all...
+        let legal = (0 < self.problem_size()) && (0 < self.capacity);
+        if !legal || (self.weights_sum() <= self.capacity) {
+            warn!(
+                "Funky Subset Sum Proble: dim {}, weight sum {} <= capacity {}",
+                self.problem_size(),
+                self.weights_sum(),
+                self.capacity
+            );
+        };
+        legal
     }
 
     // first, methods not defined previously, but which arose while implemeneting the others (see below)
