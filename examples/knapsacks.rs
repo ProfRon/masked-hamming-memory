@@ -179,7 +179,7 @@ fn main() {
                         let mut dfs_score: ScoreType = 1;
                         let mut bfs_score: ScoreType = 1;
                         if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
-                            print!("Line {} Depth First: ", prob_num+1 );
+                            print!("Line {} Depth First: ", prob_num + 1);
                             dfs_score = test_one_problem(
                                 &opt,
                                 &knapsack,
@@ -187,7 +187,7 @@ fn main() {
                             );
                         }; // endif depth first
                         if 0 != (opt.algorithms & BEST_FIRST_BIT) {
-                            print!("Line {} Best First : ", prob_num+1 );
+                            print!("Line {} Best First : ", prob_num + 1);
                             bfs_score = test_one_problem(
                                 &opt,
                                 &knapsack,

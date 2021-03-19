@@ -41,18 +41,18 @@ use std::io;
 
 /// This parser reads one line from a "dot dat" file -- since each line is a problem --
 /// and returns one problem -- or nothing, if no problem could be read.
-/// The file format is as follows:
-/// ```
-/// Format of instance file lines (fields)
-/// 0 = ID    [discarded!]
-/// 1 = the number of items
-/// 2 =  the knapsack capacity
-/// then sequence of weight-cost pairs, so...
-/// 3 = weight[0]
-/// 4 = cost[0]
-/// 5 = weight[1]
-/// 6 = cost[2]
-/// ```
+
+// The file format is as follows:
+// >    Format of instance file lines (fields)
+// >    0 = ID    [parsed but discarded!]
+// >    1 = the number of items
+// >    2 =  the knapsack capacity
+// >    then sequence of weight-cost pairs, so...
+// >    3 = weight 0
+// >    4 = cost 0
+// >    5 = weight 1
+// >    6 = cost 1
+// >    ... and so on
 pub fn parse_dot_dat_string<R: io::BufRead>(mut input: R) -> io::Result<Problem01Knapsack> {
     debug!("At start of parse . dat file...");
     loop {

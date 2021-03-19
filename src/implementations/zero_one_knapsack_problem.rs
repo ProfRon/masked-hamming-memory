@@ -73,7 +73,7 @@ impl Solution for ZeroOneKnapsackSolution {
     // and multiply by 100 to get percent, actually to compensate for integer return value
     fn estimate(&self) -> ScoreType {
         // 100 * self.get_score() / (1 + self.basis.get_score())
-        self.get_score( )
+        self.get_score()
     }
 
     // Getters and Setters

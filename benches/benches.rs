@@ -5,7 +5,11 @@ extern crate mhd_mem;
 use mhd_mem::implementations::*;
 use mhd_mem::mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
 
+extern crate log;
+use log::*;
 use std::time::Duration;
+
+/********************************* Benchmark Utilities *********************************/
 
 // inline because https://bheisler.github.io/criterion.rs/book/getting_started.html
 #[inline]
@@ -31,13 +35,13 @@ fn bench_optimization<Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem>(
 // https://bheisler.github.io/criterion.rs/criterion/struct.BenchmarkGroup.html
 
 use criterion::measurement::WallTime;
-use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion, SamplingMode};
 
 fn bench_one_combo<Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem>(
     group: &mut BenchmarkGroup<WallTime>,
+    bench_id: &str,
     problem: &Prob,
     solver: &mut Solv,
-    size: usize,
 ) {
     assert!(
         problem.is_legal(),
@@ -45,49 +49,56 @@ fn bench_one_combo<Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem>(
         problem.short_description()
     );
 
-    let prefix = format!("Bench {} bits", size);
-    let bench_name = format!("{}+{}", problem.name(), solver.name());
+    let bench_name = format!(
+        "{}+{}({} bits)",
+        solver.name(),
+        problem.name(),
+        problem.problem_size()
+    );
 
-    group.bench_function(BenchmarkId::new(prefix, bench_name), |b| {
+    group.bench_function(BenchmarkId::new(bench_id, bench_name), |b| {
         b.iter(|| bench_optimization(problem, solver))
     });
 }
+
+/********************************* Random Benchmarks *********************************/
 
 fn bench_one_size(group: &mut BenchmarkGroup<WallTime>, size: usize) {
     // First one problem, then another, since they are not mutable
     let problem_a = ProblemSubsetSum::random(size);
 
+    const BENCH_NAME: &str = "Random";
     // ...with the Depth First Solver
     let mut solver_a = DepthFirstSolver::<MinimalSolution>::new(size);
-    bench_one_combo(group, &problem_a, &mut solver_a, size);
+    bench_one_combo(group, BENCH_NAME, &problem_a, &mut solver_a);
 
     // ...and with the Best First Solver
     let mut solver_b = BestFirstSolver::<MinimalSolution>::new(size);
-    bench_one_combo(group, &problem_a, &mut solver_b, size);
+    bench_one_combo(group, BENCH_NAME, &problem_a, &mut solver_b);
 
     // First one problem, then another, since they are not mutable
     let problem_b = Problem01Knapsack::random(size);
 
     // ...with the Depth First Solver
     let mut solver_c = DepthFirstSolver::<ZeroOneKnapsackSolution>::new(size);
-    bench_one_combo(group, &problem_b, &mut solver_c, size);
+    bench_one_combo(group, BENCH_NAME, &problem_b, &mut solver_c);
 
     // ...and with the Best First Solver
     let mut solver_d = BestFirstSolver::<ZeroOneKnapsackSolution>::new(size);
-    bench_one_combo(group, &problem_b, &mut solver_d, size);
+    bench_one_combo(group, BENCH_NAME, &problem_b, &mut solver_d);
 }
 
 fn bench_sizes(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Optimization Benches");
+    let mut group = c.benchmark_group("Sized");
 
-    group.sample_size(32); // less than default 100
-                           // group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
-
+    group.sample_size(10); // smallest size allowed
+    group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
+    
     // group.measurement_time( Duration::from_secs_f32( 61.0 ) ); // 30 * 2 = 6ß
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
-    for bits in [4, 8, 16, 32, 64, 128 ].iter() {
+    for bits in [4, 16, 64, 256].iter() {
         bench_one_size(&mut group, *bits);
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));
@@ -101,7 +112,67 @@ fn bench_sizes(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_sizes);
+/********************************* Filebased Benchmarks *********************************/
+
+use std::io;
+use std::path::*;
+
+fn bench_a_file(group: &mut BenchmarkGroup<WallTime>, pathname: PathBuf) {
+    let filename = pathname.to_str().expect("cannot convert path to string");
+    let file = std::fs::File::open(filename).expect("Could not open file");
+    let mut input = io::BufReader::new(file);
+
+    const MAX_KNAPSACKS_PER_FILE : i32 = 8;
+    let mut knapsack_num = 0;
+    loop { // over the problems in this file (there can be many more than one)
+        knapsack_num += 1;
+        if MAX_KNAPSACKS_PER_FILE < knapsack_num { break }
+
+        match parse_dot_dat_string(&mut input) {
+            Err(_) => break,
+            Ok(knapsack) => {
+                let size = knapsack.problem_size();
+                let id = format!("{}.{}", filename, knapsack_num);
+                // Bench twice,
+                // first with the Depth First Solver:
+                let mut dfs_solver = DepthFirstSolver::<ZeroOneKnapsackSolution>::new(size);
+                bench_one_combo(group, &id, &knapsack, &mut dfs_solver);
+
+                // ...and with the Best First Solver
+                let mut bfs_solver = BestFirstSolver::<ZeroOneKnapsackSolution>::new(size);
+                bench_one_combo(group, &id, &knapsack, &mut bfs_solver);
+            } // end on match OK( Knapsack )
+        } // end match Result<knapsack>
+    } // end loop until no more knapsacks in file
+}
+
+fn bench_directory(c: &mut Criterion) {
+    let mut group = c.benchmark_group("directory");
+
+    group.sample_size(10); // minimal amount allowed by criterion
+
+    group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
+    // group.measurement_time( Duration::from_secs_f32( 61.0 ) ); // 30 * 2 = 6ß
+    // actually, we should take something of "big O" O(2^size),
+    // but who has the patience?!?
+    const DIR_NAME: &str = "Data_Files";
+    let path = Path::new(DIR_NAME);
+    assert!(
+        path.is_dir(),
+        "Cannot bench directory because - not a directory!"
+    );
+
+    for entry_result in path.read_dir().expect("read_dir call failed") {
+        match entry_result {
+            Ok(dir_entry) => bench_a_file(&mut group, dir_entry.path()),
+            Err(e) => warn!("Error {:?} in directory {}", e, DIR_NAME),
+        };
+    } // end for all entries in directory
+    group.finish();
+}
+
+// criterion_group!(randomBenches, );
+criterion_group!(benches, bench_directory, bench_sizes,);
 criterion_main!(benches);
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************
