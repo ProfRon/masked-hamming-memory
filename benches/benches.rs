@@ -172,7 +172,7 @@ fn bench_directory(c: &mut Criterion) {
 }
 
 // criterion_group!(randomBenches, );
-criterion_group!(benches, bench_directory, bench_sizes,);
+criterion_group!(benches, bench_sizes, bench_directory, );
 criterion_main!(benches);
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************

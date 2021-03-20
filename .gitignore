@@ -5,3 +5,7 @@ Cargo.lock
 .idea
 microtrace.csv
 macrotrace.csv
+perf.data
+perf.data.old
+flamegraph.svg
+
