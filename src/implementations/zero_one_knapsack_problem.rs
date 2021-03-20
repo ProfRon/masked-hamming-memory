@@ -12,7 +12,7 @@
 extern crate rand_distr;
 
 use rand::prelude::*;
-use rand_distr::{Distribution, Poisson};
+use rand_distr::{Distribution, Gamma};
 
 use implementations::ProblemSubsetSum;
 use mhd_method::{ScoreType, NUM_BITS, ZERO_SCORE}; // Not used: NUM_BYTES
@@ -203,7 +203,9 @@ impl Problem for Problem01Knapsack {
 
         // self.weights =  (0..self.problem_size()).map( |_| fancy_random_int( ) ).collect();
         let mut rng = rand::thread_rng();
-        let distr = Poisson::new(50.0).unwrap();
+        // The parameters shape=2.0 and scale=1000.0 were arrived at by playing around in a
+        // Jupyter Notebook but remain failry arbitrary
+        let distr = Gamma::new( 2.0, 1000.0 ).unwrap();
 
         self.values = (0..num_bits)
             .map(|_| (distr.sample(&mut rng) + 1.0) as ScoreType)
