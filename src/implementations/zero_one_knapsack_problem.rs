@@ -77,6 +77,8 @@ impl Solution for ZeroOneKnapsackSolution {
     }
 
     // Getters and Setters
+    fn size(&self) -> usize { self.basis.size() }
+
     fn get_score(&self) -> ScoreType {
         self.score
     }
@@ -205,7 +207,7 @@ impl Problem for Problem01Knapsack {
         let mut rng = rand::thread_rng();
         // The parameters shape=2.0 and scale=1000.0 were arrived at by playing around in a
         // Jupyter Notebook but remain failry arbitrary
-        let distr = Gamma::new( 2.0, 1000.0 ).unwrap();
+        let distr = Gamma::new(2.0, 1000.0).unwrap();
 
         self.values = (0..num_bits)
             .map(|_| (distr.sample(&mut rng) + 1.0) as ScoreType)

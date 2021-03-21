@@ -76,7 +76,7 @@ impl Problem for ProblemSubsetSum {
         let mut rng = rand::thread_rng();
         // The parameters shape=2.0 and scale=1000.0 were arrived at by playing around in a
         // Jupyter Notebook but remain failry arbitrary
-        let distr = Gamma::new( 2.0, 1000.0 ).unwrap();
+        let distr = Gamma::new(2.0, 1000.0).unwrap();
 
         self.weights = (0..num_bits)
             .map(|_| (distr.sample(&mut rng) + 1.0) as ScoreType)
@@ -153,7 +153,7 @@ impl Problem for ProblemSubsetSum {
 
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType {
         debug_assert!(self.problem_size() <= NUM_BITS);
-        debug_assert!(self.solution_is_legal(solution));
+        // debug_assert!(self.solution_is_legal(solution));
         let mut result = self.solution_score(&solution);
         for index in 0..self.problem_size() {
             if None == solution.get_decision(index) {

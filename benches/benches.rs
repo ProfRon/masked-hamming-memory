@@ -35,7 +35,9 @@ fn bench_optimization<Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem>(
 // https://bheisler.github.io/criterion.rs/criterion/struct.BenchmarkGroup.html
 
 use criterion::measurement::WallTime;
-use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion, SamplingMode};
+use criterion::{
+    criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion, SamplingMode,
+};
 
 fn bench_one_combo<Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem>(
     group: &mut BenchmarkGroup<WallTime>,
@@ -93,7 +95,7 @@ fn bench_sizes(c: &mut Criterion) {
 
     group.sample_size(10); // smallest size allowed
     group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
-    
+
     // group.measurement_time( Duration::from_secs_f32( 61.0 ) ); // 30 * 2 = 6ß
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
@@ -122,13 +124,16 @@ fn bench_a_file(group: &mut BenchmarkGroup<WallTime>, pathname: PathBuf) {
     let file = std::fs::File::open(filename).expect("Could not open file");
     let mut input = io::BufReader::new(file);
 
-    const MAX_KNAPSACKS_PER_FILE : i32 = 8;
+    const MAX_KNAPSACKS_PER_FILE: i32 = 8;
     let mut knapsack_num = 0;
-    loop { // over the problems in this file (there can be many more than one)
+    loop {
+        // over the problems in this file (there can be many more than one)
         knapsack_num += 1;
-        if MAX_KNAPSACKS_PER_FILE < knapsack_num { break }
+        if MAX_KNAPSACKS_PER_FILE < knapsack_num {
+            break;
+        }
 
-        match parse_dot_dat_string(&mut input) {
+        match parse_dot_dat_stream(&mut input) {
             Err(_) => break,
             Ok(knapsack) => {
                 let size = knapsack.problem_size();
@@ -152,9 +157,9 @@ fn bench_directory(c: &mut Criterion) {
     group.sample_size(10); // minimal amount allowed by criterion
 
     group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
-    // group.measurement_time( Duration::from_secs_f32( 61.0 ) ); // 30 * 2 = 6ß
-    // actually, we should take something of "big O" O(2^size),
-    // but who has the patience?!?
+                                             // group.measurement_time( Duration::from_secs_f32( 61.0 ) ); // 30 * 2 = 6ß
+                                             // actually, we should take something of "big O" O(2^size),
+                                             // but who has the patience?!?
     const DIR_NAME: &str = "Data_Files";
     let path = Path::new(DIR_NAME);
     assert!(
@@ -172,7 +177,7 @@ fn bench_directory(c: &mut Criterion) {
 }
 
 // criterion_group!(randomBenches, );
-criterion_group!(benches, bench_sizes, bench_directory, );
+criterion_group!(benches, bench_sizes, bench_directory,);
 criterion_main!(benches);
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************

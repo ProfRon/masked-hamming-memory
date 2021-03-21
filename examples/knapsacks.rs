@@ -57,13 +57,12 @@ const BEST_FIRST_BIT: u8 = 2;
 use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
-use mhd_mem::implementations::parse_dot_dat_string;
 use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
 use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
 use mhd_mem::mhd_method::sample::ScoreType; // used implicitly (only)
 use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
 
-fn test_one_problem(
+fn test_one_problem_one_solver(
     opt: &Opt,
     knapsack: &Problem01Knapsack,
     solver: &mut impl Solver<ZeroOneKnapsackSolution>,
@@ -93,7 +92,32 @@ fn test_one_problem(
         knapsack.problem_size(),
         start_time.elapsed()
     );
+    info!( "                          best is {}", the_best.readable() );
     the_best.get_score()
+}
+
+fn test_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32, prob_num: u16) {
+    if 0.0 != opt.capacity {
+        knapsack.basis.capacity = (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as i32;
+    }; // else, leave capacity alone remain what the random constructor figured out.
+    let mut dfs_score: ScoreType = 1;
+    let mut bfs_score: ScoreType = 1;
+    if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
+        print!("Knapsack {}: ", prob_num + 1);
+        dfs_score =
+            test_one_problem_one_solver(&opt, &knapsack, &mut DepthFirstSolver::new(opt.size));
+    }; // endif depth first
+    if 0 != (opt.algorithms & BEST_FIRST_BIT) {
+        print!("Knapsack {}: ", prob_num + 1);
+        bfs_score =
+            test_one_problem_one_solver(&opt, &knapsack, &mut BestFirstSolver::new(opt.size));
+    }; // end if best first
+    if 3 == opt.algorithms {
+        assert_ne!(0, dfs_score, "DFS score should not be zero");
+        let test_ratio: f32 = (bfs_score as f32) / (dfs_score as f32);
+        *ratio *= test_ratio;
+        println!("test ratio = {}, ratio = {}", test_ratio, ratio);
+    }; // end if 3
 }
 
 extern crate log;
@@ -103,6 +127,7 @@ use simplelog::*;
 use std::fs::File;
 use std::io;
 // use mhd_mem::mhd_method::ScoreType; -- already imported above
+use mhd_mem::implementations::{parse_dot_csv_stream, parse_dot_dat_stream};
 
 fn main() {
     let mut opt = Opt::from_args();
@@ -138,27 +163,7 @@ fn main() {
         }
         for prob_num in 0..opt.num_problems {
             let mut knapsack = Problem01Knapsack::random(opt.size);
-            if 0.0 != opt.capacity {
-                knapsack.basis.capacity =
-                    (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as i32;
-            }; // else, leave capacity alone remain what the random constructor figured out.
-            let mut dfs_score: ScoreType = 1;
-            let mut bfs_score: ScoreType = 1;
-            if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
-                print!("Knapsack {}: ", prob_num + 1);
-                dfs_score =
-                    test_one_problem(&opt, &mut knapsack, &mut DepthFirstSolver::new(opt.size));
-            }; // endif depth first
-            if 0 != (opt.algorithms & BEST_FIRST_BIT) {
-                print!("Knapsack {}: ", prob_num + 1);
-                bfs_score =
-                    test_one_problem(&opt, &mut knapsack, &mut BestFirstSolver::new(opt.size));
-            }; // end if best first
-            if 3 == opt.algorithms {
-                let test_ratio: f32 = (bfs_score as f32) / (dfs_score as f32);
-                ratio *= test_ratio;
-                println!("test ratio = {}, ratio = {}", test_ratio, ratio);
-            }; // end if 3
+            test_one_problem(&opt, &mut knapsack, &mut ratio, prob_num);
         } // for 0 <= prob_num < num_problems
     } else {
         // if opt.files NOT empty
@@ -169,39 +174,36 @@ fn main() {
             println!("Processing Filename: {:?}", file_name);
             let file = std::fs::File::open(file_name).unwrap();
             let mut input = io::BufReader::new(file);
-            for prob_num in 0..opt.num_problems {
-                // or end of file
-                match parse_dot_dat_string(&mut input) {
-                    Err(_) => break,
-                    Ok(knapsack) => {
-                        // Should we respect the org.capacity flag?!?
-                        debug!("knapsack is {:?}", knapsack);
-                        let mut dfs_score: ScoreType = 1;
-                        let mut bfs_score: ScoreType = 1;
-                        if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
-                            print!("Line {} Depth First: ", prob_num + 1);
-                            dfs_score = test_one_problem(
-                                &opt,
-                                &knapsack,
-                                &mut DepthFirstSolver::new(opt.size),
-                            );
-                        }; // endif depth first
-                        if 0 != (opt.algorithms & BEST_FIRST_BIT) {
-                            print!("Line {} Best First : ", prob_num + 1);
-                            bfs_score = test_one_problem(
-                                &opt,
-                                &knapsack,
-                                &mut BestFirstSolver::new(opt.size),
-                            );
-                        }; // end if best first
-                        if 3 == opt.algorithms {
-                            let test_ratio: f32 = (bfs_score as f32) / (dfs_score as f32);
-                            ratio *= test_ratio;
-                            println!("test ratio = {}, ratio = {}", test_ratio, ratio);
-                        }; // end if 3
-                    } // end on match OK( Knapsack )
-                } // end match Result<knapsack>
-            } // end for
-        }
-    }
+            match file_name
+                .extension()
+                .expect("Need a file name with an extension")
+                .to_str()
+                .expect("Need a simple file name extension")
+            {
+                "dat" => {
+                    for prob_num in 0..opt.num_problems {
+                        // or end of file
+                        match parse_dot_dat_stream(&mut input) {
+                            Err(_) => break,
+                            Ok(mut knapsack) => {
+                                test_one_problem(&opt, &mut knapsack, &mut ratio, prob_num)
+                            }
+                        }; // end match parse_dot_dat
+                    }
+                } // end for all problems
+                "csv" => {
+                    for prob_num in 0..opt.num_problems {
+                        // or end of file
+                        match parse_dot_csv_stream(&mut input) {
+                            Err(_) => break,
+                            Ok(mut knapsack) => {
+                                test_one_problem(&opt, &mut knapsack, &mut ratio, prob_num)
+                            }
+                        }; // end match parse_dot_dat
+                    }
+                } // end for all problems
+                _ => assert!(false, "Unknown file extension (not dat, not csv"),
+            }; // end match file name extensio
+        } // end for all files
+    }; // end if there are files
 }

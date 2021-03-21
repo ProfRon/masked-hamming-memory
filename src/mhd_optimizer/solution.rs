@@ -38,7 +38,9 @@ pub trait Solution: Sized + Clone + Ord + Debug {
     fn randomize(&mut self);
 
     /// #  Getters and Setters
-    ///
+    /// size, dimension, number of decisions which can be made.
+    fn size( &self ) -> usize;
+
     /// `estimate` is used for sorting (used in turn in the Solver trait):
     /// Note that it works with get_score() and get_best_score() -- and NO problems-specific
     /// information!
@@ -65,6 +67,20 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 
     /// Record a decision which has been made -- unmask it and note whether true or false.
     fn make_decision(&mut self, decision_number: usize, decision: bool); // side effect: set mask bit (etc)
+
+    /// A helper function for printing out solutions in human-readable form
+    /// (default implementation provided, should suffice for concrete soutions structs)
+    fn readable( &self ) -> String {
+        let mut result = String::new();
+        for dim in 0..self.size() {
+            let code = match self.get_decision( dim ){
+                Some( decision) => if decision { '1' } else { '0' },
+                None => '?',
+            };
+            result = format!( "{} {},", result, code ); // append blank code comma to result
+        };
+        format!( "{} score {}", result, self.get_score() )
+    }
 } // end trait Solution
 
 /// ## A Very Simple but Useful Implementation of the Solution Trait: `MinimalSolution`
@@ -115,6 +131,7 @@ use mhd_method::util::*; // pub fn get_bit( bytes: &[u8], bit_index: usize ) -> 
 
 #[derive(Debug, Clone)]
 pub struct MinimalSolution {
+    pub size: usize,
     pub mask: Vec<u8>, // we could have used Vec<u8> (twice) here (and saved two scores),
     pub decisions: Vec<u8>, // but we wouldn't have the get_bit and set_bit methods!
     pub score: ScoreType,
@@ -139,8 +156,9 @@ impl Solution for MinimalSolution {
 
     fn new(size: usize) -> Self {
         assert!(size <= NUM_BITS);
-        let num_bytes = (size / 8) + (size % 8);
+        let num_bytes = (size as f32 / 8.0).ceil() as usize;
         Self {
+            size: size,
             mask: vec![0x0; num_bytes],      // all zeros == no decision made yet
             decisions: vec![0x0; num_bytes], // all zeros == all decisions are false (zero)
             score: 0 as ScoreType,
@@ -158,6 +176,8 @@ impl Solution for MinimalSolution {
     }
 
     // Getters and Setters
+    fn size(&self) -> usize { self.size } // times 8 bits per byte
+
     fn get_score(&self) -> ScoreType {
         self.score
     }
@@ -210,5 +230,34 @@ impl Ord for MinimalSolution {
 impl PartialOrd for MinimalSolution {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.get_score().cmp(&other.get_score()))
+    }
+}
+
+///////////////////// TESTs for MinimalSolution /////////////////////
+#[cfg(test)]
+mod more_tests {
+    use super::*;
+
+    #[test]
+    fn test_minimal_solution() {
+        let sol8 = MinimalSolution::new( 8 );
+        assert_eq!( 8, sol8.size() );
+        let sol9 = MinimalSolution::new( 9 );
+        assert_eq!( 9, sol9.size() );
+        let sol23 = MinimalSolution::new( 23 );
+        assert_eq!( 23, sol23.size() );
+
+        assert_eq!( "MinimalSolution", sol23.name() );
+        assert_eq!( "MinimalSolution: score 0, best score 0", sol23.short_description() );
+
+        let mut sol = MinimalSolution::new( 42 );
+        sol.make_decision( 17, true );
+        assert_eq!( Some(true), sol.get_decision( 17 ));
+        assert_eq!( None, sol.get_decision( 41 ));
+
+        sol.put_score( 42 );
+        sol.put_best_score( 4242 );
+        assert_eq!( 42, sol.get_score() );
+        assert_eq!( 4242, sol.get_best_score() );
     }
 }

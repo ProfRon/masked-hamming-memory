@@ -79,5 +79,5 @@ pub mod implementations {
     pub use self::best_first_solver::BestFirstSolver;
 
     pub mod parsers;
-    pub use self::parsers::parse_dot_dat_string;
+    pub use self::parsers::{parse_dot_csv_stream, parse_dot_dat_stream};
 }
