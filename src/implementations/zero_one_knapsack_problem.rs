@@ -15,7 +15,7 @@ use rand::prelude::*;
 use rand_distr::{Distribution, Gamma};
 
 use implementations::ProblemSubsetSum;
-use mhd_method::{ScoreType, NUM_BITS, ZERO_SCORE}; // Not used: NUM_BYTES
+use mhd_method::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
 use mhd_optimizer::{MinimalSolution, Solution};
 use mhd_optimizer::{Problem, Solver};
 
@@ -35,6 +35,7 @@ pub struct ZeroOneKnapsackSolution {
 impl Solution for ZeroOneKnapsackSolution {
     // type ScoreType = ScoreType;
 
+    // Default is too long; here is a friendlier version of name()
     fn name(&self) -> &'static str {
         "ZeroOneKnapsackSolution"
     }
@@ -50,7 +51,6 @@ impl Solution for ZeroOneKnapsackSolution {
     }
 
     fn new(size: usize) -> Self {
-        assert!(NUM_BITS <= size);
         Self {
             basis: MinimalSolution::new(size),
             score: 0 as ScoreType,
@@ -72,12 +72,16 @@ impl Solution for ZeroOneKnapsackSolution {
     // Note: We add one to weight to avoid dividing by zero,
     // and multiply by 100 to get percent, actually to compensate for integer return value
     fn estimate(&self) -> ScoreType {
-        // 100 * self.get_score() / (1 + self.basis.get_score())
-        self.get_score()
+        // Rejected Alternatives:
+        // *   100 * self.get_score() / (1 + self.basis.get_score())
+        // *   Default -- average of get_score and get_best_score()
+        self.get_score() + self.basis.get_score()
     }
 
     // Getters and Setters
-    fn size(&self) -> usize { self.basis.size() }
+    fn size(&self) -> usize {
+        self.basis.size()
+    }
 
     fn get_score(&self) -> ScoreType {
         self.score
