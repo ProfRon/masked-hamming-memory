@@ -7,7 +7,7 @@ use mhd_optimizer::{Solution, Solver};
 ///
 ///
 /// ```rust
-/// use mhd_mem::mhd_method::sample::{ ScoreType, NUM_BITS, ZERO_SCORE }; // Not used: NUM_BYTES
+/// use mhd_mem::mhd_method::sample::{ ScoreType, ZERO_SCORE }; // Not used: NUM_BYTES
 /// use mhd_mem::mhd_optimizer::{ Solution, MinimalSolution, Solver };
 /// use mhd_mem::implementations::DepthFirstSolver;
 ///

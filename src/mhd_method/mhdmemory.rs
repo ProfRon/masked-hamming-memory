@@ -7,13 +7,14 @@
 ///
 /// ```rust
 ///
-/// use mhd_mem::mhd_method::{MHDMemory, Sample, ScoreType, NUM_BYTES };
-/// let mut test_mem = MHDMemory::default();
+/// use mhd_mem::mhd_method::{MHDMemory, Sample, ScoreType };
+/// const NUM_BITS : usize = 356; // arbitrary, .... 44.5 bytes
+/// let mut test_mem = MHDMemory::<NUM_BITS>::default();
 /// assert!( test_mem.is_empty() );
 ///
-/// let row0 = Sample { bytes : vec![0xFF;  NUM_BYTES ], score :   3 as ScoreType };
-/// let row1 = Sample { bytes : vec![0xFF;  NUM_BYTES ], score :  33 as ScoreType };
-/// let row2 = Sample { bytes : vec![0xF0;  NUM_BYTES ], score : 333 as ScoreType };
+/// let row0 = Sample::<NUM_BITS>::new(   3 as ScoreType );
+/// let row1 = Sample::<NUM_BITS>::new(  33 as ScoreType );
+/// let row2 = Sample::<NUM_BITS>::new( 333 as ScoreType );
 ///
 /// test_mem.write_sample( &row2 );
 /// test_mem.write_sample( &row1 );
@@ -35,17 +36,19 @@ use mhd_method::sample::*;
 // use ::mhd_method::weight_::*; // Not needed, according to compiler
 
 #[derive(Debug, Default, Clone)]
-pub struct MHDMemory {
-    pub samples: Vec<Sample>, // initially empty
+pub struct MHDMemory<const NUM_BITS: usize> {
+    pub samples: Vec<Sample<NUM_BITS>>, // initially empty
 
     pub total_score: ScoreType,
     pub max_score: ScoreType,
     pub min_score: ScoreType,
 } // end struct Sample
 
-impl MHDMemory {
+use log::*;
+
+impl<const NUM_BITS: usize> MHDMemory<NUM_BITS> {
     pub fn default() -> Self {
-        MHDMemory {
+        Self {
             samples: vec![], // start with an empty vector of samples
             total_score: ZERO_SCORE,
             max_score: ZERO_SCORE,
@@ -54,7 +57,7 @@ impl MHDMemory {
     }
 
     pub fn new() -> Self {
-        MHDMemory {
+        Self {
             ..Default::default()
         }
     }
@@ -76,7 +79,7 @@ impl MHDMemory {
         }
     }
 
-    pub fn write_sample(&mut self, new_sample: &Sample) {
+    pub fn write_sample(&mut self, new_sample: &Sample<NUM_BITS>) {
         // Here the book-keeping...
         self.total_score += new_sample.score;
         if self.is_empty() {
@@ -98,9 +101,11 @@ impl MHDMemory {
         self.samples.push(new_sample.clone());
     } // end write_sample
 
+    /// Calculate the weighted sum of all the samples in the memory,
+    /// where the weight of each sample is the inverse of the squared masked hamming distance to
+    /// the query, i.e. 1 / (mhd * mhd)
+    /// **This is not a maximum function (yet).**
     pub fn masked_read(&self, mask: &[u8], query: &[u8]) -> ScoreType {
-        // read only idempotent method
-
         let (score_sum, weight_sum) = self
             .samples
             .iter()
@@ -108,13 +113,14 @@ impl MHDMemory {
                 // use a closure here to capture query and mask
                 let dist = distance(mask, query, &s.bytes);
                 let dist_plus_1 = (dist + 1) as f64; // adding one prevents division by zero later
-                let weight = 1.0 / (dist_plus_1 * dist_plus_1);
+                // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
+                let weight = 1.0 / dist_plus_1; // TODO DECIDE! Squared or not!!!
                 (weight * s.score as f64, weight) // return score
             })
             .fold((0.0, 0.0), |(s0, w0), (s1, w1)| (s0 + s1, w0 + w1));
 
         let result = score_sum / weight_sum;
-        println!(
+        trace!(
             "sum of scores = {}, sum of weights =  {}, result = {}",
             score_sum, weight_sum, result
         );
@@ -122,7 +128,7 @@ impl MHDMemory {
     } // end maked_read
 
     pub fn write_random_sample(&mut self) {
-        self.write_sample(&Sample::random());
+        self.write_sample(&Sample::<NUM_BITS>::random());
     } // end write_sample
 
     pub fn write_n_random_samples(&mut self, n: usize) {
@@ -140,27 +146,87 @@ mod tests {
 
     #[test]
     fn test_one_random_write() {
-        let mut new_test_mem = MHDMemory::new();
+        const NUM_BITS: usize = 256;
+        let mut new_test_mem = MHDMemory::<NUM_BITS>::new();
+
+        assert!(new_test_mem.is_empty());
+        assert_eq!(0, new_test_mem.num_samples());
+        assert_eq!(ZERO_SCORE, new_test_mem.avg_score() );
 
         new_test_mem.write_random_sample();
 
         assert!(!new_test_mem.is_empty());
         assert_eq!(1, new_test_mem.num_samples());
         assert_ne!(ZERO_SCORE, new_test_mem.samples[0].score);
+
+        assert_eq!( new_test_mem.min_score, new_test_mem.max_score );
+        assert_eq!( new_test_mem.min_score, new_test_mem.total_score );
+
     }
 
     #[test]
     fn test_random_writes() {
-        let mut new_test_mem = MHDMemory::new();
+        const NUM_BITS: usize = 256;
+        const NUM_ROWS: usize = 16; // Must be at least four!!!
+        assert!( 4 < NUM_ROWS );
 
-        new_test_mem.write_random_sample();
-        new_test_mem.write_n_random_samples(2);
-        new_test_mem.write_random_sample();
+        let mut new_test_mem = MHDMemory::<NUM_BITS>::new();
+
+        assert!(new_test_mem.is_empty());
+
+        new_test_mem.write_n_random_samples( NUM_ROWS);
 
         assert!(!new_test_mem.is_empty());
-        assert_eq!(4, new_test_mem.num_samples());
+        assert_eq!( NUM_ROWS, new_test_mem.num_samples());
+
         assert_ne!(new_test_mem.samples[0], new_test_mem.samples[1]);
         assert_ne!(new_test_mem.samples[1], new_test_mem.samples[2]);
         assert_ne!(new_test_mem.samples[2], new_test_mem.samples[3]);
+        // ... and so on ...
+        assert_ne!(new_test_mem.samples[NUM_ROWS-1], new_test_mem.samples[NUM_ROWS-2]);
+
+        assert!( new_test_mem.min_score <= new_test_mem.avg_score() );
+        assert!( new_test_mem.avg_score() <=  new_test_mem.max_score );
+        assert_ne!( new_test_mem.min_score, new_test_mem.max_score );
+
+        let avg_score = new_test_mem.avg_score();
+        println!(
+            "Memory has scores min {} < avg {} < max {} < total {}",
+            new_test_mem.min_score,
+            new_test_mem.avg_score(),
+            new_test_mem.max_score,
+            new_test_mem.total_score,
+        );
+
+        // Now, test reading!!!
+
+        let zero_mask = &Sample::<NUM_BITS>::new(0);
+        let ones_mask = &Sample::<NUM_BITS>::new_ones(0);
+
+        for row in 0..NUM_ROWS {
+            let zero_mask_score: ScoreType =
+                new_test_mem.masked_read(&zero_mask.bytes, &new_test_mem.samples[row].bytes);
+            let ones_mask_score: ScoreType =
+                new_test_mem.masked_read(&ones_mask.bytes, &new_test_mem.samples[row].bytes);
+            let score_row = new_test_mem.samples[row].score;
+            // Zero mask means everything is masked out, so distance is always zero, so we read the avg!
+            // Ones mask means everyting is maked in, so distance is often greater than zero,
+            // so we expect... a score a little closer to the average.
+            println!(
+                "Row {} has score {}; Read with mask 1s -> {}, 0s -> {}",
+                row,
+                score_row,
+                ones_mask_score,
+                zero_mask_score,
+            );
+            assert_ne!(zero_mask_score, ones_mask_score);
+            assert_eq!(zero_mask_score, avg_score);
+            assert_ne!(ones_mask_score, avg_score); // Possible but improbable and breaks next lines
+            if avg_score <score_row {
+                assert!( ones_mask_score <= score_row );
+            } else {  // if score_row0 < avg_score
+                assert!( score_row <= ones_mask_score )
+            }; // end if score_row < avg_score
+        }
     }
 }

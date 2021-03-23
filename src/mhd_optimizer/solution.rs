@@ -3,16 +3,18 @@
 ///
 use std::fmt::Debug;
 
-use mhd_method::{ScoreType, NUM_BITS};
+use mhd_method::ScoreType;
 
 pub trait Solution: Sized + Clone + Ord + Debug {
     // First, an "associated type"
     // Compare <file:///home/ron/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/share/doc/rust/html/book/ch19-03-advanced-traits.html>
     // type ScoreType: PartialOrd + Debug + Display;
 
-    /// every instance of this struct should have a descriptive name (for tracing, debugging)
-    /// TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
-    fn name(&self) -> &'static str;
+    /// Every instance of this struct should have a descriptive name (for tracing, debugging).
+    /// Default works, but is very long (override it to make it friendlier).
+    fn name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 
     /// Every instance should have a SHORT description for Debugging,
     /// giving things like a knapsack's weight, etc.
@@ -39,7 +41,7 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 
     /// #  Getters and Setters
     /// size, dimension, number of decisions which can be made.
-    fn size( &self ) -> usize;
+    fn size(&self) -> usize;
 
     /// `estimate` is used for sorting (used in turn in the Solver trait):
     /// Note that it works with get_score() and get_best_score() -- and NO problems-specific
@@ -70,18 +72,40 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 
     /// A helper function for printing out solutions in human-readable form
     /// (default implementation provided, should suffice for concrete soutions structs)
-    fn readable( &self ) -> String {
+    fn readable(&self) -> String {
         let mut result = String::new();
         for dim in 0..self.size() {
-            let code = match self.get_decision( dim ){
-                Some( decision) => if decision { '1' } else { '0' },
+            let code = match self.get_decision(dim) {
+                Some(decision) => {
+                    if decision {
+                        '1'
+                    } else {
+                        '0'
+                    }
+                }
                 None => '?',
             };
-            result = format!( "{} {},", result, code ); // append blank code comma to result
-        };
-        format!( "{} score {}", result, self.get_score() )
+            result = format!("{} {},", result, code); // append blank code comma to result
+        }
+        format!("{} score {}", result, self.get_score())
     }
 } // end trait Solution
+
+// This would have been nice but it violates "Object Safety"
+// TODO Come back to this someday when I understand Object Safety
+// impl std::fmt::Debug for Solution {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "[Sample: score {}, size {}, bits ", self.score, self.bytes)?;
+//         for bit in 0..self.size() {
+//             let code = match self.get_decision( bit ) {
+//                 Ok( decision ) => if ( decision ) { '1' } else { '0' },
+//                 None  => '?'
+//             };// end match get_decision
+//             write!(f,"{} ", code );
+//         }; // end for all bits
+//         write!(f, "]" );
+//     } // end fn fmt
+// } // end impl Debug
 
 /// ## A Very Simple but Useful Implementation of the Solution Trait: `MinimalSolution`
 ///
@@ -141,6 +165,7 @@ pub struct MinimalSolution {
 impl Solution for MinimalSolution {
     // type ScoreType = ScoreType; // mhd_method::ScoreType;
 
+    // Take default .. or use this shorter version
     fn name(&self) -> &'static str {
         "MinimalSolution"
     }
@@ -155,11 +180,10 @@ impl Solution for MinimalSolution {
     }
 
     fn new(size: usize) -> Self {
-        assert!(size <= NUM_BITS);
         let num_bytes = (size as f32 / 8.0).ceil() as usize;
         Self {
             size: size,
-            mask: vec![0x0; num_bytes],      // all zeros == no decision made yet
+            mask: vec![0x0; num_bytes], // all zeros == no decision made yet
             decisions: vec![0x0; num_bytes], // all zeros == all decisions are false (zero)
             score: 0 as ScoreType,
             best_score: 0 as ScoreType,
@@ -176,7 +200,9 @@ impl Solution for MinimalSolution {
     }
 
     // Getters and Setters
-    fn size(&self) -> usize { self.size } // times 8 bits per byte
+    fn size(&self) -> usize {
+        self.size
+    } // times 8 bits per byte
 
     fn get_score(&self) -> ScoreType {
         self.score
@@ -240,24 +266,28 @@ mod more_tests {
 
     #[test]
     fn test_minimal_solution() {
-        let sol8 = MinimalSolution::new( 8 );
-        assert_eq!( 8, sol8.size() );
-        let sol9 = MinimalSolution::new( 9 );
-        assert_eq!( 9, sol9.size() );
-        let sol23 = MinimalSolution::new( 23 );
-        assert_eq!( 23, sol23.size() );
+        let sol8 = MinimalSolution::new(8);
+        assert_eq!(8, sol8.size());
+        assert_eq!("MinimalSolution", sol8.name());
+        let sol9 = MinimalSolution::new(9);
+        assert_eq!(9, sol9.size());
+        let sol23 = MinimalSolution::new(23);
+        assert_eq!(23, sol23.size());
 
-        assert_eq!( "MinimalSolution", sol23.name() );
-        assert_eq!( "MinimalSolution: score 0, best score 0", sol23.short_description() );
+        assert_eq!("MinimalSolution", sol23.name());
+        assert_eq!(
+            "MinimalSolution: score 0, best score 0",
+            sol23.short_description()
+        );
 
-        let mut sol = MinimalSolution::new( 42 );
-        sol.make_decision( 17, true );
-        assert_eq!( Some(true), sol.get_decision( 17 ));
-        assert_eq!( None, sol.get_decision( 41 ));
+        let mut sol = MinimalSolution::new(42);
+        sol.make_decision(17, true);
+        assert_eq!(Some(true), sol.get_decision(17));
+        assert_eq!(None, sol.get_decision(41));
 
-        sol.put_score( 42 );
-        sol.put_best_score( 4242 );
-        assert_eq!( 42, sol.get_score() );
-        assert_eq!( 4242, sol.get_best_score() );
+        sol.put_score(42);
+        sol.put_best_score(4242);
+        assert_eq!(42, sol.get_score());
+        assert_eq!(4242, sol.get_best_score());
     }
 }

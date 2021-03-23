@@ -6,7 +6,7 @@ use implementations::Problem01Knapsack;
 /// A module full of software to read file formats and create problems
 /// -- problems in the sense of the problems we want to solve,
 /// or more precisely, the ones we've implemented elsewhere in this module ("implementations").
-use mhd_method::sample::{ScoreType, NUM_BITS}; // Not used: NUM_BYTES
+use mhd_method::sample::ScoreType; // Not used: NUM_BYTES
 use mhd_optimizer::Problem;
 
 /////////// Extra File Input Methods
@@ -79,7 +79,6 @@ pub fn parse_dot_dat_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
         let id: usize = tokens[0].parse().expect("Expect id");
         let size: usize = tokens[1].parse().expect("Expect dimension");
         let capacity: ScoreType = tokens[2].parse().expect("Expect capacity");
-        assert!(size < NUM_BITS);
         assert!(2 * size + 3 == num_tokens);
         debug!(
             " Parsing Knapsack id {}, size {}, capacity {}:",
@@ -147,7 +146,7 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
     tokens = line.split_whitespace().map(|tok| tok.to_owned()).collect();
     assert_eq!(2, tokens.len(), "expected c <int> (only)");
     assert_eq!("c", tokens[0], "expected c <int> (did not find c)");
-    let capacity: i32 = tokens[1].parse().expect("Expect dimension");
+    let capacity: ScoreType = tokens[1].parse().expect("Expect dimension");
 
     // line 4 = z <int>
     let mut line = String::new();
@@ -157,7 +156,7 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
     assert_eq!(2, tokens.len(), "expected c <int> (only)");
     assert_eq!("z", tokens[0], "expected z <int> (did not find z)");
     let goal: ScoreType = tokens[1].parse().expect("Expect Ziel (goal score)");
-    println!("                                        GOAL = {}", goal );
+    println!("                                        GOAL = {}", goal);
 
     // line 5 = time <int>
     let mut line = String::new();
@@ -170,7 +169,7 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
     // We can now build the result object...
     let mut result = Problem01Knapsack::new(size);
     result.basis.capacity = capacity;
-    let mut reference = vec![ 255u8; size ];
+    let mut reference = vec![255u8; size];
 
     // lines 6, 7, ...
     for dim in 0..size {
@@ -189,7 +188,7 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
         result.values[dim] = tokens[1].parse().expect("Expect profit");
         result.basis.weights[dim] = tokens[2].parse().expect("Expect weight");
         tokens[3].pop(); // line.split leaves a \n on last token!?!?!
-        let dummy : u8 = tokens[3].parse().expect("Expect Solution count (0|1)");
+        let dummy: u8 = tokens[3].parse().expect("Expect Solution count (0|1)");
         reference[dim] = dummy;
     } // for 0 <= dim < size
 
@@ -205,6 +204,6 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
     assert_eq!("\n", line, "Last line should be blank (empty)");
 
     trace!(" About to return Knapsack {:?} ", result);
-    info!("Reference Solution (score {}) = {:?}", goal, reference );
+    info!("Reference Solution (score {}) = {:?}", goal, reference);
     return Ok(result);
 }

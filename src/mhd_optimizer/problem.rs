@@ -4,24 +4,27 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::time::Duration;
 
-use mhd_method::{ScoreType, NUM_BITS}; // Not used: NUM_BYTES
+use mhd_method::ScoreType; // Not used: NUM_BYTES
 use mhd_optimizer::Solution;
 use mhd_optimizer::Solver;
 
-static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(16); // can be changed
+static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(60); // can be changed
 
 pub trait Problem: Sized + Clone + Debug {
     // Every Problem will probably need it's own "associated" solution type
     type Sol: Solution;
 
-    /// every instance of this struct should have a descriptive name (for tracing, debugging)
-    /// TODO: Remove this when <https://doc.rust-lang.org/std/any/fn.type_name_of_val.html> stable
-    fn name(&self) -> &'static str;
-    // Constructors
+    /// Every instance of this struct should have a descriptive name (for tracing, debugging).
+    /// Default works, but is very long (override it to make it friendlier).
+    fn name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 
     /// Every instance should have a SHORT description for Debugging,
     /// giving things like a knapsack's capacity, pehaps more.
     fn short_description(&self) -> String;
+
+    // Constructors
 
     /// `new` creates a default ("zero") instance of the problem,
     /// where `size` is the number of decisions to be made (free variables to assign values to).
@@ -31,7 +34,6 @@ pub trait Problem: Sized + Clone + Debug {
     /// where `size` is the number of decisions to be made (free variables to assign values to).
     /// Do not confuse with `random_solution`!
     fn random(size: usize) -> Self {
-        assert!(size <= NUM_BITS);
         let mut result = Self::new(size);
         result.randomize();
         result

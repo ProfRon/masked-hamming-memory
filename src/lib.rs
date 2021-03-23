@@ -16,8 +16,31 @@
 //! use mhd_mem::mhd_method::*;
 //! assert_eq!( weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
 //! assert_eq!( distance(&[0xFF, 0xFF], &[1, 0xFF], &[0xFF, 1]), 7 + 7);
-//! assert_eq!( Sample::default().score, ZERO_SCORE );
-//! assert_eq!( Sample::new( 42 as ScoreType ).get_bit( 7 ), false );
+//! assert_eq!( Sample::<200>::default().score, ZERO_SCORE ); // Sample width is 200 bits
+//! assert_eq!( Sample::<200>::new( 42 as ScoreType ).get_bit( 7 ), false );
+//!
+//! use mhd_mem::mhd_optimizer::*;
+//! use mhd_mem::implementations::*;
+//!
+//! const NUM_DECISIONS: usize = 4; // for a start
+//!
+//! let knapsack = Problem01Knapsack::random(NUM_DECISIONS); // or ProblemSubsetSum, or ... ??
+//! let mut solver = BestFirstSolver::new(NUM_DECISIONS); // or DepthFirstSolver, or ... ??
+//!
+//! use std::time::Duration;
+//! let time_limit = Duration::new(2, 0); // 2 seconds convergence time
+//
+//! assert!(knapsack.is_legal());
+//
+//! let the_best = knapsack
+//!     .find_best_solution(&mut solver, time_limit)  // !!!!
+//!     .expect("could not find best solution");
+//! assert!(knapsack.solution_is_legal(&the_best));
+//! assert!(knapsack.solution_is_complete(&the_best));
+//
+//! let best_score = the_best.get_score();
+//! assert!(ZERO_SCORE < best_score);
+//! assert_eq!(best_score, knapsack.solution_score(&the_best));
 //! ```
 
 //   #![deny(warnings)]
@@ -45,7 +68,7 @@ pub mod mhd_method {
     pub use self::distance_::{distance, distance_fast, truncated_distance};
 
     pub mod sample;
-    pub use self::sample::{Sample, ScoreType, NUM_BITS, NUM_BYTES, ZERO_SCORE};
+    pub use self::sample::{Sample, ScoreType, ZERO_SCORE};
 
     pub mod mhdmemory;
     pub use self::mhdmemory::MHDMemory;

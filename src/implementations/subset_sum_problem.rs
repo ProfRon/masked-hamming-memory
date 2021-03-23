@@ -18,7 +18,7 @@ extern crate rand_distr;
 
 use rand_distr::{Bernoulli, Distribution, Gamma}; // formerly used: Exp
 
-use mhd_method::{ScoreType, NUM_BITS, ZERO_SCORE}; // Not used: NUM_BYTES
+use mhd_method::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
 use mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
 
 #[derive(Debug, Clone)]
@@ -52,7 +52,6 @@ impl Problem for ProblemSubsetSum {
     }
 
     fn new(size: usize) -> Self {
-        assert!(size <= NUM_BITS);
         ProblemSubsetSum {
             weights: vec![ZERO_SCORE; size],
             capacity: 0,
@@ -138,7 +137,6 @@ impl Problem for ProblemSubsetSum {
 
     // first, methods not defined previously, but which arose while implemeneting the others (see below)
     fn solution_score(&self, solution: &Self::Sol) -> ScoreType {
-        debug_assert!(self.problem_size() <= NUM_BITS);
         let mut result = ZERO_SCORE;
         // Note to self -- later we can be faster here by doing this byte-wise
         for index in 0..self.problem_size() {
@@ -152,7 +150,6 @@ impl Problem for ProblemSubsetSum {
     } // end solution_is_legal
 
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType {
-        debug_assert!(self.problem_size() <= NUM_BITS);
         // debug_assert!(self.solution_is_legal(solution));
         let mut result = self.solution_score(&solution);
         for index in 0..self.problem_size() {
@@ -174,13 +171,8 @@ impl Problem for ProblemSubsetSum {
     }
 
     fn solution_is_legal(&self, solution: &Self::Sol) -> bool {
-        // Note for the future:
-        // If we ever get rid of the NUM_BITS constant, we'll need to do this:
-        // let num_decisions = self.problem_size();
-        // if solution.mask.len() < num_decisions      return false;
-        // if solution.decisions.len() < num_decisions return false;
-        // and then check capacity anyway...
-        (self.problem_size() <= NUM_BITS) && (self.solution_score(solution) <= self.capacity)
+        debug_assert!(self.problem_size() <= solution.size());
+        self.solution_score(solution) <= self.capacity
     } // end solution_is_legal
 
     fn solution_is_complete(&self, solution: &Self::Sol) -> bool {

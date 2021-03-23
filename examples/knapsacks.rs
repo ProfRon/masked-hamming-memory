@@ -75,7 +75,7 @@ fn test_one_problem_one_solver(
             knapsack.weights_sum(),
             knapsack.capacity()
         );
-        return -99999 as ScoreType;
+        return 99999 as ScoreType;
     };
 
     let time_limit = Duration::from_secs_f32(opt.time);
@@ -92,13 +92,13 @@ fn test_one_problem_one_solver(
         knapsack.problem_size(),
         start_time.elapsed()
     );
-    info!( "                          best is {}", the_best.readable() );
+    info!("                          best is {}", the_best.readable());
     the_best.get_score()
 }
 
 fn test_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32, prob_num: u16) {
     if 0.0 != opt.capacity {
-        knapsack.basis.capacity = (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as i32;
+        knapsack.basis.capacity = (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as ScoreType;
     }; // else, leave capacity alone remain what the random constructor figured out.
     let mut dfs_score: ScoreType = 1;
     let mut bfs_score: ScoreType = 1;
