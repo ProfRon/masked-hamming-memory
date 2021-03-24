@@ -1,15 +1,11 @@
-use std::error::Error;
-/// ## The Problem Trait
-///
 use std::fmt::Debug;
-use std::time::Duration;
 
 use mhd_method::ScoreType; // Not used: NUM_BYTES
 use mhd_optimizer::Solution;
-use mhd_optimizer::Solver;
+// use mhd_optimizer::Solver;
 
-static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(60); // can be changed
-
+/// ## The Problem Trait
+///
 pub trait Problem: Sized + Clone + Debug {
     // Every Problem will probably need it's own "associated" solution type
     type Sol: Solution;
@@ -108,140 +104,41 @@ pub trait Problem: Sized + Clone + Debug {
     /// to consider putting them into the knapsack.
     fn make_implicit_decisions(&self, sol: &mut Self::Sol);
 
-    /// Create a child of a parent solution, given a decision and a decision to make
-    /// (i.e. decision index and boolean value) -- and iff the solution is good, add it to the
-    /// solver (otherwise discard).
-    fn register_one_child(
-        &self,
-        parent: &Self::Sol,
-        solver: &mut impl Solver<Self::Sol>,
-        index: usize,
-        decision: bool,
-    ) {
-        let mut new_solution = parent.clone();
-        new_solution.make_decision(index, decision);
-        self.make_implicit_decisions(&mut new_solution);
-        self.fix_scores(&mut new_solution);
-        if self.solution_is_legal(&new_solution) {
-            solver.push(new_solution);
-        } // else if solution is illegal, do nothing
-    }
+    /// `produce_child` takes a copy (clone) of `parent` and tries making the first open deccision.
+    /// It returns either Some(child) or None, if the child would not have been legal,
+    /// e.g. if the weight of a knapsack would exceed the capacity.
+    fn produce_child( &self, parent: &Self::Sol, index: usize, decision: bool,) -> Option< Self::Sol >   {
+        let mut child = parent.clone();
+        child.make_decision(index, decision);
+        self.make_implicit_decisions(&mut child);
+        self.fix_scores(&mut child);
+        return if self.solution_is_legal(&child) {
+            Some(child)
+        } else { // else if solution is illegal, do nothing
+            None
+        }
+    } // end produce one child
 
-    /// Create and then register all (usually both) children of a parent solution;
-    /// compare `register_one_child` method.
-    fn register_children_of(&self, parent: &Self::Sol, solver: &mut impl Solver<Self::Sol>) {
+    /// This method (`children_of_solution`) return zero, one or two solutions in the form of a
+    /// vector. Given `parent`, the method find the first open decision, and tries setting it
+    /// to both true and to false -- thus producing two children, both of which are tested for
+    /// legality. Only legal children are returned (so there can be 0, 1 or 2).
+    fn children_of_solution( &self, parent: &Self::Sol, ) -> Vec< Self::Sol >  {
         debug_assert!(self.solution_is_legal(parent));
-        match self.first_open_decision(parent) {
-            None => {} // do nothing!
-            Some(index) => {
-                self.register_one_child(parent, solver, index, false);
-                self.register_one_child(parent, solver, index, true);
-            } // end if found Some(index) -- an open decision
-        } // end match
-    } // end register_children
+        debug_assert!(! self.solution_is_complete(parent));
+        let mut result = Vec::< Self::Sol >::new(); // initially empty...
+        // parent must not be a complete solution, so we can use unwrpa in the next line:
+        let index = self.first_open_decision(parent).unwrap();
+        // Try deciding TRUE
+        if let Some( child ) = self.produce_child( parent, index, true ) {
+            result.push( child );
+        };
+        // Try deciding FALSE
+        if let Some( child ) = self.produce_child( parent, index, false ) {
+            result.push( child );
+        };
+        // Finished! Return...
+        result
+    }  // end children_of_solution
 
-    /*******************************************************************************/
-    /// This is the crux of this whole project: The `find_best_solution` method.
-    /// It does what it says here.
-    /// Originally outside this (Problem) Trait, but the compiler is making this difficult...
-    fn find_best_solution<Solv: Solver<Self::Sol>>(
-        &self,
-        solver: &mut Solv,
-        time_limit: Duration,
-    ) -> Result<Self::Sol, Box<dyn Error>> {
-        use log::*; // for info, trace, warn, etc.
-        use std::fs::OpenOptions; // and/or File, if we want to overwrite a file...
-        use std::io::prelude::*; // for writeln! (write_fmt)
-        use std::time::Instant;
-
-        let global_start_time = Instant::now();
-        let mut start_time = Instant::now();
-
-        // define some solution to be "best-so-far"
-        let mut num_visitations: i64 = 0;
-        let mut best_solution = self.random_solution();
-        debug_assert!(self.solution_is_complete(&best_solution));
-        debug_assert!(self.solution_is_legal(&best_solution));
-        trace!("Optimizing Problem (short) {}", self.short_description());
-        trace!(
-            "First Random Solution (short) {}",
-            best_solution.short_description()
-        );
-
-        // start at the root of the tree
-        debug_assert!(solver.is_empty());
-        solver.push(self.starting_solution());
-
-        let result = loop {
-            num_visitations += 1;
-
-            let next_solution = solver
-                .pop()
-                .expect("solver's queue should not be empty but could not pop");
-            trace!(
-                "Optimizer pops {} solution {} at depth {}, high score {}",
-                if self.solution_is_complete(&next_solution) {
-                    "  COMPLETE"
-                } else {
-                    "incomplete"
-                },
-                next_solution.short_description(),
-                self.first_open_decision(&next_solution).unwrap_or(99999999),
-                best_solution.get_score()
-            );
-
-            if self.solution_is_complete(&next_solution)
-                && self.better_than(&next_solution, &best_solution)
-            {
-                // record new best solution.
-                best_solution = next_solution.clone();
-                // record new best solution as trace and as a line in trace.csv
-                trace!(
-                    "Optimizer finds new BEST score {}! after {} visitations",
-                    best_solution.get_score(),
-                    num_visitations
-                );
-                // Reset timer!
-                // That means we exit if we go for time_limit without a new best solution!
-                start_time = Instant::now();
-            }; // end solution complete and better than old best solution
-
-            // BOUND
-            if self.can_be_better_than(&next_solution, &best_solution) {
-                // BRANCH
-                self.register_children_of(&next_solution, solver);
-            }; // end if not bounded
-
-            // Terminate out if loop?
-            if solver.is_empty()
-                || time_limit < start_time.elapsed()
-                || GLOBAL_TIME_LIMIT < global_start_time.elapsed()
-            {
-                break best_solution;
-            }; // end if terminating
-        }; // end loop
-
-        let mut macrotrace_file = OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open("macrotrace.csv")
-            .expect("Could not open macrotrace.csv");
-        writeln!(
-            macrotrace_file,
-            "\"{}\", \"{}\", \"{}\", {}; {}; {}; {}; {}", // EIGHT fields!
-            result.name(),
-            solver.name(),
-            self.name(),
-            start_time.elapsed().as_nanos(),
-            num_visitations,
-            solver.number_of_solutions(),
-            result.get_score(),
-            result.get_best_score(),
-        )?;
-
-        trace!("Optimizer find best solution in {:?}", self);
-        trace!("Optimizer converges on soution {:?}", result);
-
-        Ok(result)
-    } // end default find_best_solution implementation
 } // end trait Problem

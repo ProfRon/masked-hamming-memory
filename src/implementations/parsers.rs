@@ -132,7 +132,7 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
         line.clear(); // to prevent next  read_line appending on old one...
         // Note that read_line return Ok(0) on EOF
         let num_bytes_read = input.read_line(&mut line)? ;
-        if (0 == num_bytes_read) {
+        if 0 == num_bytes_read {
             return Err(io::Error::new(io::ErrorKind::InvalidData,"End of File? Empty Line".to_string()));
         }; // end if we read zero bytes
         // else we have a string

@@ -3,7 +3,7 @@ extern crate mhd_mem;
 
 // use mhd_mem::mhd_method::*;
 use mhd_mem::implementations::*;
-use mhd_mem::mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
+use mhd_mem::mhd_optimizer::{MinimalSolution, Problem, Solution, Solver, find_best_solution };
 
 extern crate log;
 use log::*;
@@ -11,16 +11,18 @@ use std::time::Duration;
 
 /********************************* Benchmark Utilities *********************************/
 
+// Is: Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol = Sol>
+// Was: Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem
+
 // inline because https://bheisler.github.io/criterion.rs/book/getting_started.html
 #[inline]
-fn bench_optimization<Solv: Solver<<Prob as Problem>::Sol>, Prob: Problem>(
+fn bench_optimization<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol = Sol> >(
     problem: &Prob,
     solver: &mut Solv,
 ) {
     solver.clear();
 
-    let the_best = problem
-        .find_best_solution(solver, Duration::from_secs_f32(1.0))
+    let the_best = find_best_solution( problem, solver, Duration::from_secs_f32(1.0))
         .expect("could not find best solution on bench");
 
     let best_score = the_best.get_score();

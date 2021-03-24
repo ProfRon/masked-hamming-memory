@@ -16,8 +16,7 @@ use rand_distr::{Distribution, Gamma};
 
 use implementations::ProblemSubsetSum;
 use mhd_method::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
-use mhd_optimizer::{MinimalSolution, Solution};
-use mhd_optimizer::{Problem, Solver};
+use mhd_optimizer::{MinimalSolution, Solution, Problem };
 
 /********************************************************************************************/
 ///## Customized Solution Type for the 0/1 Knapsack
@@ -318,8 +317,8 @@ impl Problem for Problem01Knapsack {
 mod tests {
 
     use super::*;
+    use mhd_optimizer::{Problem, Solution, Solver, find_best_solution };
     use implementations::{DepthFirstSolver, Problem01Knapsack, ZeroOneKnapsackSolution};
-    use mhd_optimizer::{Problem, Solution};
 
     #[test]
     fn test_random_weights() {
@@ -405,29 +404,21 @@ mod tests {
         assert!(problem.solution_is_legal(&root));
         assert!(!problem.solution_is_complete(&root));
 
-        problem.register_children_of(&root, &mut solver);
+        let children = problem.children_of_solution( & root );
+        assert!( ! children.is_empty() );
+        assert!( children.len() <= 2 ); // So, number of children is 1 or 2
+        for  child in children {
+            assert!( problem.solution_is_legal( &child ) );
+            if ! problem.solution_is_complete( & child ) { solver.push( child ); }
+        };
         assert!(!solver.is_empty());
         assert!(solver.number_of_solutions() <= 2);
 
-        let node_a = solver.pop().expect("Solver should let us pop SOMETHING #2");
-        // assert!( ! solver.is_empty() );
+        let grandchild = solver.pop().expect("Solver should let us pop SOMETHING #2");
+        assert!(!solver.is_empty());
         assert!(solver.number_of_solutions() <= 1);
-        assert!(problem.solution_is_legal(&node_a));
-        assert!(!problem.solution_is_complete(&node_a));
-
-        problem.register_children_of(&node_a, &mut solver);
-        assert!(!solver.is_empty());
-        assert!(solver.number_of_solutions() <= 3);
-
-        let node_b = solver.pop().expect("Solver should let us pop SOMETHING #3");
-        // assert!( ! solver.is_empty() );
-        assert!(solver.number_of_solutions() <= 2);
-        assert!(problem.solution_is_legal(&node_b));
-        assert!(!problem.solution_is_complete(&node_b));
-
-        problem.register_children_of(&node_b, &mut solver);
-        assert!(!solver.is_empty());
-        assert!(solver.number_of_solutions() <= 4);
+        assert!(problem.solution_is_legal(&grandchild));
+        assert!(!problem.solution_is_complete(&grandchild));
 
         // Before we go...
         assert!(problem.is_legal());
@@ -445,8 +436,7 @@ mod tests {
 
         assert!(little_knapsack.is_legal());
 
-        let the_best = little_knapsack
-            .find_best_solution(&mut first_solver, time_limit)
+        let the_best = find_best_solution( &little_knapsack, &mut first_solver, time_limit)
             .expect("could not find best solution");
         assert!(little_knapsack.solution_is_legal(&the_best));
         assert!(little_knapsack.solution_is_complete(&the_best));

@@ -19,7 +19,7 @@ extern crate rand_distr;
 use rand_distr::{Bernoulli, Distribution, Gamma}; // formerly used: Exp
 
 use mhd_method::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
-use mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
+use mhd_optimizer::{ Problem, Solution, MinimalSolution };
 
 #[derive(Debug, Clone)]
 pub struct ProblemSubsetSum {
@@ -282,6 +282,8 @@ impl Problem for ProblemSubsetSum {
 mod tests {
 
     use super::*;
+
+    use mhd_optimizer::Solver;
     use implementations::DepthFirstSolver;
 
     #[test]
@@ -360,14 +362,14 @@ mod tests {
     }
 
     #[test]
-    fn test_children_regstration() {
+    fn test_children_preduction() {
         const NUM_BITS: usize = 32; // big, to make special cases below REALLY improbable
 
         // Test register_children_of( )
         let problem = ProblemSubsetSum::random(NUM_BITS); // a lot smaller
         assert!(problem.is_legal());
 
-        let mut solver = DepthFirstSolver::new(NUM_BITS);
+        let mut solver = DepthFirstSolver::<MinimalSolution>::new(NUM_BITS);
 
         solver.push(problem.starting_solution());
         assert!(!solver.is_empty());
@@ -377,48 +379,42 @@ mod tests {
         assert!(problem.solution_is_legal(&root));
         assert!(!problem.solution_is_complete(&root));
 
-        problem.register_children_of(&root, &mut solver);
+        let children = problem.children_of_solution( & root );
+        assert!( ! children.is_empty() );
+        assert!( children.len() <= 2 ); // So, number of children is 1 or 2
+        for  child in children {
+            assert!( problem.solution_is_legal( &child ) );
+            if ! problem.solution_is_complete( & child ) { solver.push( child ); }
+        };
         assert!(!solver.is_empty());
         assert!(solver.number_of_solutions() <= 2);
 
-        let node_a = solver.pop().expect("Solver should let us pop SOMETHING #2");
+        let grandchild = solver.pop().expect("Solver should let us pop SOMETHING #2");
         assert!(!solver.is_empty());
         assert!(solver.number_of_solutions() <= 1);
-        assert!(problem.solution_is_legal(&node_a));
-        assert!(!problem.solution_is_complete(&node_a));
-
-        problem.register_children_of(&node_a, &mut solver);
-        assert!(!solver.is_empty());
-        assert!(solver.number_of_solutions() <= 3);
-
-        let node_b = solver.pop().expect("Solver should let us pop SOMETHING #3");
-        assert!(!solver.is_empty());
-        assert!(solver.number_of_solutions() <= 2);
-        assert!(problem.solution_is_legal(&node_b));
-        assert!(!problem.solution_is_complete(&node_b));
-
-        problem.register_children_of(&node_b, &mut solver);
-        assert!(!solver.is_empty());
-        assert!(solver.number_of_solutions() <= 4);
+        assert!(problem.solution_is_legal(&grandchild));
+        assert!(!problem.solution_is_complete(&grandchild));
 
         // Before we go...
         assert!(problem.is_legal());
     } // end test_children_regstration
+
+    use mhd_optimizer::find_best_solution;
 
     #[test]
     fn test_find_depth_first_solution() {
         const NUM_DECISIONS: usize = 4; // for a start
 
         let little_knapsack = ProblemSubsetSum::random(NUM_DECISIONS);
-        let mut first_solver = DepthFirstSolver::new(NUM_DECISIONS);
+        let mut first_solver = DepthFirstSolver::<MinimalSolution>::new(NUM_DECISIONS);
 
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
         assert!(little_knapsack.is_legal());
+        assert!( first_solver.is_empty() );
 
-        let the_best = little_knapsack
-            .find_best_solution(&mut first_solver, time_limit)
+        let the_best = find_best_solution( &little_knapsack, &mut first_solver, time_limit)
             .expect("could not find best solution");
 
         assert!(little_knapsack.solution_is_legal(&the_best));

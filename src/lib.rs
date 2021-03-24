@@ -32,9 +32,8 @@
 //
 //! assert!(knapsack.is_legal());
 //
-//! let the_best = knapsack
-//!     .find_best_solution(&mut solver, time_limit)  // !!!!
-//!     .expect("could not find best solution");
+//! let the_best = find_best_solution(&knapsack, &mut solver, time_limit)
+//!               .expect("could not find best solution");
 //! assert!(knapsack.solution_is_legal(&the_best));
 //! assert!(knapsack.solution_is_complete(&the_best));
 //
@@ -84,8 +83,8 @@ pub mod mhd_optimizer {
     pub mod problem;
     pub use self::problem::Problem;
 
-    // pub mod unified_optimizer;
-    // pub use self::unified_optimizer::find_best_solution;
+    pub mod optimizer;
+    pub use self::optimizer::find_best_solution;
 }
 
 pub mod implementations {

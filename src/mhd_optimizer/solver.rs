@@ -32,11 +32,12 @@ pub trait Solver<Sol: Solution> {
     /// Discard any solutions currently stored in container
     fn clear(&mut self); // empty out (if not already empty) like std::vec::clear()
 
-    /// Add one solution to container -- the main difference between each implementation!
+    /// Add one incomplete solution to container -- the main difference between each implementation!
     /// This is a very important difference between the various implementations!
     fn push(&mut self, solution: Sol);
 
     /// Remove one solution from container (if possible)
     /// This is a very important difference between the various implementations!
     fn pop(&mut self) -> Option<Sol>;
+
 } // end Solver Problem
