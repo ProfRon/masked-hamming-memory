@@ -150,20 +150,23 @@ impl Problem for ProblemSubsetSum {
     } // end solution_is_legal
 
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType {
-        // debug_assert!(self.solution_is_legal(solution));
-        let mut result = self.solution_score(&solution);
+        // add up all weights which are either open or not set to zero,
+        // stopping if we get past capacity
+        let mut result = ZERO_SCORE;
         for index in 0..self.problem_size() {
-            if None == solution.get_decision(index) {
+            match solution.get_decision(index) {
                 // open decision! So we COULD put this item in the knapsack...
-                result += self.weights[index];
-                if self.capacity < result {
+                None => result += self.weights[index],
+                Some(decision) => if decision { result += self.weights[index] },
+            }; // end match
+            if self.capacity < result {
                     return self.capacity;
-                };
-            };
+            }; // end if over capacity
         } // end for all bits
           // if we're here, then upper_bound is less than capacity
         debug_assert!(result <= self.capacity);
         debug_assert!(self.solution_score(&solution) <= result);
+        // next assert fails if solution is complete and best_score != score
         debug_assert!(
             !self.solution_is_complete(&solution) || (self.solution_score(&solution) == result)
         );
@@ -267,23 +270,11 @@ impl Problem for ProblemSubsetSum {
             } // end for all bits
         } // end if incomplete decision
     }
-    fn register_one_child(
-        &self,
-        parent: &Self::Sol,
-        solver: &mut impl Solver<Self::Sol>,
-        index: usize,
-        decision: bool,
-    ) {
-        let mut new_solution = parent.clone();
-        new_solution.make_decision(index, decision);
-        self.make_implicit_decisions(&mut new_solution);
-        if self.solution_is_legal(&new_solution) {
-            self.fix_scores(&mut new_solution);
-            solver.push(new_solution);
-        } // else if solution is illegal, do nothing
-    }
+
+    // take the default register_one_child()
 
     // take the default register_children_of
+
 } // end impl ProblemSubsetSum
 
 ///////////////////// TESTs for ProblemSubsetSum with  FirstDepthFirstSolver /////////////////////

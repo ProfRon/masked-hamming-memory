@@ -117,7 +117,15 @@ pub trait Problem: Sized + Clone + Debug {
         solver: &mut impl Solver<Self::Sol>,
         index: usize,
         decision: bool,
-    );
+    ) {
+        let mut new_solution = parent.clone();
+        new_solution.make_decision(index, decision);
+        self.make_implicit_decisions(&mut new_solution);
+        self.fix_scores(&mut new_solution);
+        if self.solution_is_legal(&new_solution) {
+            solver.push(new_solution);
+        } // else if solution is illegal, do nothing
+    }
 
     /// Create and then register all (usually both) children of a parent solution;
     /// compare `register_one_child` method.

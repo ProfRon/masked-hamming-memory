@@ -125,13 +125,23 @@ pub fn parse_dot_dat_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
 pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem01Knapsack> {
     // Line 1 = instance-name
     let mut line = String::new();
-    input.read_line(&mut line)?;
     trace!("Parser - ID line 1={}", line);
-    let mut tokens: Vec<String> = line.split_whitespace().map(|tok| tok.to_owned()).collect();
+    let mut tokens: Vec<String> = Vec::new();
+    // skip blank lines until we get a non-blank line...
+    while tokens.is_empty() {
+        line.clear(); // to prevent next  read_line appending on old one...
+        // Note that read_line return Ok(0) on EOF
+        let num_bytes_read = input.read_line(&mut line)? ;
+        if (0 == num_bytes_read) {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,"End of File? Empty Line".to_string()));
+        }; // end if we read zero bytes
+        // else we have a string
+        tokens = line.split_whitespace().map(|tok| tok.to_owned()).collect();
+    }; // end while tokens empty
     assert_eq!(1, tokens.len(), "Expected problem name (only)"); // Discard name if OK
 
     // line 2 = n <int>
-    let mut line = String::new(); // make a new line, because...
+    line.clear();  // make a new line, because...
     input.read_line(&mut line)?; // ...this appends the new line otherwise.
     trace!("Parser - n int line 2 ={}", line);
     tokens = line.split_whitespace().map(|tok| tok.to_owned()).collect();
@@ -198,10 +208,7 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
     input.read_line(&mut line)?;
     assert_eq!(line, DASHES, "expected 5 dashes");
 
-    // Last line should be blank
-    let mut line = String::new();
-    input.read_line(&mut line)?;
-    assert_eq!("\n", line, "Last line should be blank (empty)");
+    // Last line should be blank, but that will be skipped above
 
     trace!(" About to return Knapsack {:?} ", result);
     info!("Reference Solution (score {}) = {:?}", goal, reference);
