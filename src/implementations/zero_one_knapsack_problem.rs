@@ -248,19 +248,31 @@ impl Problem for Problem01Knapsack {
     } // end solution_is_legal
 
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType {
-        debug_assert!(self.solution_is_legal(solution));
-        let mut result = self.solution_score(&solution);
+        // debug_assert!(self.solution_is_legal(solution));
+        // add up all values which are either open or not set to zero,
+        let mut result = ZERO_SCORE;
         for index in 0..self.problem_size() {
-            if None == solution.get_decision(index) {
-                result += self.values[index];
-            }
+            match solution.get_decision(index) {
+                // open decision! So we COULD put this item in the knapsack...
+                None => result += self.values[index],
+                Some(decision) => if decision { result += self.values[index] },
+            }; // end match
         } // end for all bits
         debug_assert!(self.solution_score(&solution) <= result);
+        // next assert fails if solution is complete and best_score != score
         debug_assert!(
             !self.solution_is_complete(&solution) || (self.solution_score(&solution) == result)
         );
         result
     }
+
+    fn fix_scores(&self, solution: &mut Self::Sol) {
+        // the next line is the (only) reason we didn't just take the default
+        self.basis.fix_scores(&mut solution.basis );
+        solution.put_score(self.solution_score(solution));
+        solution.put_best_score(self.solution_best_score(solution));
+    }
+
 
     fn solution_is_legal(&self, solution: &Self::Sol) -> bool {
         self.basis.solution_is_legal(&solution.basis)
@@ -294,45 +306,10 @@ impl Problem for Problem01Knapsack {
         // If there were any constraints on decisions that depeded on values,
         // we would have to do more work -- but there aren't (are there?), so we're done!
     }
-    fn register_one_child(
-        &self,
-        parent: &Self::Sol,
-        solver: &mut impl Solver<Self::Sol>,
-        index: usize,
-        decision: bool,
-    ) {
-        // sadly, self.sack.register_one_child( parent, solver, index, decision )
-        // doesn't work, because it assigns the wrong score to the child.
-        // Fascinatingly, it DOES work if we cut and paste the code!  :-\
-        let mut new_solution = parent.clone();
-        new_solution.make_decision(index, decision);
-        // Add weight (may be taken off later)
-        self.basis.fix_scores(&mut new_solution.basis);
-        self.make_implicit_decisions(&mut new_solution);
-        if self.solution_is_legal(&new_solution) {
-            self.fix_scores(&mut new_solution);
-            debug_assert_eq!(new_solution.get_score(), self.solution_score(&new_solution));
-            debug_assert_eq!(
-                new_solution.basis.get_score(),
-                self.basis.solution_score(&new_solution.basis)
-            );
-            solver.push(new_solution);
-        } // else if solution is illegal, do nothinng
-    }
 
-    fn register_children_of(&self, parent: &Self::Sol, solver: &mut impl Solver<Self::Sol>) {
-        // it would be nice to just call self.sack.register_children_of(),
-        // since we're not changing the codem,
-        // but it would call the wrong self.register_one_chilld (!).
-        debug_assert!(self.solution_is_legal(parent));
-        match self.first_open_decision(parent) {
-            None => {} // do nothing!
-            Some(index) => {
-                self.register_one_child(parent, solver, index, false);
-                self.register_one_child(parent, solver, index, true);
-            } // end if found Some(index) -- an open decision
-        } // end match
-    } // end register_children
+    // Take the default register_one_child
+    // Take the default register_children_of
+
 } // end impl ProblemSubsetSum
 
 /********************************************************************************************/
