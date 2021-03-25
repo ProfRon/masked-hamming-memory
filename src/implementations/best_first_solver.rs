@@ -63,7 +63,7 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
 mod more_tests {
     use super::*;
     use implementations::ProblemSubsetSum;
-    use mhd_optimizer::{MinimalSolution, Solution, Problem, Solver, find_best_solution };
+    use mhd_optimizer::{MinimalSolution, Solution, Problem, Solver };
 
     #[test]
     fn test_best_first_solver_solver() {
@@ -104,7 +104,7 @@ mod more_tests {
 
         assert!(knapsack.is_legal());
 
-        let the_best = find_best_solution(&knapsack, &mut second_solver, time_limit)
+        let the_best = second_solver.find_best_solution(&knapsack, time_limit)
             .expect("could not find best solution");
 
         assert!(knapsack.solution_is_legal(&the_best));

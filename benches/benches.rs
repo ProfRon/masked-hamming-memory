@@ -3,7 +3,7 @@ extern crate mhd_mem;
 
 // use mhd_mem::mhd_method::*;
 use mhd_mem::implementations::*;
-use mhd_mem::mhd_optimizer::{MinimalSolution, Problem, Solution, Solver, find_best_solution };
+use mhd_mem::mhd_optimizer::{MinimalSolution, Problem, Solution, Solver };
 
 extern crate log;
 use log::*;
@@ -22,7 +22,7 @@ fn bench_optimization<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol = Sol>
 ) {
     solver.clear();
 
-    let the_best = find_best_solution( problem, solver, Duration::from_secs_f32(1.0))
+    let the_best = solver.find_best_solution( problem, Duration::from_secs_f32(1.0))
         .expect("could not find best solution on bench");
 
     let best_score = the_best.get_score();

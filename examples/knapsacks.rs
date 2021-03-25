@@ -58,7 +58,7 @@ use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
 use mhd_mem::mhd_method::sample::ScoreType; // used implicitly (only)
-use mhd_mem::mhd_optimizer::{Problem, Solver, Solution, find_best_solution };
+use mhd_mem::mhd_optimizer::{Problem, Solver, Solution };
 use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
 use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
 
@@ -81,7 +81,7 @@ fn run_one_problem_one_solver(
     let time_limit = Duration::from_secs_f32(opt.time);
     let start_time = Instant::now();
 
-    let the_best = find_best_solution(knapsack, solver, time_limit)
+    let the_best = solver.find_best_solution(knapsack, time_limit)
         .expect("Optimization fails?!?");
 
     println!(

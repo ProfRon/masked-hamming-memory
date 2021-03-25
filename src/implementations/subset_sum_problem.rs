@@ -399,8 +399,6 @@ mod tests {
         assert!(problem.is_legal());
     } // end test_children_regstration
 
-    use mhd_optimizer::find_best_solution;
-
     #[test]
     fn test_find_depth_first_solution() {
         const NUM_DECISIONS: usize = 4; // for a start
@@ -414,7 +412,7 @@ mod tests {
         assert!(little_knapsack.is_legal());
         assert!( first_solver.is_empty() );
 
-        let the_best = find_best_solution( &little_knapsack, &mut first_solver, time_limit)
+        let the_best = first_solver.find_best_solution( &little_knapsack, time_limit)
             .expect("could not find best solution");
 
         assert!(little_knapsack.solution_is_legal(&the_best));

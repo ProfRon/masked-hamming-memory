@@ -317,7 +317,7 @@ impl Problem for Problem01Knapsack {
 mod tests {
 
     use super::*;
-    use mhd_optimizer::{Problem, Solution, Solver, find_best_solution };
+    use mhd_optimizer::{Problem, Solution, Solver };
     use implementations::{DepthFirstSolver, Problem01Knapsack, ZeroOneKnapsackSolution};
 
     #[test]
@@ -436,7 +436,7 @@ mod tests {
 
         assert!(little_knapsack.is_legal());
 
-        let the_best = find_best_solution( &little_knapsack, &mut first_solver, time_limit)
+        let the_best = first_solver.find_best_solution( &little_knapsack, time_limit)
             .expect("could not find best solution");
         assert!(little_knapsack.solution_is_legal(&the_best));
         assert!(little_knapsack.solution_is_complete(&the_best));

@@ -129,6 +129,8 @@ pub trait Problem: Sized + Clone + Debug {
         let mut result = Vec::< Self::Sol >::new(); // initially empty...
         // parent must not be a complete solution, so we can use unwrpa in the next line:
         let index = self.first_open_decision(parent).unwrap();
+
+        // The order of the next two operations is important!
         // Try deciding TRUE
         if let Some( child ) = self.produce_child( parent, index, true ) {
             result.push( child );
