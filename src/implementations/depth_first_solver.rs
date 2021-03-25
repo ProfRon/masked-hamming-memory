@@ -1,6 +1,7 @@
 /// # Example Implementations
 ///
 ///
+
 use mhd_optimizer::{Solution, Solver};
 
 /// ## Sample Solver Implementation: Depth First Search
@@ -52,49 +53,74 @@ use mhd_optimizer::{Solution, Solver};
 #[derive(Debug, Clone)]
 pub struct DepthFirstSolver<Sol: Solution> {
     pub solutions: Vec<Sol>,
+    best_solution : Sol,
 }
 
 impl<Sol: Solution> Solver<Sol> for DepthFirstSolver<Sol> {
     // type Sol = TwoSampleSolution;
+
+    #[inline]
     fn name(&self) -> &'static str {
         "DepthFirstSolver"
     }
 
+    #[inline]
     fn short_description(&self) -> String {
         format!(
-            "{} holding {} solutions",
+            "{} holding {} solutions, best score is {}",
             self.name(),
-            self.number_of_solutions()
+            self.number_of_solutions(),
+            self.best_solution().get_best_score(),
         )
     }
 
-    fn new(_: usize) -> Self {
+    #[inline]
+    fn new( size : usize) -> Self {
         Self {
             solutions: Vec::new(),
+            best_solution : Sol::new( size ),
         }
     }
 
     // Methods used by the Unified Optimization Algorithm (identified above)
 
+    #[inline]
     fn number_of_solutions(&self) -> usize {
         self.solutions.len()
     }
 
+    #[inline]
     fn is_empty(&self) -> bool {
         self.solutions.is_empty()
     }
 
+    #[inline]
     fn clear(&mut self) {
         self.solutions.clear()
     }
 
+    #[inline]
     fn push(&mut self, solution: Sol) {
         self.solutions.push(solution);
     }
 
+    #[inline]
     fn pop(&mut self) -> Option<Sol> {
         self.solutions.pop()
     }
+
+    #[inline]
+    fn best_solution( & self ) -> &Sol{
+        & self.best_solution
+    }
+
+    #[inline]
+    fn store_best_solution( & mut self, sol : Sol ) {
+        self.best_solution = sol;
+    }
+
+    // take default new_best_soluiton() method
+
 }
 
 ///////////////////// TESTs for DepthFirstSolver /////////////////////

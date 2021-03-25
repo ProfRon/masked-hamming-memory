@@ -13,13 +13,17 @@ use std::collections::BinaryHeap;
 #[derive(Debug, Clone)]
 pub struct BestFirstSolver<Sol: Solution> {
     pub solutions: BinaryHeap<Sol>,
+    best_solution : Sol,
 }
 
 impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
+
+    #[inline]
     fn name(&self) -> &'static str {
         "BestFirstSolver "
     }
 
+    #[inline]
     fn short_description(&self) -> String {
         format!(
             "{} holding {} solutions, best score {}",
@@ -32,30 +36,51 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
         )
     }
 
-    fn new(_: usize) -> Self {
+    #[inline]
+    fn new( size : usize) -> Self {
         Self {
             solutions: BinaryHeap::new(),
+            best_solution : Sol::new( size ),
         }
     }
 
     // Methods used by the Unified Optimization Algorithm (identified above)
 
+    #[inline]
     fn number_of_solutions(&self) -> usize {
         self.solutions.len()
     }
+
+    #[inline]
     fn is_empty(&self) -> bool {
         self.solutions.is_empty()
     }
+
+    #[inline]
     fn clear(&mut self) {
         self.solutions.clear()
     }
 
+    #[inline]
     fn push(&mut self, solution: Sol) {
         self.solutions.push(solution);
     }
+
+    #[inline]
     fn pop(&mut self) -> Option<Sol> {
         self.solutions.pop()
     }
+
+    #[inline]
+    fn best_solution( & self ) -> &Sol{
+        & self.best_solution
+    }
+
+    #[inline]
+    fn store_best_solution( & mut self, sol : Sol ) {
+        self.best_solution = sol;
+    }
+
 } // end imp Solver for BestFirstSolver
 
 ///////////////////// TESTs for ProblemSubsetSum with  BestFirstSolver /////////////////////

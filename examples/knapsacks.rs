@@ -181,11 +181,12 @@ fn main() {
     assert!(0.0 <= opt.capacity, "Capacity cannot be negative");
     assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
 
+    assert!( opt.verbose < 4 );
     if 0 < opt.verbose {
-        let term_filter = if 1 == opt.verbose {
-            LevelFilter::Info
-        } else {
-            LevelFilter::Debug
+        let term_filter = match opt.verbose {
+            1 => LevelFilter::Info,
+            2 => LevelFilter::Debug,
+            _ => LevelFilter::Trace,
         };
         CombinedLogger::init(vec![
             TermLogger::new(term_filter, Config::default(), TerminalMode::Mixed),
