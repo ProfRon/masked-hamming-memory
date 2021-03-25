@@ -3,7 +3,7 @@
 ///
 use std::fmt::Debug;
 
-use mhd_method::ScoreType;
+use mhd_method::{ScoreType, ZERO_SCORE};
 
 pub trait Solution: Sized + Clone + Ord + Debug {
     // First, an "associated type"
@@ -182,11 +182,11 @@ impl Solution for MinimalSolution {
     fn new(size: usize) -> Self {
         let num_bytes = (size as f32 / 8.0).ceil() as usize;
         Self {
-            size: size,
+            size, // idiomatic rust for "size: size"
             mask: vec![0x0; num_bytes], // all zeros == no decision made yet
             decisions: vec![0x0; num_bytes], // all zeros == all decisions are false (zero)
-            score: 0 as ScoreType,
-            best_score: 0 as ScoreType,
+            score: ZERO_SCORE,
+            best_score: ZERO_SCORE,
         }
     }
 

@@ -3,7 +3,7 @@ extern crate mhd_mem;
 
 // use mhd_mem::mhd_method::*;
 use mhd_mem::implementations::*;
-use mhd_mem::mhd_optimizer::{MinimalSolution, Problem, Solution, Solver };
+use mhd_mem::mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
 
 extern crate log;
 use log::*;
@@ -16,13 +16,14 @@ use std::time::Duration;
 
 // inline because https://bheisler.github.io/criterion.rs/book/getting_started.html
 #[inline]
-fn bench_optimization<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol = Sol> >(
+fn bench_optimization<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol = Sol>>(
     problem: &Prob,
     solver: &mut Solv,
 ) {
     solver.clear();
 
-    let the_best = solver.find_best_solution( problem, Duration::from_secs_f32(1.0))
+    let the_best = solver
+        .find_best_solution(problem, Duration::from_secs_f32(1.0))
         .expect("could not find best solution on bench");
 
     let best_score = the_best.get_score();
@@ -102,7 +103,7 @@ fn bench_sizes(c: &mut Criterion) {
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
-    for bits in [8, 16, 32].iter() {
+    for bits in [8, 12, 16, 20, 24 ].iter() {
         bench_one_size(&mut group, *bits);
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));

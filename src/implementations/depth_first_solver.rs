@@ -1,7 +1,6 @@
 /// # Example Implementations
 ///
 ///
-
 use mhd_optimizer::{Solution, Solver};
 
 /// ## Sample Solver Implementation: Depth First Search
@@ -53,7 +52,7 @@ use mhd_optimizer::{Solution, Solver};
 #[derive(Debug, Clone)]
 pub struct DepthFirstSolver<Sol: Solution> {
     pub solutions: Vec<Sol>,
-    best_solution : Sol,
+    best_solution: Sol,
 }
 
 impl<Sol: Solution> Solver<Sol> for DepthFirstSolver<Sol> {
@@ -75,10 +74,10 @@ impl<Sol: Solution> Solver<Sol> for DepthFirstSolver<Sol> {
     }
 
     #[inline]
-    fn new( size : usize) -> Self {
+    fn new(size: usize) -> Self {
         Self {
             solutions: Vec::new(),
-            best_solution : Sol::new( size ),
+            best_solution: Sol::new(size),
         }
     }
 
@@ -110,17 +109,16 @@ impl<Sol: Solution> Solver<Sol> for DepthFirstSolver<Sol> {
     }
 
     #[inline]
-    fn best_solution( & self ) -> &Sol{
-        & self.best_solution
+    fn best_solution(&self) -> &Sol {
+        &self.best_solution
     }
 
     #[inline]
-    fn store_best_solution( & mut self, sol : Sol ) {
+    fn store_best_solution(&mut self, sol: Sol) {
         self.best_solution = sol;
     }
 
     // take default new_best_soluiton() method
-
 }
 
 ///////////////////// TESTs for DepthFirstSolver /////////////////////

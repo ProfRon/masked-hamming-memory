@@ -57,10 +57,10 @@ const BEST_FIRST_BIT: u8 = 2;
 use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
-use mhd_mem::mhd_method::sample::ScoreType; // used implicitly (only)
-use mhd_mem::mhd_optimizer::{Problem, Solver, Solution };
 use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
 use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
+use mhd_mem::mhd_method::sample::ScoreType; // used implicitly (only)
+use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
 
 fn run_one_problem_one_solver(
     opt: &Opt,
@@ -81,7 +81,8 @@ fn run_one_problem_one_solver(
     let time_limit = Duration::from_secs_f32(opt.time);
     let start_time = Instant::now();
 
-    let the_best = solver.find_best_solution(knapsack, time_limit)
+    let the_best = solver
+        .find_best_solution(knapsack, time_limit)
         .expect("Optimization fails?!?");
 
     println!(
@@ -97,7 +98,8 @@ fn run_one_problem_one_solver(
 
 fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32, prob_num: u16) {
     if 0.0 != opt.capacity {
-        knapsack.basis.capacity = (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as ScoreType;
+        knapsack.basis.capacity =
+            (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as ScoreType;
     }; // else, leave capacity alone remain what the random constructor figured out.
     let mut dfs_score: ScoreType = 1;
     let mut bfs_score: ScoreType = 1;
@@ -119,7 +121,7 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
     }; // end if 3
 } // end run_one_problem
 
-fn run_one_file(opt: &Opt, file_name : & PathBuf, ratio: &mut f32) {
+fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) {
     println!("Processing Filename: {:?}", file_name);
     let file = std::fs::File::open(file_name).unwrap();
     let mut input = io::BufReader::new(file);
@@ -134,9 +136,7 @@ fn run_one_file(opt: &Opt, file_name : & PathBuf, ratio: &mut f32) {
                 // or end of file
                 match parse_dot_dat_stream(&mut input) {
                     Err(_) => break,
-                    Ok(mut knapsack) => {
-                        run_one_problem(&opt, &mut knapsack, ratio, prob_num)
-                    }
+                    Ok(mut knapsack) => run_one_problem(&opt, &mut knapsack, ratio, prob_num),
                 }; // end match parse_dot_dat
             }
         } // end for all problems
@@ -145,9 +145,7 @@ fn run_one_file(opt: &Opt, file_name : & PathBuf, ratio: &mut f32) {
                 // or end of file
                 match parse_dot_csv_stream(&mut input) {
                     Err(_) => break,
-                    Ok(mut knapsack) => {
-                        run_one_problem(&opt, &mut knapsack, ratio, prob_num)
-                    }
+                    Ok(mut knapsack) => run_one_problem(&opt, &mut knapsack, ratio, prob_num),
                 }; // end match parse_dot_dat
             }
         } // end for all problems
@@ -155,15 +153,14 @@ fn run_one_file(opt: &Opt, file_name : & PathBuf, ratio: &mut f32) {
     }; // end match file name extensio
 } // end run_one_file
 
-fn run_one_directory(opt: &Opt, path : & PathBuf, ratio: &mut f32) {
+fn run_one_directory(opt: &Opt, path: &PathBuf, ratio: &mut f32) {
     for entry_result in path.read_dir().expect("read_dir call failed") {
         match entry_result {
-            Ok(dir_entry) => run_one_file(opt, & dir_entry.path(), ratio ),
-            Err(e) => warn!("Error {:?} in directory {:?}", e, path ),
+            Ok(dir_entry) => run_one_file(opt, &dir_entry.path(), ratio),
+            Err(e) => warn!("Error {:?} in directory {:?}", e, path),
         };
     } // end for all entries in directory
 } // end run_one_file
-
 
 extern crate log;
 extern crate simplelog;
@@ -181,17 +178,22 @@ fn main() {
     assert!(0.0 <= opt.capacity, "Capacity cannot be negative");
     assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
 
-    assert!( opt.verbose < 4 );
+    assert!(opt.verbose < 4);
     if 0 < opt.verbose {
-        let term_filter = match opt.verbose {
+        let term_level = match opt.verbose {
             1 => LevelFilter::Info,
             2 => LevelFilter::Debug,
             _ => LevelFilter::Trace,
         };
+        let file_level = match opt.verbose {
+            1 => LevelFilter::Warn,
+            2 => LevelFilter::Warn,
+            _ => LevelFilter::Trace,
+        };
         CombinedLogger::init(vec![
-            TermLogger::new(term_filter, Config::default(), TerminalMode::Mixed),
+            TermLogger::new(term_level, Config::default(), TerminalMode::Mixed),
             WriteLogger::new(
-                LevelFilter::Trace,
+                file_level,
                 Config::default(),
                 File::create("trace.log").unwrap(),
             ),
@@ -218,13 +220,17 @@ fn main() {
 
         for file_name in opt.files.iter() {
             if file_name.is_file() {
-                run_one_file( &opt, file_name, &mut ratio );
+                run_one_file(&opt, file_name, &mut ratio);
             } else if file_name.is_dir() {
-                run_one_directory( &opt, file_name, &mut ratio );
-            } else if ! file_name.exists() {
-                warn!( "file name {:?} does not exist.", file_name );
-            } else { // if file esxists, but is neither file nor dir
-                warn!( "file name {:?} exists, but is neither a file nor a directory", file_name );
+                run_one_directory(&opt, file_name, &mut ratio);
+            } else if !file_name.exists() {
+                warn!("file name {:?} does not exist.", file_name);
+            } else {
+                // if file esxists, but is neither file nor dir
+                warn!(
+                    "file name {:?} exists, but is neither a file nor a directory",
+                    file_name
+                );
             }
         } // end for all files
     }; // end if there are files

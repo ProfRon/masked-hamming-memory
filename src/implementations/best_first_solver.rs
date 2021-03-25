@@ -13,11 +13,10 @@ use std::collections::BinaryHeap;
 #[derive(Debug, Clone)]
 pub struct BestFirstSolver<Sol: Solution> {
     pub solutions: BinaryHeap<Sol>,
-    best_solution : Sol,
+    best_solution: Sol,
 }
 
 impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
-
     #[inline]
     fn name(&self) -> &'static str {
         "BestFirstSolver "
@@ -37,10 +36,10 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
     }
 
     #[inline]
-    fn new( size : usize) -> Self {
+    fn new(size: usize) -> Self {
         Self {
             solutions: BinaryHeap::new(),
-            best_solution : Sol::new( size ),
+            best_solution: Sol::new(size),
         }
     }
 
@@ -72,15 +71,14 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
     }
 
     #[inline]
-    fn best_solution( & self ) -> &Sol{
-        & self.best_solution
+    fn best_solution(&self) -> &Sol {
+        &self.best_solution
     }
 
     #[inline]
-    fn store_best_solution( & mut self, sol : Sol ) {
+    fn store_best_solution(&mut self, sol: Sol) {
         self.best_solution = sol;
     }
-
 } // end imp Solver for BestFirstSolver
 
 ///////////////////// TESTs for ProblemSubsetSum with  BestFirstSolver /////////////////////
@@ -88,7 +86,7 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
 mod more_tests {
     use super::*;
     use implementations::ProblemSubsetSum;
-    use mhd_optimizer::{MinimalSolution, Solution, Problem, Solver };
+    use mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
 
     #[test]
     fn test_best_first_solver_solver() {
@@ -129,7 +127,8 @@ mod more_tests {
 
         assert!(knapsack.is_legal());
 
-        let the_best = second_solver.find_best_solution(&knapsack, time_limit)
+        let the_best = second_solver
+            .find_best_solution(&knapsack, time_limit)
             .expect("could not find best solution");
 
         assert!(knapsack.solution_is_legal(&the_best));

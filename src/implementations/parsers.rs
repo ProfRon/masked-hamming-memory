@@ -66,10 +66,11 @@ pub fn parse_dot_dat_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
         tokens.is_empty()
     );
     if tokens.is_empty() {
-        return Err(io::Error::new(
+        // return this Err....
+        Err(io::Error::new(
             io::ErrorKind::InvalidData,
             "End of File? Empty Line".to_string(),
-        ));
+        ))
     } else {
         // if not empty
         assert!(
@@ -96,7 +97,7 @@ pub fn parse_dot_dat_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
             );
         } // end loop over weight-cost pairs
         debug!(" About to return Knapsack {:?} ", result);
-        return Ok(result);
+        Ok(result)
     } // end if non-empty line
 }
 
@@ -130,18 +131,21 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
     // skip blank lines until we get a non-blank line...
     while tokens.is_empty() {
         line.clear(); // to prevent next  read_line appending on old one...
-        // Note that read_line return Ok(0) on EOF
-        let num_bytes_read = input.read_line(&mut line)? ;
+                      // Note that read_line return Ok(0) on EOF
+        let num_bytes_read = input.read_line(&mut line)?;
         if 0 == num_bytes_read {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,"End of File? Empty Line".to_string()));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "End of File? Empty Line".to_string(),
+            ));
         }; // end if we read zero bytes
-        // else we have a string
+           // else we have a string
         tokens = line.split_whitespace().map(|tok| tok.to_owned()).collect();
-    }; // end while tokens empty
+    } // end while tokens empty
     assert_eq!(1, tokens.len(), "Expected problem name (only)"); // Discard name if OK
 
     // line 2 = n <int>
-    line.clear();  // make a new line, because...
+    line.clear(); // make a new line, because...
     input.read_line(&mut line)?; // ...this appends the new line otherwise.
     trace!("Parser - n int line 2 ={}", line);
     tokens = line.split_whitespace().map(|tok| tok.to_owned()).collect();
@@ -182,6 +186,8 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
     let mut reference = vec![255u8; size];
 
     // lines 6, 7, ...
+    // Note: Clippy doesn't like this line. I do....
+    #[allow(clippy::needless_range_loop)]
     for dim in 0..size {
         let mut line = String::new();
         input.read_line(&mut line)?;
@@ -212,5 +218,5 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
 
     trace!(" About to return Knapsack {:?} ", result);
     info!("Reference Solution (score {}) = {:?}", goal, reference);
-    return Ok(result);
+    Ok(result)
 }

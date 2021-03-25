@@ -107,15 +107,16 @@ pub trait Problem: Sized + Clone + Debug {
     /// `produce_child` takes a copy (clone) of `parent` and tries making the first open deccision.
     /// It returns either Some(child) or None, if the child would not have been legal,
     /// e.g. if the weight of a knapsack would exceed the capacity.
-    fn produce_child( &self, parent: &Self::Sol, index: usize, decision: bool,) -> Option< Self::Sol >   {
+    fn produce_child(&self, parent: &Self::Sol, index: usize, decision: bool) -> Option<Self::Sol> {
         let mut child = parent.clone();
         child.make_decision(index, decision);
         self.make_implicit_decisions(&mut child);
         self.fix_scores(&mut child);
-        return if self.solution_is_legal(&child) {
-            Some(child)
-        } else { // else if solution is illegal, do nothing
-            None
+        if self.solution_is_legal(&child) {
+            Some(child) // return!
+        } else {
+            // else if solution is illegal, do nothing
+            None // return!
         }
     } // end produce one child
 
@@ -123,24 +124,23 @@ pub trait Problem: Sized + Clone + Debug {
     /// vector. Given `parent`, the method find the first open decision, and tries setting it
     /// to both true and to false -- thus producing two children, both of which are tested for
     /// legality. Only legal children are returned (so there can be 0, 1 or 2).
-    fn children_of_solution( &self, parent: &Self::Sol, ) -> Vec< Self::Sol >  {
+    fn children_of_solution(&self, parent: &Self::Sol) -> Vec<Self::Sol> {
         debug_assert!(self.solution_is_legal(parent));
-        debug_assert!(! self.solution_is_complete(parent));
-        let mut result = Vec::< Self::Sol >::new(); // initially empty...
-        // parent must not be a complete solution, so we can use unwrpa in the next line:
+        debug_assert!(!self.solution_is_complete(parent));
+        let mut result = Vec::<Self::Sol>::new(); // initially empty...
+                                                  // parent must not be a complete solution, so we can use unwrpa in the next line:
         let index = self.first_open_decision(parent).unwrap();
 
         // The order of the next two operations is important!
         // Try deciding TRUE
-        if let Some( child ) = self.produce_child( parent, index, true ) {
-            result.push( child );
+        if let Some(child) = self.produce_child(parent, index, true) {
+            result.push(child);
         };
         // Try deciding FALSE
-        if let Some( child ) = self.produce_child( parent, index, false ) {
-            result.push( child );
+        if let Some(child) = self.produce_child(parent, index, false) {
+            result.push(child);
         };
         // Finished! Return...
         result
-    }  // end children_of_solution
-
+    } // end children_of_solution
 } // end trait Problem

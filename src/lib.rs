@@ -70,7 +70,7 @@ pub mod mhd_method {
     pub use self::sample::{Sample, ScoreType, ZERO_SCORE};
 
     pub mod mhdmemory;
-    pub use self::mhdmemory::MHDMemory;
+    pub use self::mhdmemory::MhdMemory;
 }
 
 pub mod mhd_optimizer {

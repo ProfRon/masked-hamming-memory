@@ -16,7 +16,7 @@ use rand_distr::{Distribution, Gamma};
 
 use implementations::ProblemSubsetSum;
 use mhd_method::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
-use mhd_optimizer::{MinimalSolution, Solution, Problem };
+use mhd_optimizer::{MinimalSolution, Problem, Solution};
 
 /********************************************************************************************/
 ///## Customized Solution Type for the 0/1 Knapsack
@@ -52,8 +52,8 @@ impl Solution for ZeroOneKnapsackSolution {
     fn new(size: usize) -> Self {
         Self {
             basis: MinimalSolution::new(size),
-            score: 0 as ScoreType,
-            best_score: 0 as ScoreType,
+            score: ZERO_SCORE,
+            best_score: ZERO_SCORE,
         }
     }
 
@@ -254,7 +254,11 @@ impl Problem for Problem01Knapsack {
             match solution.get_decision(index) {
                 // open decision! So we COULD put this item in the knapsack...
                 None => result += self.values[index],
-                Some(decision) => if decision { result += self.values[index] },
+                Some(decision) => {
+                    if decision {
+                        result += self.values[index]
+                    }
+                }
             }; // end match
         } // end for all bits
         debug_assert!(self.solution_score(&solution) <= result);
@@ -267,11 +271,10 @@ impl Problem for Problem01Knapsack {
 
     fn fix_scores(&self, solution: &mut Self::Sol) {
         // the next line is the (only) reason we didn't just take the default
-        self.basis.fix_scores(&mut solution.basis );
+        self.basis.fix_scores(&mut solution.basis);
         solution.put_score(self.solution_score(solution));
         solution.put_best_score(self.solution_best_score(solution));
     }
-
 
     fn solution_is_legal(&self, solution: &Self::Sol) -> bool {
         self.basis.solution_is_legal(&solution.basis)
@@ -308,7 +311,6 @@ impl Problem for Problem01Knapsack {
 
     // Take the default register_one_child
     // Take the default register_children_of
-
 } // end impl ProblemSubsetSum
 
 /********************************************************************************************/
@@ -317,8 +319,8 @@ impl Problem for Problem01Knapsack {
 mod tests {
 
     use super::*;
-    use mhd_optimizer::{Problem, Solution, Solver };
     use implementations::{DepthFirstSolver, Problem01Knapsack, ZeroOneKnapsackSolution};
+    use mhd_optimizer::{Problem, Solution, Solver};
 
     #[test]
     fn test_random_weights() {
@@ -404,13 +406,15 @@ mod tests {
         assert!(problem.solution_is_legal(&root));
         assert!(!problem.solution_is_complete(&root));
 
-        let children = problem.children_of_solution( & root );
-        assert!( ! children.is_empty() );
-        assert!( children.len() <= 2 ); // So, number of children is 1 or 2
-        for  child in children {
-            assert!( problem.solution_is_legal( &child ) );
-            if ! problem.solution_is_complete( & child ) { solver.push( child ); }
-        };
+        let children = problem.children_of_solution(&root);
+        assert!(!children.is_empty());
+        assert!(children.len() <= 2); // So, number of children is 1 or 2
+        for child in children {
+            assert!(problem.solution_is_legal(&child));
+            if !problem.solution_is_complete(&child) {
+                solver.push(child);
+            }
+        }
         assert!(!solver.is_empty());
         assert!(solver.number_of_solutions() <= 2);
 
@@ -436,7 +440,8 @@ mod tests {
 
         assert!(little_knapsack.is_legal());
 
-        let the_best = first_solver.find_best_solution( &little_knapsack, time_limit)
+        let the_best = first_solver
+            .find_best_solution(&little_knapsack, time_limit)
             .expect("could not find best solution");
         assert!(little_knapsack.solution_is_legal(&the_best));
         assert!(little_knapsack.solution_is_complete(&the_best));

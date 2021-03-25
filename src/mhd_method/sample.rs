@@ -121,8 +121,8 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
 
     pub fn randomize(&mut self) {
         // first a random score
-        self.score = rand::thread_rng().gen_range( 0..1_001 ); // TODO -- add constant
-        // then some random bytes
+        self.score = rand::thread_rng().gen_range(0..1_001); // TODO -- add constant
+                                                             // then some random bytes
         rand::thread_rng().fill_bytes(&mut self.bytes);
     }
 

@@ -1,9 +1,9 @@
 use std::time::{Duration, Instant};
 
 use log::*; // for info, trace, warn, etc.
+use std::error::Error;
 use std::fs::OpenOptions; // and/or File, if we want to overwrite a file...
 use std::io::prelude::*; // for writeln! (write_fmt)
-use std::error::Error;
 
 use mhd_optimizer::{Problem, Solution};
 
@@ -53,28 +53,24 @@ pub trait Solver<Sol: Solution> {
     /// This requirement leads to the next two methods: a getter and a setter -- and a fancier setter.
     ///
     /// The getter is simple: `best_solution` return the best solution see so far.
-    fn best_solution( & self ) -> &Sol;
+    fn best_solution(&self) -> &Sol;
 
     /// Store new best solution. Note, we take caller's word for it. Solution is not (re)tested.
-    fn store_best_solution( & mut self, sol : Sol );
+    fn store_best_solution(&mut self, sol: Sol);
 
     /// The next method looks at a complete solution and, if it is the best, remembers it
     /// (at the very least -- some form of "machine learning" may also take place).
     /// Every complete solution see so far should be sent through this method.
     /// `new_best_solution` returns TRUE iff this was the best soluton see so far.
-    fn new_best_solution< Prob: Problem<Sol = Sol> >( &mut self, problem: &Prob, solution : Sol ) -> bool {
+    fn new_best_solution<Prob: Problem<Sol = Sol>>(
+        &mut self,
+        problem: &Prob,
+        solution: Sol,
+    ) -> bool {
+        debug_assert!(problem.solution_is_complete(&solution));
 
-        // Compare above: "; depth; score; complete; high score;");
-        trace!( "; {}; {}; {}; {};",
-                problem.problem_size(),
-                solution.get_score(),
-                problem.solution_is_complete(&solution),
-                self.best_solution().get_score()
-        );
-
-        debug_assert!( problem.solution_is_complete(&solution) );
-
-        if problem.better_than(&solution, self.best_solution( )) {
+        let result = problem.better_than(&solution, self.best_solution());
+        if  result { // i.e. if solution is better than best_solution
             // record new best solution.
             self.store_best_solution(solution);
 
@@ -83,18 +79,15 @@ pub trait Solver<Sol: Solution> {
                 "Optimizer finds new BEST score {}!",
                 self.best_solution().get_score(),
             );
-            return true;
-        } else { // if NOT better than self.best_solution()
-            return false;
         }; // end solution  better than old best solution
-
+        result // return result!!
     } // end accept_solution
 
     /*******************************************************************************/
     /// This is the crux of this whole project: The `find_best_solution` method.
     /// It does what it says here.
     /// Originally outside this (Problem) Trait, but the compiler is making this difficult...
-    fn find_best_solution< Prob: Problem<Sol = Sol> >(
+    fn find_best_solution<Prob: Problem<Sol = Sol>>(
         &mut self,
         problem: &Prob,
         time_limit: Duration,
@@ -104,20 +97,25 @@ pub trait Solver<Sol: Solution> {
 
         // The best solution is currently defined, and randomized, but wrong.
         // Do it right.
-        self.store_best_solution( problem.random_solution() );
+        self.store_best_solution(problem.random_solution());
 
         // define some solution to be "best-so-far"
         let mut num_visitations: i64 = 0;
         debug_assert!(problem.solution_is_complete(self.best_solution()));
-        debug_assert!(problem.solution_is_legal( self.best_solution() ));
+        debug_assert!(problem.solution_is_legal(self.best_solution()));
         info!("Optimizing Problem {}", problem.short_description());
-        debug!( "First Random Solution (short) {}", self.best_solution().short_description() );
-        trace!( "; depth; score; complete; high score;");
-        trace!( "; {}; {}; {}; {};",
-                problem.problem_size(),
-                self.best_solution().get_score(),
-                true,  // by definition
-                self.best_solution().get_score()
+        debug!(
+            "First Random Solution (short) {}",
+            self.best_solution().short_description()
+        );
+        trace!("; visits; depth; score; complete; high score;");
+        trace!(
+            "; {}; {}; {}; {}; {};",
+            num_visitations,
+            problem.problem_size(),
+            self.best_solution().get_score(),
+            true, // by definition
+            self.best_solution().get_score()
         );
 
         // start at the root of the tree
@@ -127,32 +125,45 @@ pub trait Solver<Sol: Solution> {
         loop {
             num_visitations += 1;
 
-            let next_solution = self.pop().expect(
-                "solver's queue should not be empty but could not pop"
-            );
-            debug_assert!( ! problem.solution_is_complete( &next_solution ));
-            // Compare above: "; depth; score; complete; high score;");
-            trace!( "; {}; {}; {}; {};",
-                problem.first_open_decision(&next_solution).unwrap( ),
+            let next_solution = self
+                .pop()
+                .expect("solver's queue should not be empty but could not pop");
+            debug_assert!(!problem.solution_is_complete(&next_solution));
+            // Compare above: ""; visits; depth; score; complete; high score;"");
+            trace!(
+                "; {}; {}; {}; {}; {};",
+                num_visitations,
+                problem.first_open_decision(&next_solution).unwrap(),
                 next_solution.get_score(),
                 problem.solution_is_complete(&next_solution),
                 self.best_solution().get_score()
             );
 
-            debug_assert!( ! problem.solution_is_complete( &next_solution));
+            debug_assert!(!problem.solution_is_complete(&next_solution));
 
             // BOUND
-            if problem.can_be_better_than(&next_solution, self.best_solution() ) {
+            if problem.can_be_better_than(&next_solution, self.best_solution()) {
                 // BRANCH
                 let children = problem.children_of_solution(&next_solution);
                 for child in children {
-                    if !problem.solution_is_complete(&child) { // child is incomplete
-                        if problem.can_be_better_than(&child, self.best_solution() ) {
-                            self.push(child ); // clone because rustc says so...
+                    if !problem.solution_is_complete(&child) {
+                        // child is incomplete
+                        if problem.can_be_better_than(&child, self.best_solution()) {
+                            self.push(child); // clone because rustc says so...
                         }
-                    } else { // if solution IS complete
+                    } else {
+                        // if solution IS complete
+                        // Compare above: "; depth; score; complete; high score;");
+                        trace!(
+                            "; {}; {}; {}; {}; {};",
+                            num_visitations,
+                            problem.problem_size(),
+                            child.get_score(),
+                            true, // by definition
+                            self.best_solution().get_score()
+                        );
                         // Learn the new complete solution, and test if it is the best so far
-                        if self.new_best_solution( problem, child ) {
+                        if self.new_best_solution(problem, child) {
                             // Reset timer!
                             // That means we have converted if we go for time_limit without a new best solution!
                             start_time = Instant::now();
@@ -168,11 +179,11 @@ pub trait Solver<Sol: Solution> {
             {
                 break;
             }; // end if terminating
-        }; // end loop
+        } // end loop
 
         // Done. Take a deep breath, print debug print, then return result.
 
-        let result = self.best_solution( );
+        let result = self.best_solution();
 
         let mut macrotrace_file = OpenOptions::new()
             .append(true)
@@ -198,5 +209,4 @@ pub trait Solver<Sol: Solution> {
 
         Ok(result.clone())
     } // end default find_best_solution implementation
-
 } // end Solver Problem
