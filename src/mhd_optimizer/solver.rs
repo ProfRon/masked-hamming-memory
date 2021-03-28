@@ -6,6 +6,7 @@ use std::fs::OpenOptions; // and/or File, if we want to overwrite a file...
 use std::io::prelude::*; // for writeln! (write_fmt)
 
 use mhd_optimizer::{Problem, Solution};
+use mhd_method::ScoreType;
 
 static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(60); // can be changed
 
@@ -55,6 +56,9 @@ pub trait Solver<Sol: Solution> {
     /// The getter is simple: `best_solution` return the best solution see so far.
     fn best_solution(&self) -> &Sol;
 
+    /// Shortcut
+    fn best_score( & self ) -> ScoreType { self.best_solution().get_score() }
+
     /// Store new best solution. Note, we take caller's word for it. Solution is not (re)tested.
     fn store_best_solution(&mut self, sol: Sol);
 
@@ -70,7 +74,8 @@ pub trait Solver<Sol: Solution> {
         debug_assert!(problem.solution_is_complete(&solution));
 
         let result = problem.better_than(&solution, self.best_solution());
-        if  result { // i.e. if solution is better than best_solution
+        if result {
+            // i.e. if solution is better than best_solution
             // record new best solution.
             self.store_best_solution(solution);
 

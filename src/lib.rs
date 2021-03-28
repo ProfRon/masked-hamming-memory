@@ -97,6 +97,9 @@ pub mod implementations {
     pub mod best_first_solver;
     pub use self::best_first_solver::BestFirstSolver;
 
+    pub mod mcts_solver;
+    pub use self::mcts_solver::MonteCarloTreeSolver;
+
     pub mod parsers;
     pub use self::parsers::{parse_dot_csv_stream, parse_dot_dat_stream};
 }

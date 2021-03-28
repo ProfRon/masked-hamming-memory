@@ -3,7 +3,7 @@
 ///
 use mhd_optimizer::{Solution, Solver};
 
-/// ## Sample Solver Implementation: Depth First Search
+/// ## Example Solver Implementation: Depth First Search
 ///
 ///
 /// ```rust
@@ -114,8 +114,11 @@ impl<Sol: Solution> Solver<Sol> for DepthFirstSolver<Sol> {
     }
 
     #[inline]
-    fn store_best_solution(&mut self, sol: Sol) {
-        self.best_solution = sol;
+    fn store_best_solution(&mut self, solution: Sol) {
+        // we'd like to check for completion, but can't use proble.solution_is_complete( s )
+        debug_assert!(solution.get_score() == solution.get_best_score());
+        debug_assert!(self.best_solution.get_score() <= solution.get_score());
+        self.best_solution = solution;
     }
 
     // take default new_best_soluiton() method

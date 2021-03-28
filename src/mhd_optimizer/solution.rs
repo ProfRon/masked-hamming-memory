@@ -182,8 +182,8 @@ impl Solution for MinimalSolution {
     fn new(size: usize) -> Self {
         let num_bytes = (size as f32 / 8.0).ceil() as usize;
         Self {
-            size, // idiomatic rust for "size: size"
-            mask: vec![0x0; num_bytes], // all zeros == no decision made yet
+            size,                            // idiomatic rust for "size: size"
+            mask: vec![0x0; num_bytes],      // all zeros == no decision made yet
             decisions: vec![0x0; num_bytes], // all zeros == all decisions are false (zero)
             score: ZERO_SCORE,
             best_score: ZERO_SCORE,
