@@ -38,10 +38,12 @@ impl ProblemSubsetSum {
 impl Problem for ProblemSubsetSum {
     type Sol = MinimalSolution; // !!!!
 
+    #[inline]
     fn name(&self) -> &'static str {
         "ProblemSubsetSum"
     }
 
+    #[inline]
     fn short_description(&self) -> String {
         format!(
             "{}: capacity {} <= weight sum {}",
@@ -51,6 +53,7 @@ impl Problem for ProblemSubsetSum {
         )
     }
 
+    #[inline]
     fn new(size: usize) -> Self {
         ProblemSubsetSum {
             weights: vec![ZERO_SCORE; size],
@@ -60,6 +63,7 @@ impl Problem for ProblemSubsetSum {
 
     // fn random( size : usize ) -> Self -- take the default implementation
 
+    #[inline]
     fn problem_size(&self) -> usize {
         self.weights.len()
     }
@@ -116,6 +120,7 @@ impl Problem for ProblemSubsetSum {
         } // loop until self.is_legal();
     }
 
+    #[inline]
     fn is_legal(&self) -> bool {
         // Note: We're NOT testing whether a solution is legal (we do that below),
         // We're testing if a PROBLEM is non-trivial: if neither the empty knapsack
@@ -136,6 +141,7 @@ impl Problem for ProblemSubsetSum {
     }
 
     // first, methods not defined previously, but which arose while implemeneting the others (see below)
+    #[inline]
     fn solution_score(&self, solution: &Self::Sol) -> ScoreType {
         let mut result = ZERO_SCORE;
         // Note to self -- later we can be faster here by doing this byte-wise
@@ -177,11 +183,13 @@ impl Problem for ProblemSubsetSum {
         result
     }
 
+    #[inline]
     fn solution_is_legal(&self, solution: &Self::Sol) -> bool {
         debug_assert!(self.problem_size() <= solution.size());
         self.solution_score(solution) <= self.capacity
     } // end solution_is_legal
 
+    #[inline]
     fn solution_is_complete(&self, solution: &Self::Sol) -> bool {
         // assert!(self.solution_is_legal(&solution)); NOT NECESSARY!
         None == self.first_open_decision(solution)
@@ -214,25 +222,28 @@ impl Problem for ProblemSubsetSum {
         }; // end if illegal
 
         // store the solutions's score in the solution
-        result.put_score(self.solution_score(&result));
-        result.put_best_score(self.solution_best_score(&result));
-
-        debug_assert!(self.solution_is_legal(&result));
         debug_assert!(self.solution_is_complete(&result));
+        self.apply_rules(&mut result);
+        debug_assert!(self.rules_audit_passed(&result)); // actually clear since complete
 
         result
     }
 
+    #[inline]
     fn starting_solution(&self) -> Self::Sol {
         // We want an "innocent" solution, before any decision as been made,
         // So all mask bits are one. It doesn't matter what the decisions are,
         // but we set them all to false.
         let mut result = Self::Sol::new(self.problem_size());
 
+        self.fix_scores(&mut result);
+        // WAIT -- that's not quite right -- some weight might be greater than the capacity!
+        self.apply_rules(&mut result);
+        debug_assert!(self.rules_audit_passed(&result));
         // store the solutions's score in the solution
         // result.put_score(self.solution_score(&result));
         debug_assert_eq!(ZERO_SCORE, result.get_score());
-        result.put_best_score(self.capacity);
+        // result.put_best_score(self.capacity);
 
         debug_assert!(self.solution_is_legal(&result));
         result
@@ -244,7 +255,7 @@ impl Problem for ProblemSubsetSum {
     fn first_open_decision(&self, solution: &Self::Sol) -> Option<usize> {
         // Note to self -- later we can be faster here by doing this byte-wise
         for index in 0..self.problem_size() {
-            if None == solution.get_decision(index) {
+            if solution.get_decision(index).is_none() {
                 return Some(index);
             };
         } // end for all bits
@@ -263,16 +274,62 @@ impl Problem for ProblemSubsetSum {
         None
     }
 
-    fn make_implicit_decisions(&self, sol: &mut Self::Sol) {
-        if self.solution_is_legal(&sol) && !self.solution_is_complete(&sol) {
-            let headroom = self.capacity - sol.get_score();
-            for bit in 0..self.problem_size() {
-                if None == sol.get_decision(bit) && headroom < self.weights[bit] {
-                    // found an unmade decision which cannot legally be made
+    fn apply_rules(&self, sol: &mut Self::Sol) {
+        debug_assert!(self.solution_is_legal(&sol));
+        // First pass: Calculate and store weight sum.
+        let mut weight = self.solution_score(sol);
+        sol.put_score(weight);
+
+        // Second pass: See if any items can no longer be put in knapsack
+        // (and adjust best_score while we're at it).
+        let headroom = self.capacity - weight;
+        // debug_assert!( ZERO_SCORE < headroom );
+        for bit in 0..self.problem_size() {
+            if sol.get_decision(bit).is_none() {
+                // found an open decision
+                if headroom < self.weights[bit] {
+                    // item cannot be put in knapsack legally
                     sol.make_decision(bit, false);
-                } // end if implicit false decision
-            } // end for all bits
-        } // end if incomplete decision
+                } else {
+                    weight += self.weights[bit]; // we're now calculating best possible weight
+                }; // legitimately open decision
+            };
+        } // end for all bits
+        if self.capacity < weight {
+            weight = self.capacity
+        };
+        sol.put_best_score(weight);
+
+        debug_assert!(self.rules_audit_passed(sol));
+    }
+
+    fn rules_audit_passed(&self, sol: &Self::Sol) -> bool {
+        assert!(self.solution_is_legal(&sol));
+        assert_eq!(sol.get_score(), self.solution_score(sol));
+        assert_eq!(sol.get_best_score(), self.solution_best_score(sol));
+        // if solution is incomplete
+        let mut weight = self.solution_score(sol);
+        // assert_eq!( sol.get_best_score( ), weight ); already asserted, above.
+        let headroom = self.capacity - weight;
+        // assert!( ZERO_SCORE < headroom );
+        for bit in 0..self.problem_size() {
+            // if oepn, but too heavy, return false
+            if sol.get_decision(bit).is_none() {
+                if headroom < self.weights[bit] {
+                    error!( "Found unset implicit decision, bit {}, weight {}, headroom {}, capatcity {}!",
+                            bit, self.weights[bit], headroom, self.capacity );
+                    return false;
+                } else {
+                    // if open and not too nhavy
+                    weight += self.weights[bit]; // we're now calculating best possible weight
+                };
+            }; // end decision is open and too heavy
+        } // end for all bits
+        if self.capacity < weight {
+            weight = self.capacity
+        };
+        assert_eq!(weight, sol.get_best_score());
+        true
     }
 
     // take the default register_one_child()

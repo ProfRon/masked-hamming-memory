@@ -35,10 +35,12 @@ impl Solution for ZeroOneKnapsackSolution {
     // type ScoreType = ScoreType;
 
     // Default is too long; here is a friendlier version of name()
+    #[inline]
     fn name(&self) -> &'static str {
         "ZeroOneKnapsackSolution"
     }
-
+    #[inline]
+    #[inline]
     fn short_description(&self) -> String {
         format!(
             "{}: weight {}, score {}, best score {}",
@@ -49,6 +51,7 @@ impl Solution for ZeroOneKnapsackSolution {
         )
     }
 
+    #[inline]
     fn new(size: usize) -> Self {
         Self {
             basis: MinimalSolution::new(size),
@@ -57,6 +60,7 @@ impl Solution for ZeroOneKnapsackSolution {
         }
     }
 
+    #[inline]
     fn randomize(&mut self) {
         self.basis.randomize();
         let mut generator = rand::thread_rng();
@@ -70,6 +74,7 @@ impl Solution for ZeroOneKnapsackSolution {
     // i.e. the density of the value per kilogram, so to apeak...
     // Note: We add one to weight to avoid dividing by zero,
     // and multiply by 100 to get percent, actually to compensate for integer return value
+    #[inline]
     fn estimate(&self) -> ScoreType {
         // Rejected Alternatives:
         // *   100 * self.get_score() / (1 + self.basis.get_score())
@@ -78,30 +83,37 @@ impl Solution for ZeroOneKnapsackSolution {
     }
 
     // Getters and Setters
+    #[inline]
     fn size(&self) -> usize {
         self.basis.size()
     }
 
+    #[inline]
     fn get_score(&self) -> ScoreType {
         self.score
     }
 
+    #[inline]
     fn put_score(&mut self, score: ScoreType) {
         self.score = score;
     }
 
+    #[inline]
     fn get_best_score(&self) -> ScoreType {
         self.best_score
     }
 
+    #[inline]
     fn put_best_score(&mut self, best: ScoreType) {
         self.best_score = best;
     }
 
+    #[inline]
     fn get_decision(&self, decision_number: usize) -> Option<bool> {
         self.basis.get_decision(decision_number)
     }
 
+    #[inline]
     fn make_decision(&mut self, decision_number: usize, decision: bool) {
         self.basis.make_decision(decision_number, decision);
     }
@@ -162,9 +174,8 @@ impl Problem01Knapsack {
             score: ZERO_SCORE,
             best_score: ZERO_SCORE,
         };
-        result.put_score(self.solution_score(&result));
-        result.put_best_score(self.solution_best_score(&result));
-        debug_assert!(self.solution_is_legal(&result));
+        self.apply_rules(&mut result);
+        debug_assert!(self.rules_audit_passed(&result));
         result
     }
 }
@@ -247,7 +258,7 @@ impl Problem for Problem01Knapsack {
     } // end solution_is_legal
 
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType {
-        // debug_assert!(self.solution_is_legal(solution));
+        debug_assert!(self.solution_is_legal(solution));
         // add up all values which are either open or not set to zero,
         let mut result = ZERO_SCORE;
         for index in 0..self.problem_size() {
@@ -257,7 +268,7 @@ impl Problem for Problem01Knapsack {
                 Some(decision) => {
                     if decision {
                         result += self.values[index]
-                    }
+                    } // else add zero, i.e. do nothing
                 }
             }; // end match
         } // end for all bits
@@ -303,14 +314,56 @@ impl Problem for Problem01Knapsack {
         self.basis.last_closed_decision(&solution.basis)
     }
 
-    fn make_implicit_decisions(&self, sol: &mut Self::Sol) {
-        self.basis.make_implicit_decisions(&mut sol.basis);
-        // If there were any constraints on decisions that depeded on values,
-        // we would have to do more work -- but there aren't (are there?), so we're done!
+    fn apply_rules(&self, sol: &mut Self::Sol) {
+        debug_assert!(self.solution_is_legal(&sol));
+        self.basis.apply_rules(&mut sol.basis);
+        // self.basis now has a correct score (knapsack's weight) and best_score.
+        // Further, all implicit decisions have been made!
+        // We COULD just call solution_score and solution_best_score, but why do two
+        // passes over the decisions when we can do both at once?
+        let mut min_value = ZERO_SCORE;
+        let mut max_value = ZERO_SCORE;
+        for bit in 0..self.problem_size() {
+            match sol.get_decision(bit) {
+                None => max_value += self.values[bit],
+                Some(decision) => {
+                    if decision {
+                        max_value += self.values[bit];
+                        min_value += self.values[bit];
+                    }
+                }
+            } // end match decision (option)
+        } // end for all bits
+        sol.put_score(min_value);
+        sol.put_best_score(max_value);
+
+        debug_assert!(self.rules_audit_passed(sol));
     }
 
-    // Take the default register_one_child
-    // Take the default register_children_of
+    fn rules_audit_passed(&self, sol: &Self::Sol) -> bool {
+        assert!(self.solution_is_legal(&sol));
+        assert!(self.basis.rules_audit_passed(&sol.basis));
+        // We COULD just call solution_score and solution_best_score, but why do two
+        // passes over the decisions when we can do both at once?
+        let mut min_value = ZERO_SCORE;
+        let mut max_value = ZERO_SCORE;
+        for bit in 0..self.problem_size() {
+            match sol.get_decision(bit) {
+                None => max_value += self.values[bit],
+                Some(decision) => {
+                    if decision {
+                        max_value += self.values[bit];
+                        min_value += self.values[bit];
+                    }
+                }
+            } // end match decision (option)
+        } // end for all bits
+        assert_eq!(min_value, sol.get_score());
+        assert_eq!(max_value, sol.get_best_score());
+        assert_eq!(sol.get_score(), self.solution_score(sol));
+        assert_eq!(sol.get_best_score(), self.solution_best_score(sol));
+        true
+    }
 } // end impl ProblemSubsetSum
 
 /********************************************************************************************/
@@ -320,11 +373,13 @@ mod tests {
 
     use super::*;
     use implementations::{DepthFirstSolver, Problem01Knapsack, ZeroOneKnapsackSolution};
+    use log::*;
     use mhd_optimizer::{Problem, Solution, Solver};
 
     #[test]
     fn test_random_weights() {
         const TEST_SIZE: usize = 8;
+        debug!("Testing new (blank) 01Knapsack...");
         let mut rand_sack_a = Problem01Knapsack::new(TEST_SIZE);
 
         assert_eq!(rand_sack_a.name(), "Problem01Knapsack");
@@ -333,6 +388,7 @@ mod tests {
         assert_eq!(rand_sack_a.problem_size(), TEST_SIZE);
         assert_eq!(rand_sack_a.weights_sum(), 0);
 
+        trace!("Testing randomized 01Knapsack...");
         rand_sack_a.randomize();
 
         assert!(rand_sack_a.is_legal());
@@ -342,6 +398,7 @@ mod tests {
         assert_ne!(rand_sack_a.values_sum(), 0);
         assert_ne!(rand_sack_a.capacity(), 0);
 
+        debug!("Testing random 01Knapsack...");
         let rand_sack_b = Problem01Knapsack::random(TEST_SIZE);
 
         assert!(rand_sack_b.is_legal());
@@ -350,6 +407,7 @@ mod tests {
         assert_ne!(rand_sack_b.values_sum(), 0);
         assert_ne!(rand_sack_b.capacity(), 0);
 
+        debug!("Testing random 01Knapsack's starting solution...");
         let starter = rand_sack_b.starting_solution();
         assert!(rand_sack_b.is_legal());
         assert!(rand_sack_b.solution_is_legal(&starter));
@@ -361,6 +419,7 @@ mod tests {
             starter.get_best_score()
         );
 
+        debug!("Testing random 01Knapsack's random solution...");
         let thrown_dart = rand_sack_b.random_solution();
         assert!(rand_sack_b.is_legal());
         assert!(rand_sack_b.solution_is_legal(&thrown_dart));
@@ -379,6 +438,7 @@ mod tests {
     #[test]
     fn test_random_knapsacks() {
         for size in [4, 5, 6, 7, 8, 16, 32, 64, 128, 256].iter() {
+            debug!("Testing random 01Knapsack size {}", size);
             let sack = Problem01Knapsack::random(*size);
             assert!(
                 sack.is_legal(),
@@ -440,6 +500,7 @@ mod tests {
 
         assert!(little_knapsack.is_legal());
 
+        debug!("About to call find_best_solution (01knapsack, depthFirst solver...");
         let the_best = first_solver
             .find_best_solution(&little_knapsack, time_limit)
             .expect("could not find best solution");

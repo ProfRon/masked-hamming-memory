@@ -5,8 +5,8 @@ use std::error::Error;
 use std::fs::OpenOptions; // and/or File, if we want to overwrite a file...
 use std::io::prelude::*; // for writeln! (write_fmt)
 
-use mhd_optimizer::{Problem, Solution};
 use mhd_method::ScoreType;
+use mhd_optimizer::{Problem, Solution};
 
 static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(60); // can be changed
 
@@ -57,7 +57,9 @@ pub trait Solver<Sol: Solution> {
     fn best_solution(&self) -> &Sol;
 
     /// Shortcut
-    fn best_score( & self ) -> ScoreType { self.best_solution().get_score() }
+    fn best_score(&self) -> ScoreType {
+        self.best_solution().get_score()
+    }
 
     /// Store new best solution. Note, we take caller's word for it. Solution is not (re)tested.
     fn store_best_solution(&mut self, sol: Sol);
@@ -72,7 +74,7 @@ pub trait Solver<Sol: Solution> {
         solution: Sol,
     ) -> bool {
         debug_assert!(problem.solution_is_complete(&solution));
-
+        debug_assert!(problem.rules_audit_passed(&solution));
         let result = problem.better_than(&solution, self.best_solution());
         if result {
             // i.e. if solution is better than best_solution
@@ -82,7 +84,7 @@ pub trait Solver<Sol: Solution> {
             // record new best solution as trace and as a line in trace.csv
             debug!(
                 "Optimizer finds new BEST score {}!",
-                self.best_solution().get_score(),
+                self.best_solution().get_score()
             );
         }; // end solution  better than old best solution
         result // return result!!
@@ -109,6 +111,7 @@ pub trait Solver<Sol: Solution> {
         debug_assert!(problem.solution_is_complete(self.best_solution()));
         debug_assert!(problem.solution_is_legal(self.best_solution()));
         info!("Optimizing Problem {}", problem.short_description());
+        debug!("Optimizing Problem {:?}", problem);
         debug!(
             "First Random Solution (short) {}",
             self.best_solution().short_description()
@@ -124,33 +127,40 @@ pub trait Solver<Sol: Solution> {
         );
 
         // start at the root of the tree
-        debug_assert!(self.is_empty());
+        // debug_assert!(self.is_empty()); <-- Doesn't hold for mcts_solver (etc.)
         self.push(problem.starting_solution());
 
         loop {
             num_visitations += 1;
 
-            let next_solution = self
-                .pop()
-                .expect("solver's queue should not be empty but could not pop");
-            debug_assert!(!problem.solution_is_complete(&next_solution));
+            let next_solution = self.pop().expect("solver's queue could not pop");
+
             // Compare above: ""; visits; depth; score; complete; high score;"");
             trace!(
                 "; {}; {}; {}; {}; {};",
                 num_visitations,
-                problem.first_open_decision(&next_solution).unwrap(),
+                problem
+                    .first_open_decision(&next_solution)
+                    .unwrap_or(problem.problem_size()),
                 next_solution.get_score(),
                 problem.solution_is_complete(&next_solution),
                 self.best_solution().get_score()
             );
 
-            debug_assert!(!problem.solution_is_complete(&next_solution));
+            debug_assert!(problem.rules_audit_passed(&next_solution));
 
-            // BOUND
-            if problem.can_be_better_than(&next_solution, self.best_solution()) {
-                // BRANCH
+            if problem.solution_is_complete(&next_solution) {
+                // This only happens with the MCTS solver (and perhaps other future solvers)
+                if self.new_best_solution(problem, next_solution) {
+                    // Reset timer!
+                    // That means we have converted if we go for time_limit without a new best solution!
+                    start_time = Instant::now();
+                }; // do not push....
+            } else if problem.can_be_better_than(&next_solution, self.best_solution()) {
+                // BOUND (above) and BRANCH (below)
                 let children = problem.children_of_solution(&next_solution);
                 for child in children {
+                    debug_assert!(problem.rules_audit_passed(&child));
                     if !problem.solution_is_complete(&child) {
                         // child is incomplete
                         if problem.can_be_better_than(&child, self.best_solution()) {
@@ -175,7 +185,7 @@ pub trait Solver<Sol: Solution> {
                         }
                     } // end if complete
                 } // end for 0, 1 or 2 children
-            }; // end if not bounded
+            }; // end if complete or can be better than current best...
 
             // Terminate out if loop?
             if self.is_empty()

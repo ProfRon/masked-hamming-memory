@@ -11,7 +11,7 @@ struct Opt {
     verbose: u8,
 
     /// Number of items (dimensions, choices).
-    #[structopt(short, long, default_value = "256")]
+    #[structopt(short, long, default_value = "42")]
     size: usize,
 
     /// Capacity of Knapsack
@@ -26,8 +26,8 @@ struct Opt {
     #[structopt(short, long, default_value = "1.0")]
     time: f32,
 
-    /// Algorithms (solvers) : 1 = depth first, 2 = best first, 3 = both.
-    #[structopt(short, long, default_value = "3", possible_values=&["1","2","3"])]
+    /// Algorithms (solvers) : 1 = depth first, 2 = best first, 4 = MCTS, 7 = 0x111 = all three (etc.).
+    #[structopt(short, long, default_value = "7")]
     algorithms: u8,
 
     /// Number of problems to solve
@@ -47,18 +47,20 @@ struct Opt {
     ///
     /// Known file formats:
     /// csv (Pisinger format).
+    /// txt (rust crate format)
     #[structopt(name = "FILE", parse(from_os_str))]
     files: Vec<PathBuf>,
 } // end struct Opt
 
 const DEPTH_FIRST_BIT: u8 = 1;
 const BEST_FIRST_BIT: u8 = 2;
+const MCTS_BIT: u8 = 4;
 
 use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
 use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
-use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
+use mhd_mem::implementations::{MonteCarloTreeSolver, Problem01Knapsack, ZeroOneKnapsackSolution};
 use mhd_mem::mhd_method::sample::ScoreType; // used implicitly (only)
 use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
 
@@ -103,6 +105,7 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
     }; // else, leave capacity alone remain what the random constructor figured out.
     let mut dfs_score: ScoreType = 1;
     let mut bfs_score: ScoreType = 1;
+    let mut mcts_score: ScoreType = 1;
     if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         dfs_score =
@@ -113,11 +116,26 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
         bfs_score =
             run_one_problem_one_solver(&opt, &knapsack, &mut BestFirstSolver::new(opt.size));
     }; // end if best first
-    if 3 == opt.algorithms {
+    if 0 != (opt.algorithms & MCTS_BIT) {
+        print!("Knapsack {}: ", prob_num + 1);
+        let mut solver = MonteCarloTreeSolver::builder(knapsack);
+        mcts_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        debug!(
+            "Tree after optimization\n{}",
+            solver.mcts_root.debug_dump_node()
+        );
+    }; // end if best first
+
+    if 6 == (opt.algorithms & (BEST_FIRST_BIT | MCTS_BIT)) {
         assert_ne!(0, dfs_score, "DFS score should not be zero");
-        let test_ratio: f32 = (bfs_score as f32) / (dfs_score as f32);
+        let other_ratio = (dfs_score as f32) / (dfs_score as f32);
+        assert_ne!(0, dfs_score, "BFS score should not be zero");
+        let test_ratio: f32 = (mcts_score as f32) / (bfs_score as f32);
         *ratio *= test_ratio;
-        println!("test ratio = {}, ratio = {}", test_ratio, ratio);
+        println!(
+            "test bfs ratio = {}, mcts_ratio = {}, overall mcts ratio = {}",
+            other_ratio, test_ratio, ratio
+        );
     }; // end if 3
 } // end run_one_problem
 
@@ -177,8 +195,12 @@ fn main() {
 
     assert!(0.0 <= opt.capacity, "Capacity cannot be negative");
     assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
+    assert!(opt.verbose < 4, "Too verbose: Maximum verbosity is vvv");
+    assert!(
+        opt.algorithms < 8,
+        "Illegal algorith (code 8 or more not allowed)"
+    );
 
-    assert!(opt.verbose < 4);
     if 0 < opt.verbose {
         let term_level = match opt.verbose {
             1 => LevelFilter::Info,

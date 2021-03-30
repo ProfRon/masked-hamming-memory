@@ -80,14 +80,17 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
     // calculate ceil( Num_bits / 8 ) without floating point cast...
     pub const NUM_BYTES: usize = (NUM_BITS / 8) + if 0 == NUM_BITS % 8 { 0 } else { 1 };
 
+    #[inline]
     pub fn size(&self) -> usize {
         NUM_BITS
     }
 
+    #[inline]
     pub fn size_in_bytes(&self) -> usize {
         Self::NUM_BYTES
     }
 
+    #[inline]
     fn assert_size_is_legal() {
         assert!(3 < NUM_BITS);
         assert!(0 < Self::NUM_BYTES); // zero is illegal
@@ -95,6 +98,7 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
         debug_assert!(8 * Self::NUM_BYTES - NUM_BITS < 8);
     }
 
+    #[inline]
     pub fn default() -> Self {
         Self {
             // bytes : [0;  Self::NUM_BYTES ],
@@ -103,6 +107,7 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
         }
     }
 
+    #[inline]
     pub fn new(starting_score: ScoreType) -> Self {
         Self::assert_size_is_legal();
         Self {
@@ -111,6 +116,7 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
         }
     }
 
+    #[inline]
     pub fn new_ones(starting_score: ScoreType) -> Self {
         Self::assert_size_is_legal();
         Self {
@@ -119,6 +125,7 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
         }
     }
 
+    #[inline]
     pub fn randomize(&mut self) {
         // first a random score
         self.score = rand::thread_rng().gen_range(0..1_001); // TODO -- add constant
@@ -126,18 +133,21 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
         rand::thread_rng().fill_bytes(&mut self.bytes);
     }
 
+    #[inline]
     pub fn random() -> Self {
         let mut result = Self::default();
         result.randomize();
         result
     }
 
+    #[inline]
     pub fn byte_index(bit_index: usize) -> usize {
         let byte_index = bit_index / 8;
         debug_assert!(byte_index < Self::NUM_BYTES);
         byte_index
     }
 
+    #[inline]
     pub fn get_bit(&self, bit_index: usize) -> bool {
         let byte_index = Self::byte_index(bit_index);
 
@@ -147,6 +157,7 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
         0 != (byte & bit_mask)
     }
 
+    #[inline]
     pub fn set_bit(&mut self, bit_index: usize, bit_value: bool) {
         let byte_index = Self::byte_index(bit_index);
 
@@ -162,6 +173,7 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
 } // end impl Sample
 
 impl<const NUM_BITS: usize> std::fmt::Debug for Sample<NUM_BITS> {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[Sample: score {}, bytes{:x?}]", self.score, self.bytes)
     }

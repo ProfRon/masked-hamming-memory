@@ -81,6 +81,11 @@ fn bench_one_size(group: &mut BenchmarkGroup<WallTime>, size: usize) {
     let mut solver_b = BestFirstSolver::<MinimalSolution>::new(size);
     bench_one_combo(group, BENCH_NAME, &problem_a, &mut solver_b);
 
+    // ...and then with the MCTS Solver
+    let mut solver_mc
+        = MonteCarloTreeSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem_a);
+    bench_one_combo(group, BENCH_NAME, &problem_a, &mut solver_mc);
+
     // First one problem, then another, since they are not mutable
     let problem_b = Problem01Knapsack::random(size);
 
@@ -91,6 +96,11 @@ fn bench_one_size(group: &mut BenchmarkGroup<WallTime>, size: usize) {
     // ...and with the Best First Solver
     let mut solver_d = BestFirstSolver::<ZeroOneKnapsackSolution>::new(size);
     bench_one_combo(group, BENCH_NAME, &problem_b, &mut solver_d);
+
+    // ...and then with the MCTS Solver
+    let mut solver_mcts
+        = MonteCarloTreeSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&problem_b);
+    bench_one_combo(group, BENCH_NAME, &problem_b, &mut solver_mcts);
 }
 
 fn bench_sizes(c: &mut Criterion) {
@@ -149,6 +159,12 @@ fn bench_a_file(group: &mut BenchmarkGroup<WallTime>, pathname: PathBuf) {
                 // ...and with the Best First Solver
                 let mut bfs_solver = BestFirstSolver::<ZeroOneKnapsackSolution>::new(size);
                 bench_one_combo(group, &id, &knapsack, &mut bfs_solver);
+
+                // ... and with the MCTS Solver
+                let mut mcts_solver
+                    = MonteCarloTreeSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&knapsack );
+                bench_one_combo(group, &id, &knapsack, &mut mcts_solver);
+
             } // end on match OK( Knapsack )
         } // end match Result<knapsack>
     } // end loop until no more knapsacks in file

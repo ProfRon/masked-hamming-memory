@@ -12,6 +12,7 @@ pub trait Problem: Sized + Clone + Debug {
 
     /// Every instance of this struct should have a descriptive name (for tracing, debugging).
     /// Default works, but is very long (override it to make it friendlier).
+    #[inline]
     fn name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
@@ -29,6 +30,7 @@ pub trait Problem: Sized + Clone + Debug {
     /// `random` creates a full-fledged, i.e. complete but random instance of the problem,
     /// where `size` is the number of decisions to be made (free variables to assign values to).
     /// Do not confuse with `random_solution`!
+    #[inline]
     fn random(size: usize) -> Self {
         let mut result = Self::new(size);
         result.randomize();
@@ -58,6 +60,7 @@ pub trait Problem: Sized + Clone + Debug {
     fn solution_best_score(&self, solution: &Self::Sol) -> ScoreType;
 
     /// Helper function to record the score and best score of a given solution
+    #[inline]
     fn fix_scores(&self, solution: &mut Self::Sol) {
         solution.put_score(self.solution_score(solution));
         solution.put_best_score(self.solution_best_score(solution));
@@ -80,12 +83,14 @@ pub trait Problem: Sized + Clone + Debug {
 
     /// Is new_solution better than old_solution?
     /// Note that the default version assumes we're maximizing.
+    #[inline]
     fn better_than(&self, new_solution: &Self::Sol, old_solution: &Self::Sol) -> bool {
         old_solution.get_best_score() <= new_solution.get_best_score()
     }
 
     /// Is the "upper bound" of new_solution better than score the old solution?
     /// Note that the default version assumes we're maximizing.
+    #[inline]
     fn can_be_better_than(&self, new_solution: &Self::Sol, old_solution: &Self::Sol) -> bool {
         self.solution_best_score(old_solution) <= self.solution_best_score(new_solution)
     }
@@ -99,48 +104,55 @@ pub trait Problem: Sized + Clone + Debug {
     /// (which defines the starting solution, by the way).
     fn last_closed_decision(&self, solution: &Self::Sol) -> Option<usize>;
 
-    /// Apply this problem's only logic to check if any decisions are implicitly already decided.
+    /// Apply this problem's own logic to check if any decisions are implicitly already decided.
     /// Example: if some items are heavier than a knapsack's remainng capacity, we don't have
     /// to consider putting them into the knapsack.
-    fn make_implicit_decisions(&self, sol: &mut Self::Sol);
+    /// Side effect: Calculate and store current score and best_score.
+    /// (So you do not need to call fix_scores before or after -- thus avoiding a nasty
+    /// dependency loop).
+    fn apply_rules(&self, sol: &mut Self::Sol);
+
+    /// Check if all implicit decisions have been made
+    /// This function exists only for debugging purposes.
+    fn rules_audit_passed(&self, sol: &Self::Sol) -> bool;
 
     /// `produce_child` takes a copy (clone) of `parent` and tries making the first open deccision.
     /// It returns either Some(child) or None, if the child would not have been legal,
     /// e.g. if the weight of a knapsack would exceed the capacity.
-    fn produce_child(&self, parent: &Self::Sol, index: usize, decision: bool) -> Option<Self::Sol> {
+    #[inline]
+    fn produce_child(&self, parent: &Self::Sol, index: usize, decision: bool) -> Self::Sol {
         let mut child = parent.clone();
+        debug_assert!(self.solution_is_legal(&child));
         child.make_decision(index, decision);
-        self.make_implicit_decisions(&mut child);
-        self.fix_scores(&mut child);
-        if self.solution_is_legal(&child) {
-            Some(child) // return!
-        } else {
-            // else if solution is illegal, do nothing
-            None // return!
-        }
+        debug_assert!(self.solution_is_legal(&child));
+        self.apply_rules(&mut child);
+        debug_assert!(self.rules_audit_passed(&child));
+        child
     } // end produce one child
 
     /// This method (`children_of_solution`) return zero, one or two solutions in the form of a
     /// vector. Given `parent`, the method find the first open decision, and tries setting it
     /// to both true and to false -- thus producing two children, both of which are tested for
     /// legality. Only legal children are returned (so there can be 0, 1 or 2).
+    /// Actually, there should only be two, if make_implicit_decisions is correct.
+    /// TODO: Fix this to return a pair, not a vector
+    #[inline]
     fn children_of_solution(&self, parent: &Self::Sol) -> Vec<Self::Sol> {
-        debug_assert!(self.solution_is_legal(parent));
+        debug_assert!(self.rules_audit_passed(parent));
         debug_assert!(!self.solution_is_complete(parent));
         let mut result = Vec::<Self::Sol>::new(); // initially empty...
                                                   // parent must not be a complete solution, so we can use unwrpa in the next line:
-        let index = self.first_open_decision(parent).unwrap();
+        let index = self
+            .first_open_decision(parent)
+            .expect("There must be an open decision");
 
         // The order of the next two operations is important!
         // Try deciding TRUE
-        if let Some(child) = self.produce_child(parent, index, true) {
-            result.push(child);
-        };
+        result.push(self.produce_child(parent, index, true));
+
         // Try deciding FALSE
-        if let Some(child) = self.produce_child(parent, index, false) {
-            result.push(child);
-        };
-        // Finished! Return...
+        result.push(self.produce_child(parent, index, false));
+
         result
     } // end children_of_solution
 } // end trait Problem
