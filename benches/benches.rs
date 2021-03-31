@@ -113,7 +113,7 @@ fn bench_sizes(c: &mut Criterion) {
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
-    for bits in [8, 12, 16, 20, 24].iter() {
+    for bits in [8, 12, 16, 24, 32, 42 ].iter() {
         bench_one_size(&mut group, *bits);
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));

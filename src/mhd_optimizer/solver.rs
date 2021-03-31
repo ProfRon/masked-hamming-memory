@@ -2,8 +2,9 @@ use std::time::{Duration, Instant};
 
 use log::*; // for info, trace, warn, etc.
 use std::error::Error;
-use std::fs::OpenOptions; // and/or File, if we want to overwrite a file...
-use std::io::prelude::*; // for writeln! (write_fmt)
+// The next two imports are needed only for csv file writing (see bottom of fle)
+// use std::fs::OpenOptions; // and/or File, if we want to overwrite a file...
+// use std::io::prelude::*; // for writeln! (write_fmt)
 
 use mhd_method::ScoreType;
 use mhd_optimizer::{Problem, Solution};
@@ -200,23 +201,25 @@ pub trait Solver<Sol: Solution> {
 
         let result = self.best_solution();
 
-        let mut macrotrace_file = OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open("macrotrace.csv")
-            .expect("Could not open macrotrace.csv");
-        writeln!(
-            macrotrace_file,
-            "\"{}\", \"{}\", \"{}\", {}; {}; {}; {}; {}", // EIGHT fields!
-            result.name(),
-            self.name(),
-            problem.name(),
-            start_time.elapsed().as_nanos(),
-            num_visitations,
-            self.number_of_solutions(),
-            result.get_score(),
-            result.get_best_score(),
-        )?;
+        // ********************** CSV FILE TRACING ************
+        // let mut macrotrace_file = OpenOptions::new()
+        //     .append(true)
+        //     .create(true)
+        //     .open("macrotrace.csv")
+        //     .expect("Could not open macrotrace.csv");
+        // writeln!(
+        //     macrotrace_file,
+        //     "\"{}\", \"{}\", \"{}\", {}; {}; {}; {}; {}", // EIGHT fields!
+        //     result.name(),
+        //     self.name(),
+        //     problem.name(),
+        //     start_time.elapsed().as_nanos(),
+        //     num_visitations,
+        //     self.number_of_solutions(),
+        //     result.get_score(),
+        //     result.get_best_score(),
+        // )?;
+        // ********************** CSV FILE TRACING ************
 
         debug!("Optimizer find best solution in {:?}", problem);
         debug!("Optimizer converges on soution {:?}", result);

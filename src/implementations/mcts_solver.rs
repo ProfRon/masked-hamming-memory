@@ -324,7 +324,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MonteCarloTreeSolver<Sol, Prob> {
 impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MonteCarloTreeSolver<Sol, Prob> {
     #[inline]
     fn name(&self) -> &'static str {
-        "MonteCarloTreeSolver "
+        "MonteCarloSolver "
     }
 
     #[inline]

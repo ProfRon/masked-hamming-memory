@@ -106,6 +106,7 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
     let mut dfs_score: ScoreType = 1;
     let mut bfs_score: ScoreType = 1;
     let mut mcts_score: ScoreType = 1;
+    let mut monte_score: ScoreType = 1;
     if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         dfs_score =
@@ -120,27 +121,31 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
         print!("Knapsack {}: ", prob_num + 1);
         let mut solver = MonteCarloTreeSolver::builder(knapsack);
         mcts_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
-        debug!(
-            "Tree after optimization\n{}",
-            solver.mcts_root.debug_dump_node()
-        );
+
+        // Do it again, but full monte
+        solver.clear();
+        solver.full_monte = true;
+        print!("FullMonte{}: ", prob_num + 1);
+        monte_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
     }; // end if best first
 
     if 6 == (opt.algorithms & (BEST_FIRST_BIT | MCTS_BIT)) {
         assert_ne!(0, dfs_score, "DFS score should not be zero");
-        let other_ratio = (dfs_score as f32) / (dfs_score as f32);
+        let other_ratio = (bfs_score as f32) / (dfs_score as f32);
         assert_ne!(0, dfs_score, "BFS score should not be zero");
-        let test_ratio: f32 = (mcts_score as f32) / (bfs_score as f32);
+        let test_ratio: f32 = (mcts_score as f32) / (dfs_score as f32);
+        let monte_ratio: f32 = (monte_score as f32) / (mcts_score as f32);
         *ratio *= test_ratio;
         println!(
-            "test bfs ratio = {}, mcts_ratio = {}, overall mcts ratio = {}",
-            other_ratio, test_ratio, ratio
+            "test bfs ratio = {}, mcts_ratio = {}, overall mcts ratio = {} (monte = {})",
+            other_ratio, test_ratio, ratio, monte_ratio
         );
     }; // end if 3
 } // end run_one_problem
 
-fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) {
+fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) -> usize {
     println!("Processing Filename: {:?}", file_name);
+    let mut counter : usize = 0;
     let file = std::fs::File::open(file_name).unwrap();
     let mut input = io::BufReader::new(file);
     match file_name
@@ -156,7 +161,8 @@ fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) {
                     Err(_) => break,
                     Ok(mut knapsack) => run_one_problem(&opt, &mut knapsack, ratio, prob_num),
                 }; // end match parse_dot_dat
-            }
+                counter += 1;
+            } // end for  problems in file
         } // end for all problems
         "csv" => {
             for prob_num in 0..opt.num_problems {
@@ -165,19 +171,27 @@ fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) {
                     Err(_) => break,
                     Ok(mut knapsack) => run_one_problem(&opt, &mut knapsack, ratio, prob_num),
                 }; // end match parse_dot_dat
-            }
+                counter += 1;
+            } // end for  problems in file
         } // end for all problems
         _ => assert!(false, "Unknown file extension (not dat, not csv"),
-    }; // end match file name extensio
+    }; // end match file name extension
+    // Done!
+    counter
 } // end run_one_file
 
-fn run_one_directory(opt: &Opt, path: &PathBuf, ratio: &mut f32) {
+fn run_one_directory(opt: &Opt, path: &PathBuf, ratio: &mut f32) -> usize {
+    let mut num_tests :usize = 0;
     for entry_result in path.read_dir().expect("read_dir call failed") {
         match entry_result {
-            Ok(dir_entry) => run_one_file(opt, &dir_entry.path(), ratio),
+            Ok(dir_entry) => {
+                num_tests += run_one_file(opt, &dir_entry.path(), ratio);
+            },
             Err(e) => warn!("Error {:?} in directory {:?}", e, path),
         };
     } // end for all entries in directory
+    // Done!
+    num_tests
 } // end run_one_file
 
 extern crate log;
@@ -224,7 +238,7 @@ fn main() {
     }; // end if verbose
 
     let mut ratio: f32 = 1.0;
-
+    let mut num_tests : usize = 0;
     if opt.files.is_empty() {
         // FIRST USE CASE : No files, random data
 
@@ -235,16 +249,16 @@ fn main() {
             let mut knapsack = Problem01Knapsack::random(opt.size);
             run_one_problem(&opt, &mut knapsack, &mut ratio, prob_num);
         } // for 0 <= prob_num < num_problems
+        num_tests = opt.num_problems as usize;
     } else {
         // if opt.files NOT empty
 
         // SECOND USE CASE : No files, random data
-
         for file_name in opt.files.iter() {
             if file_name.is_file() {
-                run_one_file(&opt, file_name, &mut ratio);
+                num_tests += run_one_file(&opt, file_name, &mut ratio);
             } else if file_name.is_dir() {
-                run_one_directory(&opt, file_name, &mut ratio);
+                num_tests += run_one_directory(&opt, file_name, &mut ratio);
             } else if !file_name.exists() {
                 warn!("file name {:?} does not exist.", file_name);
             } else {
@@ -253,7 +267,9 @@ fn main() {
                     "file name {:?} exists, but is neither a file nor a directory",
                     file_name
                 );
-            }
+            };
         } // end for all files
     }; // end if there are files
+    let geo_mean = (ratio as f64).powf(  1.0 / (num_tests as f64) );
+    println!("At the end, ratio = {}, n = {}, geo mean = {}", ratio, num_tests, geo_mean );
 }
