@@ -100,6 +100,9 @@ pub mod implementations {
     pub mod mcts_solver;
     pub use self::mcts_solver::MonteCarloTreeSolver;
 
+    pub mod mhd_mc_solver;
+    pub use self::mhd_mc_solver::*;
+
     pub mod parsers;
     pub use self::parsers::{parse_dot_csv_stream, parse_dot_dat_stream};
 }

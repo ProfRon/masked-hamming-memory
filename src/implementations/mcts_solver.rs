@@ -451,11 +451,12 @@ mod more_tests {
 
         assert!(problem.rules_audit_passed(&solution1));
 
-        if ! problem.solution_is_complete( &solution1 ) {
+        if problem.solution_is_complete( &solution1 ) {
+            solver.new_best_solution( &problem, solution1 ); // Warning: solution1 moved!
+        } else {
             warn!( "First Solution returned is not complete? S1 = {:?}", solution1 );
             warn!( "                      current best solution = {:?}", solver.best_solution() );
         };
-        solver.new_best_solution( &problem, solution1 ); // Warning: solution1 moved!
 
 
         let solution2 = solver.pop().expect("pop() should return Some(sol)");
@@ -472,10 +473,12 @@ mod more_tests {
         assert!(solver.mcts_root.true_branch.is_some() || solver.mcts_root.false_branch.is_some());
 
         assert!(solver.problem.rules_audit_passed(&solution2));
-        if problem.better_than( &solution2, &solver.best_solution() )
-        {
-            assert!( problem.solution_is_complete( &solution2 ));
-            solver.new_best_solution( &problem, solution2 );
+
+        if problem.solution_is_complete( &solution2 ) {
+            solver.new_best_solution( &problem, solution2 ); // Warning: solution1 moved!
+        } else {
+            warn!( "Second Solution returned is not complete? S1 = {:?}", solution2 );
+            warn!( "                      current best solution = {:?}", solver.best_solution() );
         };
 
     }

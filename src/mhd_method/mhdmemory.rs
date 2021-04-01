@@ -93,6 +93,12 @@ impl<const NUM_BITS: usize> MhdMemory<NUM_BITS> {
     }
 
     #[inline]
+    pub fn clear(&mut self) {
+        self.samples.clear();
+        *self = Self::default();
+    }
+
+    #[inline]
     pub fn write_sample(&mut self, new_sample: &Sample<NUM_BITS>) {
         // Here the book-keeping...
         self.total_score += new_sample.score;
@@ -141,6 +147,61 @@ impl<const NUM_BITS: usize> MhdMemory<NUM_BITS> {
             result
         );
         result as ScoreType
+    } // end maked_read
+
+    pub fn read_for_decision(
+        &self,
+        mask: &[u8],
+        query: &[u8],
+        index: usize,
+    ) -> (Option<ScoreType>, Option<ScoreType>) {
+        let mut hit_on_0 = false; // until proven true
+        let mut hit_on_1 = false; // until proven true
+        let (score_false, score_true, weight_sum) = self
+            .samples
+            .iter()
+            .map(|s| {
+                // use a closure here to capture query and mask
+                let dist = distance(mask, query, &s.bytes);
+                let dist_plus_1 = (dist + 1) as f64; // adding one prevents division by zero later
+                                                     // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
+                let weight = 1.0 / dist_plus_1; // TODO DECIDE! Squared or not!!!
+                let s_at_index = s.get_bit(index);
+                if s_at_index {
+                    hit_on_1 = true;
+                    (0.0f64, weight * s.score as f64, weight) // return score
+                } else {
+                    // if NOT s_at_index
+                    hit_on_0 = true;
+                    (weight * s.score as f64, 0.0f64, weight) // return score
+                }
+            })
+            .fold((0.0, 0.0, 0.0), |(s0f, s0t, w0), (s1f, s1t, w1)| {
+                (s0f + s1f, s0t + s1t, w0 + w1)
+            });
+
+        let false_score = if hit_on_0 {
+            Some((score_false / weight_sum) as ScoreType)
+        } else {
+            None
+        };
+        let true_score = if hit_on_1 {
+            Some((score_true / weight_sum) as ScoreType)
+        } else {
+            None
+        };
+        let result = (false_score, true_score);
+        trace!(
+            "hits = ({},{}), scores = ({}, {}), weight sum =  {}, result = {:?}",
+            hit_on_0,
+            hit_on_1,
+            score_false,
+            score_true,
+            weight_sum,
+            result
+        );
+        // Return...
+        result
     } // end maked_read
 
     #[inline]
@@ -274,4 +335,60 @@ mod tests {
         } // end for all rows
         assert!(lucky_hits <= LOG_NUM_ROWS); // capricious and arbitrary, but gotta be sumthin...
     } // end test random writes
+
+
+    #[test]
+    fn test_read_for_decision() {
+        const NUM_BITS: usize = 64;
+        const NUM_ROWS: usize = 64; // Must be at least four!!!
+        const LOG_NUM_ROWS: usize = 6;
+
+        assert!(4 < NUM_ROWS);
+
+        let mut new_test_mem = MhdMemory::<NUM_BITS>::new();
+
+        new_test_mem.write_n_random_samples(NUM_ROWS);
+
+        assert!(new_test_mem.min_score <= new_test_mem.avg_score());
+        assert!(new_test_mem.avg_score() <= new_test_mem.max_score);
+        assert_ne!(new_test_mem.min_score, new_test_mem.max_score);
+
+        trace!(
+            "Memory has scores min {} < avg {} < max {} < total {}",
+            new_test_mem.min_score,
+            new_test_mem.avg_score(),
+            new_test_mem.max_score,
+            new_test_mem.total_score,
+        );
+
+        // Now, test reading!!!
+        let mut false_misses = 0;
+        let mut true_misses = 0;
+        let mut index = 0;
+        let mut sums = ( ZERO_SCORE, ZERO_SCORE );
+        for row in 0..NUM_ROWS {
+            let random_mask = &Sample::<NUM_BITS>::random( );
+            index = (index +1) % NUM_BITS;
+            let ( false_result, true_result) = new_test_mem.read_for_decision(
+                &random_mask.bytes, &new_test_mem.samples[row].bytes, index );
+            match false_result {
+                None => false_misses += 1,
+                Some( score ) => sums = ( sums.0 + score, sums.1 ),
+            };
+            match true_result {
+                None => true_misses += 1,
+                Some( score ) => sums = ( sums.0, sums.1 + score ),
+            };
+            trace!(
+                "Row {} has decision result ( {:?}, {:?} )",
+                row,
+                false_result, true_result
+            );
+        } // end for all rows
+        trace!( "At end of read_for_decision test, num misses on false = {}, on true = {}, sums = {:?}",
+            false_misses, true_misses, sums );
+        assert!(false_misses <= LOG_NUM_ROWS); // capricious and arbitrary, but gotta be sumthin...
+        assert!(true_misses <= LOG_NUM_ROWS); // capricious and arbitrary, but gotta be sumthin...
+    } // end test read_for_decsions
+
 } // end mod tests

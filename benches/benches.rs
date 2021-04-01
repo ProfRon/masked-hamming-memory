@@ -82,8 +82,8 @@ fn bench_one_size(group: &mut BenchmarkGroup<WallTime>, size: usize) {
     bench_one_combo(group, BENCH_NAME, &problem_a, &mut solver_b);
 
     // ...and then with the MCTS Solver
-    let mut solver_mc
-        = MonteCarloTreeSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem_a);
+    let mut solver_mc =
+        MonteCarloTreeSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem_a);
     bench_one_combo(group, BENCH_NAME, &problem_a, &mut solver_mc);
 
     // First one problem, then another, since they are not mutable
@@ -98,8 +98,8 @@ fn bench_one_size(group: &mut BenchmarkGroup<WallTime>, size: usize) {
     bench_one_combo(group, BENCH_NAME, &problem_b, &mut solver_d);
 
     // ...and then with the MCTS Solver
-    let mut solver_mcts
-        = MonteCarloTreeSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&problem_b);
+    let mut solver_mcts =
+        MonteCarloTreeSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&problem_b);
     bench_one_combo(group, BENCH_NAME, &problem_b, &mut solver_mcts);
 }
 
@@ -113,7 +113,7 @@ fn bench_sizes(c: &mut Criterion) {
     // actually, we should take something of "big O" O(2^size),
     // but who has the patience?!?
 
-    for bits in [8, 12, 16, 24, 32, 42 ].iter() {
+    for bits in [8, 16, 24, 32].iter() {
         bench_one_size(&mut group, *bits);
         //let bits : usize = *b;
         // group.throughput(Throughput::Elements(*size as u64));
@@ -161,10 +161,11 @@ fn bench_a_file(group: &mut BenchmarkGroup<WallTime>, pathname: PathBuf) {
                 bench_one_combo(group, &id, &knapsack, &mut bfs_solver);
 
                 // ... and with the MCTS Solver
-                let mut mcts_solver
-                    = MonteCarloTreeSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&knapsack );
+                let mut mcts_solver = MonteCarloTreeSolver::<
+                    ZeroOneKnapsackSolution,
+                    Problem01Knapsack,
+                >::builder(&knapsack);
                 bench_one_combo(group, &id, &knapsack, &mut mcts_solver);
-
             } // end on match OK( Knapsack )
         } // end match Result<knapsack>
     } // end loop until no more knapsacks in file

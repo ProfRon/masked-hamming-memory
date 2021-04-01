@@ -186,6 +186,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_for_evcxr() {
+        pub struct TestArray<T, const LENGTH: usize> {
+            //          ^^^^^^^^^^^^^^^^^^^ Const generic definition.
+            pub list: [T; LENGTH]
+            //        ^^^^^^ We use it here.
+        }
+
+        let test_array = TestArray::<u8,42>{ list: [ 0u8; 42] };
+
+        assert_eq!( test_array.list.len(), 42 );
+    }
+
+    #[test]
     fn test_constructors() {
         Sample::<4>::assert_size_is_legal();
         Sample::<8>::assert_size_is_legal();

@@ -145,7 +145,7 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
 
 fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) -> usize {
     println!("Processing Filename: {:?}", file_name);
-    let mut counter : usize = 0;
+    let mut counter: usize = 0;
     let file = std::fs::File::open(file_name).unwrap();
     let mut input = io::BufReader::new(file);
     match file_name
@@ -176,21 +176,21 @@ fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) -> usize {
         } // end for all problems
         _ => assert!(false, "Unknown file extension (not dat, not csv"),
     }; // end match file name extension
-    // Done!
+       // Done!
     counter
 } // end run_one_file
 
 fn run_one_directory(opt: &Opt, path: &PathBuf, ratio: &mut f32) -> usize {
-    let mut num_tests :usize = 0;
+    let mut num_tests: usize = 0;
     for entry_result in path.read_dir().expect("read_dir call failed") {
         match entry_result {
             Ok(dir_entry) => {
                 num_tests += run_one_file(opt, &dir_entry.path(), ratio);
-            },
+            }
             Err(e) => warn!("Error {:?} in directory {:?}", e, path),
         };
     } // end for all entries in directory
-    // Done!
+      // Done!
     num_tests
 } // end run_one_file
 
@@ -238,7 +238,7 @@ fn main() {
     }; // end if verbose
 
     let mut ratio: f32 = 1.0;
-    let mut num_tests : usize = 0;
+    let mut num_tests: usize = 0;
     if opt.files.is_empty() {
         // FIRST USE CASE : No files, random data
 
@@ -270,6 +270,9 @@ fn main() {
             };
         } // end for all files
     }; // end if there are files
-    let geo_mean = (ratio as f64).powf(  1.0 / (num_tests as f64) );
-    println!("At the end, ratio = {}, n = {}, geo mean = {}", ratio, num_tests, geo_mean );
+    let geo_mean = (ratio as f64).powf(1.0 / (num_tests as f64));
+    println!(
+        "At the end, ratio = {}, n = {}, geo mean = {}",
+        ratio, num_tests, geo_mean
+    );
 }
