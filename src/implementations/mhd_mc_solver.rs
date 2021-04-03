@@ -12,11 +12,8 @@ use mhd_optimizer::{Problem, Solution, Solver};
 pub const NUM_BITS : usize = 64;
 pub const NUM_BYTES : usize = 8;
 
-pub type MhdMcSample = Sample< NUM_BITS >;
-pub type MhdMcMemory = MhdMemory< NUM_BITS >;
-
 pub struct MhdMonteCarloSolver<Sol: Solution, Prob: Problem<Sol = Sol>> {
-    pub mhd_memory: MhdMcMemory,
+    pub mhd_memory: MhdMemory,
     pub best_solution: Sol,
     pub problem: Prob,
 }
@@ -26,9 +23,9 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
     #[inline]
     pub fn builder(problem: &Prob) -> Self {
         Self {
-            mhd_memory: MhdMcMemory::default(),
+            mhd_memory: MhdMemory::new( problem.problem_size() ),
             best_solution: problem.random_solution(),
-            problem: problem.clone(), // = problem, note rust syntatic sugar
+            problem: problem.clone(),
         }
     }
 } // end private Methods

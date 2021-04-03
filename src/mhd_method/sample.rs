@@ -6,15 +6,6 @@ pub type ScoreType = u32; // that can change at any time, so we give it a name
 
 pub const ZERO_SCORE: ScoreType = 0;
 
-#[derive(Default, Clone, PartialEq)] // Debug implemented by hand, see below
-pub struct Sample<const NUM_BITS: usize> {
-    // pub bytes:  [u8; NUM_BYTES],
-    pub bytes: Vec<u8>,   // initially empty
-    pub score: ScoreType, // we will probably change that ...
-} // end struct Sample
-
-use rand::prelude::*;
-
 /// # The `Sample` Trait (Generic?)
 ///
 /// The Sample data type is used to build the MHD Memory, a
@@ -42,7 +33,7 @@ use rand::prelude::*;
 /// use mhd_mem::mhd_method::{Sample, ScoreType, ZERO_SCORE };
 /// const NUM_BITS : usize = 356; // arbitrary, .... 44.5 bytes
 /// let the_answer = 42 as ScoreType;
-/// let row0  =  Sample::<NUM_BITS>::new( the_answer );
+/// let row0  =  Sample::new( NUM_BITS, the_answer );
 /// assert_eq!( row0.bytes[ 4 ], 0 );
 /// assert_eq!( row0.bytes[ 44 ], 0 );
 /// assert_eq!( row0.score, the_answer);
@@ -50,24 +41,22 @@ use rand::prelude::*;
 /// assert_eq!( row0.size(), NUM_BITS );
 /// assert_eq!( row0.size_in_bytes(), 1 + NUM_BITS/8 );
 ///
-/// let r = Sample::<NUM_BITS>::default( );
-/// let s = Sample::<NUM_BITS>::new( the_answer );
+/// let r = Sample::default( );
 /// assert_eq!( r.score, ZERO_SCORE );
+/// let s = Sample::new( NUM_BITS, the_answer );
 /// assert_eq!( s.score, the_answer );
-/// assert!( r.bytes.eq( &s.bytes ) );
 ///
-/// let rr = Sample::<NUM_BITS>::random( );
+/// let rr = Sample::random( NUM_BITS );
 /// assert_ne!( r, rr );
-/// // That last test could fail, by dumb luck, but it's nearly impossible...
 ///
-/// let mut row1 = Sample::<NUM_BITS>::default();
+/// let mut row1 = Sample::new(NUM_BITS, ZERO_SCORE);
 /// assert_eq!( row1.get_bit( 42 ), false ); // should be 0
 /// row1.set_bit( 42, true );
 /// assert!( row1.get_bit( 42 ) );
 /// row1.set_bit( 42, false );
 /// assert!( ! row1.get_bit( 42 ) );
 ///
-/// let row_ff = Sample::<NUM_BITS>::new_ones( the_answer );
+/// let row_ff = Sample::new_ones( NUM_BITS, the_answer );
 /// assert_eq!( row_ff.score, the_answer );
 /// assert!( row_ff.get_bit(  0 ) ); // should be 1
 /// assert!( row_ff.get_bit(  7 ) ); // should be 1
@@ -76,81 +65,97 @@ use rand::prelude::*;
 /// assert!( row_ff.get_bit( 63 ) ); // should be 1
 /// ```
 ///
-impl<const NUM_BITS: usize> Sample<NUM_BITS> {
-    // calculate ceil( Num_bits / 8 ) without floating point cast...
-    pub const NUM_BYTES: usize = (NUM_BITS / 8) + if 0 == NUM_BITS % 8 { 0 } else { 1 };
+#[derive(Default, Clone, PartialEq)] // Debug implemented by hand, see below
+pub struct Sample {
+    // pub bytes:  [u8; NUM_BYTES],
+    width : usize,
+    pub bytes: Vec<u8>,   // initially empty
+    pub score: ScoreType, // we will probably change that ...
+} // end struct Sample
 
+use rand::prelude::*;
+
+impl Sample {
+    // calculate ceil( size_in_bits / 8 ) without floating point cast...
     #[inline]
-    pub fn size(&self) -> usize {
-        NUM_BITS
+    fn bits_to_bytes( size_in_bits : usize ) -> usize {
+        (size_in_bits / 8) + if 0 == (size_in_bits % 8) { 0 } else { 1 }
     }
 
     #[inline]
     pub fn size_in_bytes(&self) -> usize {
-        Self::NUM_BYTES
+        debug_assert_eq!( self.bytes.len(), Self::bits_to_bytes( self.width ) );
+        self.bytes.len()
     }
 
     #[inline]
-    fn assert_size_is_legal() {
-        assert!(3 < NUM_BITS);
-        assert!(0 < Self::NUM_BYTES); // zero is illegal
-        assert!(Self::NUM_BYTES <= 1024 * 1024); // this will probably change
-        debug_assert!(8 * Self::NUM_BYTES - NUM_BITS < 8);
+    pub fn size(&self) -> usize {
+        debug_assert_eq!( self.bytes.len(), Self::bits_to_bytes( self.width ) );
+        self.width
+    }
+
+
+    #[inline]
+    fn size_is_legal( size_in_bits : usize ) -> bool {
+        let size_in_bytes = Self::bits_to_bytes( size_in_bits );
+        (3 < size_in_bits) && ( size_in_bytes <= 1024 * 1024) // this is subject to change
     }
 
     #[inline]
     pub fn default() -> Self {
+        const DEFAULT_CAPACITY : usize = 8; // bytes = 64 bits
         Self {
+            width : 0,
             // bytes : [0;  Self::NUM_BYTES ],
-            bytes: vec![0x0; Self::NUM_BYTES], // start with an empty vector of bytes
+            bytes: Vec::with_capacity(DEFAULT_CAPACITY ),
             score: ZERO_SCORE,
         }
     }
 
     #[inline]
-    pub fn new(starting_score: ScoreType) -> Self {
-        Self::assert_size_is_legal();
+    pub fn new( size_in_bits : usize, starting_score: ScoreType) -> Self {
+        debug_assert!( Self::size_is_legal( size_in_bits) );
         Self {
+            width : size_in_bits,
             score: starting_score,
-            bytes: vec![0x0; Self::NUM_BYTES], // start with an empty vector of bytes
+            bytes: vec![0x0; Self::bits_to_bytes( size_in_bits )], // start with an empty vector of bytes
         }
     }
 
     #[inline]
-    pub fn new_ones(starting_score: ScoreType) -> Self {
-        Self::assert_size_is_legal();
+    pub fn new_ones( size_in_bits : usize, starting_score: ScoreType) -> Self {
+        debug_assert!( Self::size_is_legal( size_in_bits) );
         Self {
+            width : size_in_bits,
             score: starting_score,
-            bytes: vec![0xFF; Self::NUM_BYTES], // start with an empty vector of bytes
+            bytes: vec![0xFF; Self::bits_to_bytes( size_in_bits )], // start with an empty vector of bytes
         }
     }
 
     #[inline]
     pub fn randomize(&mut self) {
-        // first a random score
-        self.score = rand::thread_rng().gen_range(0..1_001); // TODO -- add constant
-                                                             // then some random bytes
+        // First a random score
+        const MAX_RANDOM_SCORE : ScoreType = 1000; // seems to work out OK....
+        self.score = rand::thread_rng().gen_range(0..=MAX_RANDOM_SCORE);
+        // Then some random bytes
+        // Note -- length of bytes vector is not changed!
         rand::thread_rng().fill_bytes(&mut self.bytes);
     }
 
     #[inline]
-    pub fn random() -> Self {
-        let mut result = Self::default();
+    pub fn random( size_in_bits : usize ) -> Self {
+        debug_assert!( Self::size_is_legal( size_in_bits) );
+        let mut result = Self::new( size_in_bits, ZERO_SCORE );
         result.randomize();
         result
     }
 
     #[inline]
-    pub fn byte_index(bit_index: usize) -> usize {
-        let byte_index = bit_index / 8;
-        debug_assert!(byte_index < Self::NUM_BYTES);
-        byte_index
-    }
+    pub fn byte_index(bit_index: usize) -> usize { bit_index / 8 }
 
     #[inline]
     pub fn get_bit(&self, bit_index: usize) -> bool {
         let byte_index = Self::byte_index(bit_index);
-
         let byte = self.bytes[byte_index];
         let mask_index = bit_index % 8;
         let bit_mask = 128 >> mask_index;
@@ -160,19 +165,18 @@ impl<const NUM_BITS: usize> Sample<NUM_BITS> {
     #[inline]
     pub fn set_bit(&mut self, bit_index: usize, bit_value: bool) {
         let byte_index = Self::byte_index(bit_index);
-
         let mask_index = bit_index % 8;
         let bit_mask = 128 >> mask_index;
-
         if bit_value {
             self.bytes[byte_index] |= bit_mask;
         } else {
             self.bytes[byte_index] &= !bit_mask;
         };
     }
+
 } // end impl Sample
 
-impl<const NUM_BITS: usize> std::fmt::Debug for Sample<NUM_BITS> {
+impl std::fmt::Debug for Sample {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[Sample: score {}, bytes{:x?}]", self.score, self.bytes)
@@ -200,40 +204,32 @@ mod tests {
 
     #[test]
     fn test_constructors() {
-        Sample::<4>::assert_size_is_legal();
-        Sample::<8>::assert_size_is_legal();
-        Sample::<42>::assert_size_is_legal();
-        Sample::<64>::assert_size_is_legal();
-        Sample::<100>::assert_size_is_legal();
-        Sample::<800>::assert_size_is_legal();
-        Sample::<64_000>::assert_size_is_legal();
-        Sample::<{ 1024 * 1024 }>::assert_size_is_legal(); // suddenly rustc WANTS brackes?!?
 
         const NUM_TEST_BITS: usize = 64;
-        let r = Sample::<NUM_TEST_BITS>::default();
+        let r = Sample::new( NUM_TEST_BITS, ZERO_SCORE );
         assert_eq!(r.bytes[0], 0); // should be 0
         assert_eq!(r.bytes[7], 0); // should be 0
         assert_eq!(r.score, ZERO_SCORE); // should be 0
         assert_eq!(r.size(), NUM_TEST_BITS);
 
-        let s = Sample::<NUM_TEST_BITS>::new(42);
+        let s = Sample::new(NUM_TEST_BITS, 42);
         assert_eq!(s.score, 42 as ScoreType); // should NOT be 0
         assert!(r.score != s.score);
         // assert!(r.bytes == s.bytes);
         assert!(r.bytes.eq(&s.bytes));
 
-        let q = Sample::<NUM_TEST_BITS>::random();
+        let q = Sample::random( NUM_TEST_BITS );
         assert!(r.score != q.score); // with very high probability
         assert_ne!(q, r); // with very high probability
 
-        let t = Sample::<NUM_TEST_BITS>::new_ones(0);
+        let t = Sample::new_ones(NUM_TEST_BITS, ZERO_SCORE );
         assert_eq!(t.bytes[0], 0xFF); // should be 0
         assert_eq!(t.bytes[3], 0xff); // should be 0
         assert_eq!(t.bytes[7], 0xFF); // should be 0
 
         const MORE_TEST_BITS: usize = NUM_TEST_BITS + 4; // = 68
         const MORE_TEST_BYTES: usize = (MORE_TEST_BITS / 8) + 1; // = 9
-        let u = Sample::<MORE_TEST_BITS>::new_ones(0);
+        let u = Sample::new_ones(MORE_TEST_BITS, ZERO_SCORE );
         assert_eq!(MORE_TEST_BITS, u.size());
         assert_eq!(MORE_TEST_BYTES, u.size_in_bytes());
     } // end test_contructors
@@ -241,7 +237,7 @@ mod tests {
     #[test]
     fn test_methods() {
         const NUM_TEST_BITS: usize = 64;
-        let mut row1 = Sample::<NUM_TEST_BITS>::default();
+        let mut row1 = Sample::new( NUM_TEST_BITS, ZERO_SCORE );
         assert_eq!(row1.get_bit(62), false); // should be 0
         row1.set_bit(62, true);
         assert!(row1.get_bit(62));
@@ -256,25 +252,25 @@ mod tests {
 
         // Check that randomize() changes its argument
         const NUM_TEST_BITS: usize = 1000; // not always a power of two...
-        let starting_point = Sample::<NUM_TEST_BITS>::default();
+        let starting_point = Sample::new( NUM_TEST_BITS, ZERO_SCORE );
         let mut one_step = starting_point.clone();
         one_step.randomize();
         assert_ne!(starting_point, one_step);
 
         // Check that re-randomizing changes the sample
-        let mut two_steps = one_step.clone();
+        let mut two_steps = one_step.clone( );
         two_steps.randomize();
         assert_ne!(one_step, two_steps);
 
         // Check that calling the `random` constructor
         // gives a fresh sample.
-        let three_steps = Sample::<NUM_TEST_BITS>::random();
+        let three_steps = Sample::random( NUM_TEST_BITS );
         assert_ne!(three_steps, starting_point);
         assert_ne!(two_steps, three_steps);
 
         // Check that calling the `random` constructor
         // doesn't always return the same result.
-        let final_point = Sample::<NUM_TEST_BITS>::random();
+        let final_point = Sample::random( NUM_TEST_BITS );
         assert_ne!(three_steps, final_point);
     }
 } // end mod tests

@@ -9,14 +9,14 @@
 ///
 /// use mhd_mem::mhd_method::{MhdMemory, Sample, ScoreType };
 /// const NUM_BITS : usize = 356; // arbitrary, .... 44.5 bytes
-/// let mut test_mem = MhdMemory::<NUM_BITS>::default();
+/// let mut test_mem = MhdMemory::new( NUM_BITS);
 /// assert!( test_mem.is_empty() );
-///
-/// let row0 = Sample::<NUM_BITS>::new(   3 as ScoreType );
-/// let row1 = Sample::<NUM_BITS>::new(  33 as ScoreType );
-/// let row2 = Sample::<NUM_BITS>::new( 333 as ScoreType );
-///
 /// assert_eq!( test_mem.width(), NUM_BITS );
+///
+/// let row0 = Sample::new(NUM_BITS,   3 as ScoreType );
+/// let row1 = Sample::new(NUM_BITS,  33 as ScoreType );
+/// let row2 = Sample::new(NUM_BITS, 333 as ScoreType );
+///
 /// assert_eq!( row0.size(), NUM_BITS );
 ///
 /// test_mem.write_sample( &row2 );
@@ -39,38 +39,38 @@ use mhd_method::sample::*;
 // use ::mhd_method::weight_::*; // Not needed, according to compiler
 
 #[derive(Debug, Default, Clone)]
-pub struct MhdMemory<const NUM_BITS: usize> {
-    pub samples: Vec<Sample<NUM_BITS>>, // initially empty
-
+pub struct MhdMemory {
+    pub width : usize,
     pub total_score: ScoreType,
     pub max_score: ScoreType,
     pub min_score: ScoreType,
+    pub samples: Vec<Sample>, // initially empty
 } // end struct Sample
 
 use log::*;
 
-impl<const NUM_BITS: usize> MhdMemory<NUM_BITS> {
+impl MhdMemory {
     #[inline]
     pub fn default() -> Self {
         Self {
-            samples: vec![], // start with an empty vector of samples
+            width : 0,
             total_score: ZERO_SCORE,
             max_score: ZERO_SCORE,
             min_score: ZERO_SCORE,
+            samples: vec![], // start with an empty vector of samples
         }
     }
 
     #[inline]
-    pub fn new() -> Self {
+    pub fn new( width : usize ) -> Self {
         Self {
+            width,
             ..Default::default()
         }
     }
 
     #[inline]
-    pub fn width(&self) -> usize {
-        NUM_BITS
-    }
+    pub fn width(&self) -> usize { self.width }
 
     #[inline]
     pub fn num_samples(&self) -> usize {
@@ -94,13 +94,15 @@ impl<const NUM_BITS: usize> MhdMemory<NUM_BITS> {
 
     #[inline]
     pub fn clear(&mut self) {
+        let old_width = self.width;
         self.samples.clear();
-        *self = Self::default();
+        *self = Self::new( old_width );
     }
 
     #[inline]
-    pub fn write_sample(&mut self, new_sample: &Sample<NUM_BITS>) {
+    pub fn write_sample(&mut self, new_sample: &Sample ) {
         // Here the book-keeping...
+        assert_eq!( self.width, new_sample.size() );
         self.total_score += new_sample.score;
         if self.is_empty() {
             self.max_score = new_sample.score;
@@ -126,6 +128,8 @@ impl<const NUM_BITS: usize> MhdMemory<NUM_BITS> {
     /// the query, i.e. 1 / (mhd * mhd)
     /// **This is not a maximum function (yet).**
     pub fn masked_read(&self, mask: &[u8], query: &[u8]) -> ScoreType {
+        assert!( self.width <= 8 * mask.len() );
+        assert!( self.width <= 8 * query.len() );
         let (score_sum, weight_sum) = self
             .samples
             .iter()
@@ -135,7 +139,11 @@ impl<const NUM_BITS: usize> MhdMemory<NUM_BITS> {
                 let dist_plus_1 = (dist + 1) as f64; // adding one prevents division by zero later
                                                      // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
                 let weight = 1.0 / dist_plus_1; // TODO DECIDE! Squared or not!!!
-                (weight * s.score as f64, weight) // return score
+                let floating_avg = self.avg_score() as f64;
+                let delta_score = s.score as f64 - floating_avg;
+                let weighted_delta = delta_score * weight;
+                let weighted_score = floating_avg + weighted_delta;
+                (weighted_score, weight) // return score
             })
             .fold((0.0, 0.0), |(s0, w0), (s1, w1)| (s0 + s1, w0 + w1));
 
@@ -155,6 +163,8 @@ impl<const NUM_BITS: usize> MhdMemory<NUM_BITS> {
         query: &[u8],
         index: usize,
     ) -> (Option<ScoreType>, Option<ScoreType>) {
+        assert!( self.width <= 8 * mask.len() );
+        assert!( self.width <= 8 * query.len() );
         let mut hit_on_0 = false; // until proven true
         let mut hit_on_1 = false; // until proven true
         let (score_false, score_true, weight_sum) = self
@@ -206,7 +216,7 @@ impl<const NUM_BITS: usize> MhdMemory<NUM_BITS> {
 
     #[inline]
     pub fn write_random_sample(&mut self) {
-        self.write_sample(&Sample::<NUM_BITS>::random());
+        self.write_sample(&Sample::random( self.width ));
     } // end write_sample
 
     #[inline]
@@ -226,7 +236,7 @@ mod tests {
     #[test]
     fn test_one_random_write() {
         const NUM_BITS: usize = 256;
-        let mut new_test_mem = MhdMemory::<NUM_BITS>::new();
+        let mut new_test_mem = MhdMemory::new( NUM_BITS );
 
         assert!(new_test_mem.is_empty());
         assert_eq!(0, new_test_mem.num_samples());
@@ -252,7 +262,7 @@ mod tests {
 
         assert!(4 < NUM_ROWS);
 
-        let mut new_test_mem = MhdMemory::<NUM_BITS>::new();
+        let mut new_test_mem = MhdMemory::new( NUM_BITS );
 
         assert!(new_test_mem.is_empty());
         assert_eq!(new_test_mem.width(), NUM_BITS);
@@ -287,8 +297,8 @@ mod tests {
 
         // Now, test reading!!!
 
-        let zero_mask = &Sample::<NUM_BITS>::new(0);
-        let ones_mask = &Sample::<NUM_BITS>::new_ones(0);
+        let zero_mask = &Sample::new(NUM_BITS, ZERO_SCORE );
+        let ones_mask = &Sample::new_ones( NUM_BITS, ZERO_SCORE );
 
         let mut lucky_hits: usize = 0;
         for row in 0..NUM_ROWS {
@@ -345,7 +355,7 @@ mod tests {
 
         assert!(4 < NUM_ROWS);
 
-        let mut new_test_mem = MhdMemory::<NUM_BITS>::new();
+        let mut new_test_mem = MhdMemory::new( NUM_BITS );
 
         new_test_mem.write_n_random_samples(NUM_ROWS);
 
@@ -367,7 +377,7 @@ mod tests {
         let mut index = 0;
         let mut sums = ( ZERO_SCORE, ZERO_SCORE );
         for row in 0..NUM_ROWS {
-            let random_mask = &Sample::<NUM_BITS>::random( );
+            let random_mask = &Sample::random( NUM_BITS );
             index = (index +1) % NUM_BITS;
             let ( false_result, true_result) = new_test_mem.read_for_decision(
                 &random_mask.bytes, &new_test_mem.samples[row].bytes, index );

@@ -16,8 +16,10 @@
 //! use mhd_mem::mhd_method::*;
 //! assert_eq!( weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
 //! assert_eq!( distance(&[0xFF, 0xFF], &[1, 0xFF], &[0xFF, 1]), 7 + 7);
-//! assert_eq!( Sample::<200>::default().score, ZERO_SCORE ); // Sample width is 200 bits
-//! assert_eq!( Sample::<200>::new( 42 as ScoreType ).get_bit( 7 ), false );
+//! assert_eq!( Sample::default().score, ZERO_SCORE ); // Sample width is 200 bits
+//! assert_eq!( Sample::new( 120, 42 as ScoreType ).get_bit( 7 ), false );
+//! assert_eq!( 120, MhdMemory::new( 120 ).width );
+//! assert_eq!(   0, MhdMemory::new( 120 ).num_samples() );
 //!
 //! use mhd_mem::mhd_optimizer::*;
 //! use mhd_mem::implementations::*;

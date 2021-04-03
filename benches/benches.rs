@@ -196,9 +196,59 @@ fn bench_directory(c: &mut Criterion) {
     group.finish();
 }
 
+/********************************* MHD Memory Benchmarks *********************************/
+use mhd_mem::mhd_method::*;
+
+fn bench_mhd_memory( width : usize, height : usize ) {
+    let mut mem = MhdMemory::new( width );
+
+    mem.write_n_random_samples( height );
+
+    trace!(
+        "Benchmark Memory ({} width X {} rows) has scores min {} < avg {} < max {} < total {}",
+        width, height,
+        mem.min_score, mem.avg_score(), mem.max_score, mem.total_score, );
+
+    const NUM_READS : usize = 32; // more than sample size 10 but not TOO many
+
+    for _ in 0..NUM_READS {
+        let query = Sample::new( width, ZERO_SCORE );
+        let mask  = Sample::new( width, ZERO_SCORE );
+        let result = mem.masked_read( &mask.bytes, &query.bytes );
+        assert!( result > ZERO_SCORE );
+    }; // end for NUM_READS reads
+
+}// end bench_mhd_memory
+
+fn bench_mhd_memory_sizes(c: &mut Criterion) {
+
+        let mut group = c.benchmark_group("memory_sizes");
+    group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
+    // group.measurement_time( Duration::from_secs_f32( 61.0 ) );
+
+    for width in [8, 128, 1024, 2048 ].iter() {
+        for height in [8, 128, 1024, 2048].iter() {
+            let bench_parm = format!( "{}X{}", *width, *height );
+            group.bench_function(
+            BenchmarkId::new("MHD_Mem_Bench", bench_parm, ),
+            |b| {
+                    b.iter(|| bench_mhd_memory( *width, *height))
+                }
+            );
+        }; // end for loops
+    }; // end for widths
+
+    group.finish();
+} // end bench_mhd_memory_sizes
+
+
+
 // criterion_group!(randomBenches, );
-criterion_group!(benches, bench_sizes, bench_directory,);
+criterion_group!(benches,  bench_mhd_memory_sizes, bench_sizes, bench_directory, );
 criterion_main!(benches);
+
+
+
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************
 use criterion::{Criterion, Bencher, ParameterizedBenchmark, PlotConfiguration, AxisScale};
