@@ -13,15 +13,19 @@
 /// assert!( test_mem.is_empty() );
 /// assert_eq!( test_mem.width(), NUM_BITS );
 ///
-/// let row0 = Sample::new(NUM_BITS,   3 as ScoreType );
-/// let row1 = Sample::new(NUM_BITS,  33 as ScoreType );
-/// let row2 = Sample::new(NUM_BITS, 333 as ScoreType );
+/// let mut row0 = Sample::random(NUM_BITS );
+/// row0.score =  3 as ScoreType;
+/// let mut row1 = Sample::random(NUM_BITS );
+/// row1.score =  33 as ScoreType;
+/// let mut row2 = Sample::random(NUM_BITS );
+/// row2.score = 333 as ScoreType;
 ///
 /// assert_eq!( row0.size(), NUM_BITS );
 ///
 /// test_mem.write_sample( &row2 );
 /// test_mem.write_sample( &row1 );
 /// test_mem.write_sample( &row0 );
+/// test_mem.write_sample( &row2 ); // already there, so does nothing! Not added!
 ///
 /// assert!( ! test_mem.is_empty() );
 /// assert_eq!( 3, test_mem.num_samples() );
@@ -33,6 +37,7 @@
 /// let target_avg : ScoreType = target_total / (3 as ScoreType); // == 123 ?
 /// assert_eq!( test_mem.avg_score(), target_avg );
 /// ```
+use rand::Rng;
 use mhd_method::distance_::*;
 use mhd_method::sample::*;
 // use ::mhd_method::util::*;    // Not needed, according to compiler
@@ -40,7 +45,7 @@ use mhd_method::sample::*;
 
 #[derive(Debug, Default, Clone)]
 pub struct MhdMemory {
-    pub width : usize,
+    pub width: usize,
     pub total_score: ScoreType,
     pub max_score: ScoreType,
     pub min_score: ScoreType,
@@ -53,7 +58,7 @@ impl MhdMemory {
     #[inline]
     pub fn default() -> Self {
         Self {
-            width : 0,
+            width: 0,
             total_score: ZERO_SCORE,
             max_score: ZERO_SCORE,
             min_score: ZERO_SCORE,
@@ -62,7 +67,7 @@ impl MhdMemory {
     }
 
     #[inline]
-    pub fn new( width : usize ) -> Self {
+    pub fn new(width: usize) -> Self {
         Self {
             width,
             ..Default::default()
@@ -70,7 +75,9 @@ impl MhdMemory {
     }
 
     #[inline]
-    pub fn width(&self) -> usize { self.width }
+    pub fn width(&self) -> usize {
+        self.width
+    }
 
     #[inline]
     pub fn num_samples(&self) -> usize {
@@ -96,31 +103,51 @@ impl MhdMemory {
     pub fn clear(&mut self) {
         let old_width = self.width;
         self.samples.clear();
-        *self = Self::new( old_width );
+        *self = Self::new(old_width);
     }
 
+    // search for a sample with a patter -- return true iff the query is already stored
     #[inline]
-    pub fn write_sample(&mut self, new_sample: &Sample ) {
-        // Here the book-keeping...
-        assert_eq!( self.width, new_sample.size() );
-        self.total_score += new_sample.score;
+    pub fn search(&self, query: &Sample) -> Option<&Sample> {
+        self.samples
+            .iter()
+            .find(|s_in_mem| s_in_mem.bytes == query.bytes)
+    } // end sample_present
+
+    #[inline]
+    pub fn write_sample(&mut self, new_sample: &Sample) {
+        assert_eq!(self.width, new_sample.size());
+
+        // First take care of the scores
         if self.is_empty() {
+            self.total_score += new_sample.score;
             self.max_score = new_sample.score;
             self.min_score = new_sample.score;
+            self.samples.push(new_sample.clone());
         } else {
-            // if not empty
-            // I wanted to use ::std::cmp::max and min here, but...
-            // the trait `Ord` is not implemented for `f32`   ?!?
-            if self.max_score < new_sample.score {
-                self.max_score = new_sample.score
-            };
-            if new_sample.score < self.min_score {
-                self.min_score = new_sample.score
-            };
-        }
+            match self.search(&new_sample) {
+                Some(elder_sample) => {
+                    // Check that the scores match TOO, which they must...
+                    assert_eq!(elder_sample.score, new_sample.score);
+                    // But otherwise do nothing!
+                }
+                None => {
+                    // if not empty, and query not found in memory:
+                    // I wanted to use ::std::cmp::max and min here, but...
+                    // the trait `Ord` is not implemented for `f32`
+                    if self.max_score < new_sample.score {
+                        self.max_score = new_sample.score
+                    };
+                    if new_sample.score < self.min_score {
+                        self.min_score = new_sample.score
+                    };
+                    self.total_score += new_sample.score;
+                    self.samples.push(new_sample.clone());
+                }
+            }
+        };
 
-        // Here the real work...
-        self.samples.push(new_sample.clone());
+        // Then take care of the bytes and actually adding the new sample to the memory
     } // end write_sample
 
     /// Calculate the weighted sum of all the samples in the memory,
@@ -128,8 +155,8 @@ impl MhdMemory {
     /// the query, i.e. 1 / (mhd * mhd)
     /// **This is not a maximum function (yet).**
     pub fn masked_read(&self, mask: &[u8], query: &[u8]) -> ScoreType {
-        assert!( self.width <= 8 * mask.len() );
-        assert!( self.width <= 8 * query.len() );
+        assert!(self.width <= 8 * mask.len());
+        assert!(self.width <= 8 * query.len());
         let (score_sum, weight_sum) = self
             .samples
             .iter()
@@ -157,17 +184,14 @@ impl MhdMemory {
         result as ScoreType
     } // end maked_read
 
-    pub fn read_for_decision(
-        &self,
-        mask: &[u8],
-        query: &[u8],
-        index: usize,
-    ) -> (Option<ScoreType>, Option<ScoreType>) {
-        assert!( self.width <= 8 * mask.len() );
-        assert!( self.width <= 8 * query.len() );
+    pub fn read_and_decide(&self, mask: &[u8], query: &[u8], index: usize) -> bool {
+        assert!(self.width <= 8 * mask.len());
+        assert!(self.width <= 8 * query.len());
+        // let threshold = std::cmp::max( 8,std::cmp::min( 4, mask.iter().count_ones() ) );
+        const THRESHOLD: u64 = 8; // TODO : Optimize threshold!
         let mut hit_on_0 = false; // until proven true
         let mut hit_on_1 = false; // until proven true
-        let (score_false, score_true, weight_sum) = self
+        let (score_false, score_true, weight_false, weight_true) = self
             .samples
             .iter()
             .map(|s| {
@@ -177,46 +201,80 @@ impl MhdMemory {
                                                      // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
                 let weight = 1.0 / dist_plus_1; // TODO DECIDE! Squared or not!!!
                 let s_at_index = s.get_bit(index);
-                if s_at_index {
+                if THRESHOLD < dist {
+                    (0.0f64, 0.0f64, 0.0f64, 0.0f64)
+                } else if s_at_index {
                     hit_on_1 = true;
-                    (0.0f64, weight * s.score as f64, weight) // return score
+                    (0.0f64, weight * s.score as f64, 0.0f64, weight) // return score
                 } else {
-                    // if NOT s_at_index
+                    // if dist <= threshold AND NOT s_at_index
                     hit_on_0 = true;
-                    (weight * s.score as f64, 0.0f64, weight) // return score
+                    (weight * s.score as f64, 0.0f64, weight, 0.0f64) // return score
                 }
             })
-            .fold((0.0, 0.0, 0.0), |(s0f, s0t, w0), (s1f, s1t, w1)| {
-                (s0f + s1f, s0t + s1t, w0 + w1)
-            });
+            .fold(
+                (0.0, 0.0, 0.0, 0.0),
+                |(s0f, s0t, w0f, w0t), (s1f, s1t, w1f, w1t)| {
+                    (s0f + s1f, s0t + s1t, w0f + w1f, w0t + w1t)
+                },
+            );
 
-        let false_score = if hit_on_0 {
-            Some((score_false / weight_sum) as ScoreType)
+        // We now know if there were any hits on 0, or on 1, and if so, with what scores
+        let result = if !hit_on_0 {
+            if !hit_on_1 {
+                // if NOT hit_on_0 AND ALSO NOT hit_on_1... flip a coin!
+                rand::thread_rng().gen::<bool>()
+            } else {
+                // if NOT hit_on_0 BUT hit_on_1, return...
+                false
+            }
+        } else if !hit_on_1 {
+            // if NOT hit_on_1 BUT hit_on_0, return...
+            true
         } else {
-            None
+            // if hit_on_1 AND hit_on_0
+            // Exploitation: true_score / best_score - false_score / best_score = true- false /best
+            let denominator = self.max_score as f64;
+            let true_exploitation = (score_true / weight_true) / denominator;
+            let false_exploitation = (score_false / weight_false) / denominator;
+            let total_weight = weight_true + weight_false;
+            assert!(0.0 < total_weight);
+            let true_exploration = weight_true / total_weight;
+            let false_exploration = weight_false / total_weight;
+            let true_sum = true_exploitation + true_exploration;
+            assert!(0.0 < true_sum);
+            assert!(true_sum <= 2.0);
+            let false_sum = false_exploitation + false_exploration;
+            assert!(0.0 < false_sum);
+            assert!(false_sum <= 2.0);
+            if false_sum < true_sum {
+                true
+            } else if true_sum < false_sum {
+                false
+            } else {
+                // true_sum == false_sum  --- flip a coin!
+                rand::thread_rng().gen()
+            }
         };
-        let true_score = if hit_on_1 {
-            Some((score_true / weight_sum) as ScoreType)
-        } else {
-            None
-        };
-        let result = (false_score, true_score);
+
         trace!(
-            "hits = ({},{}), scores = ({}, {}), weight sum =  {}, result = {:?}",
+            "hits = ({},{}), scores = ({}, {}), weights =  ({}, {}), result = {}",
             hit_on_0,
             hit_on_1,
             score_false,
             score_true,
-            weight_sum,
+            weight_false,
+            weight_true,
             result
         );
+
         // Return...
         result
     } // end maked_read
 
     #[inline]
     pub fn write_random_sample(&mut self) {
-        self.write_sample(&Sample::random( self.width ));
+        self.write_sample(&Sample::random(self.width));
     } // end write_sample
 
     #[inline]
@@ -232,26 +290,27 @@ impl MhdMemory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // use rand::prelude::*;
 
     #[test]
     fn test_one_random_write() {
         const NUM_BITS: usize = 256;
-        let mut new_test_mem = MhdMemory::new( NUM_BITS );
+        let mut memory = MhdMemory::new(NUM_BITS);
 
-        assert!(new_test_mem.is_empty());
-        assert_eq!(0, new_test_mem.num_samples());
-        assert_eq!(new_test_mem.width(), NUM_BITS);
-        assert_eq!(ZERO_SCORE, new_test_mem.avg_score());
+        assert!(memory.is_empty());
+        assert_eq!(0, memory.num_samples());
+        assert_eq!(memory.width(), NUM_BITS);
+        assert_eq!(ZERO_SCORE, memory.avg_score());
 
-        new_test_mem.write_random_sample();
+        memory.write_random_sample();
 
-        assert!(!new_test_mem.is_empty());
-        assert_eq!(1, new_test_mem.num_samples());
-        assert_ne!(ZERO_SCORE, new_test_mem.samples[0].score);
-        assert_eq!(new_test_mem.samples[0].size(), NUM_BITS);
+        assert!(!memory.is_empty());
+        assert_eq!(1, memory.num_samples());
+        assert_ne!(ZERO_SCORE, memory.samples[0].score);
+        assert_eq!(memory.samples[0].size(), NUM_BITS);
 
-        assert_eq!(new_test_mem.min_score, new_test_mem.max_score);
-        assert_eq!(new_test_mem.min_score, new_test_mem.total_score);
+        assert_eq!(memory.min_score, memory.max_score);
+        assert_eq!(memory.min_score, memory.total_score);
     }
 
     #[test]
@@ -262,51 +321,48 @@ mod tests {
 
         assert!(4 < NUM_ROWS);
 
-        let mut new_test_mem = MhdMemory::new( NUM_BITS );
+        let mut memory = MhdMemory::new(NUM_BITS);
 
-        assert!(new_test_mem.is_empty());
-        assert_eq!(new_test_mem.width(), NUM_BITS);
+        assert!(memory.is_empty());
+        assert_eq!(memory.width(), NUM_BITS);
 
-        new_test_mem.write_n_random_samples(NUM_ROWS);
+        memory.write_n_random_samples(NUM_ROWS);
 
-        assert!(!new_test_mem.is_empty());
-        assert_eq!(NUM_ROWS, new_test_mem.num_samples());
-        assert_eq!(new_test_mem.samples[0].size(), NUM_BITS);
+        assert!(!memory.is_empty());
+        assert_eq!(NUM_ROWS, memory.num_samples());
+        assert_eq!(memory.samples[0].size(), NUM_BITS);
 
-        assert_ne!(new_test_mem.samples[0], new_test_mem.samples[1]);
-        assert_ne!(new_test_mem.samples[1], new_test_mem.samples[2]);
-        assert_ne!(new_test_mem.samples[2], new_test_mem.samples[3]);
+        assert_ne!(memory.samples[0], memory.samples[1]);
+        assert_ne!(memory.samples[1], memory.samples[2]);
+        assert_ne!(memory.samples[2], memory.samples[3]);
         // ... and so on ... don't test all, too likely to find a false positive (?)
-        assert_ne!(
-            new_test_mem.samples[NUM_ROWS - 1],
-            new_test_mem.samples[NUM_ROWS - 2]
-        );
+        assert_ne!(memory.samples[NUM_ROWS - 1], memory.samples[NUM_ROWS - 2]);
 
-        assert!(new_test_mem.min_score <= new_test_mem.avg_score());
-        assert!(new_test_mem.avg_score() <= new_test_mem.max_score);
-        assert_ne!(new_test_mem.min_score, new_test_mem.max_score);
+        assert!(memory.min_score <= memory.avg_score());
+        assert!(memory.avg_score() <= memory.max_score);
+        assert_ne!(memory.min_score, memory.max_score);
 
-        let avg_score = new_test_mem.avg_score();
+        let avg_score = memory.avg_score();
         trace!(
             "Memory has scores min {} < avg {} < max {} < total {}",
-            new_test_mem.min_score,
-            new_test_mem.avg_score(),
-            new_test_mem.max_score,
-            new_test_mem.total_score,
+            memory.min_score,
+            memory.avg_score(),
+            memory.max_score,
+            memory.total_score,
         );
 
         // Now, test reading!!!
 
-        let zero_mask = &Sample::new(NUM_BITS, ZERO_SCORE );
-        let ones_mask = &Sample::new_ones( NUM_BITS, ZERO_SCORE );
+        let zero_mask = &Sample::new(NUM_BITS, ZERO_SCORE);
+        let ones_mask = &Sample::new_ones(NUM_BITS, ZERO_SCORE);
 
         let mut lucky_hits: usize = 0;
         for row in 0..NUM_ROWS {
             let zero_mask_score: ScoreType =
-                new_test_mem.masked_read(&zero_mask.bytes, &new_test_mem.samples[row].bytes);
+                memory.masked_read(&zero_mask.bytes, &memory.samples[row].bytes);
             let ones_mask_score: ScoreType =
-                new_test_mem.masked_read(&ones_mask.bytes, &new_test_mem.samples[row].bytes);
-            let score_row = new_test_mem.samples[row].score;
+                memory.masked_read(&ones_mask.bytes, &memory.samples[row].bytes);
+            let score_row = memory.samples[row].score;
             // Zero mask means everything is masked out, so distance is always zero, so we read the avg!
             // Ones mask means everyting is maked in, so distance is often greater than zero,
             // so we expect... a score a little closer to the average.
@@ -346,59 +402,87 @@ mod tests {
         assert!(lucky_hits <= LOG_NUM_ROWS); // capricious and arbitrary, but gotta be sumthin...
     } // end test random writes
 
+    #[test]
+    fn test_identical_writes() {
+        const NUM_BITS: usize = 64;
+        const NUM_ROWS: usize = 64; // Must be at least four!!!
+
+        assert!(8 <= NUM_ROWS);
+
+        let mut memory = MhdMemory::new(NUM_BITS);
+
+        memory.write_n_random_samples(NUM_ROWS);
+
+        assert!(!memory.is_empty());
+        assert_eq!(NUM_ROWS, memory.num_samples());
+
+        let redundant_a = memory.samples[4].clone();
+        let redundant_b = memory.samples[6].clone();
+
+        memory.write_sample(&redundant_a);
+        assert_eq!(NUM_ROWS, memory.num_samples());
+
+        memory.write_sample(&redundant_b);
+        assert_eq!(NUM_ROWS, memory.num_samples());
+
+        memory.write_n_random_samples(NUM_ROWS);
+        assert_eq!(2 * NUM_ROWS, memory.num_samples());
+    }
 
     #[test]
     fn test_read_for_decision() {
-        const NUM_BITS: usize = 64;
-        const NUM_ROWS: usize = 64; // Must be at least four!!!
-        const LOG_NUM_ROWS: usize = 6;
+        const NUM_BITS: usize = 16;
+        const NUM_ROWS: usize = 32; // Must be at least four!!!
 
         assert!(4 < NUM_ROWS);
 
-        let mut new_test_mem = MhdMemory::new( NUM_BITS );
+        let mut memory = MhdMemory::new(NUM_BITS);
 
-        new_test_mem.write_n_random_samples(NUM_ROWS);
+        memory.write_n_random_samples(NUM_ROWS);
 
-        assert!(new_test_mem.min_score <= new_test_mem.avg_score());
-        assert!(new_test_mem.avg_score() <= new_test_mem.max_score);
-        assert_ne!(new_test_mem.min_score, new_test_mem.max_score);
+        assert!(memory.min_score <= memory.avg_score());
+        assert!(memory.avg_score() <= memory.max_score);
+        assert_ne!(memory.min_score, memory.max_score);
 
         trace!(
             "Memory has scores min {} < avg {} < max {} < total {}",
-            new_test_mem.min_score,
-            new_test_mem.avg_score(),
-            new_test_mem.max_score,
-            new_test_mem.total_score,
+            memory.min_score,
+            memory.avg_score(),
+            memory.max_score,
+            memory.total_score,
         );
 
         // Now, test reading!!!
-        let mut false_misses = 0;
-        let mut true_misses = 0;
-        let mut index = 0;
-        let mut sums = ( ZERO_SCORE, ZERO_SCORE );
+        let mut true_decisions = 0;
+        let mut false_decisions = 0;
+        let mut index: usize = 0;
         for row in 0..NUM_ROWS {
-            let random_mask = &Sample::random( NUM_BITS );
-            index = (index +1) % NUM_BITS;
-            let ( false_result, true_result) = new_test_mem.read_for_decision(
-                &random_mask.bytes, &new_test_mem.samples[row].bytes, index );
-            match false_result {
-                None => false_misses += 1,
-                Some( score ) => sums = ( sums.0 + score, sums.1 ),
-            };
-            match true_result {
-                None => true_misses += 1,
-                Some( score ) => sums = ( sums.0, sums.1 + score ),
+            let random_mask = &Sample::random(NUM_BITS);
+            index = (index + 1) % NUM_BITS;
+            let decision =
+                memory.read_and_decide(&random_mask.bytes, &memory.samples[row].bytes, index);
+            if decision {
+                true_decisions += 1
+            } else {
+                false_decisions += 1
             };
             trace!(
-                "Row {} has decision result ( {:?}, {:?} )",
+                "Row {} has decision result {} - counts = (f {}, t {})",
                 row,
-                false_result, true_result
+                decision,
+                false_decisions,
+                true_decisions
             );
         } // end for all rows
-        trace!( "At end of read_for_decision test, num misses on false = {}, on true = {}, sums = {:?}",
-            false_misses, true_misses, sums );
-        assert!(false_misses <= LOG_NUM_ROWS); // capricious and arbitrary, but gotta be sumthin...
-        assert!(true_misses <= LOG_NUM_ROWS); // capricious and arbitrary, but gotta be sumthin...
+        trace!(
+            "At end of read_for_decision test, falses = {}, trues = {}",
+            false_decisions,
+            true_decisions
+        );
+        // remainder is capricious and arbitrary, but we gotta do sumthin...
+        assert!(0 < true_decisions);
+        assert!(0 < false_decisions);
+        assert!(true_decisions < NUM_ROWS);
+        assert!(false_decisions < NUM_ROWS);
     } // end test read_for_decsions
-
 } // end mod tests

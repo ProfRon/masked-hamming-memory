@@ -63,6 +63,11 @@ pub trait Solution: Sized + Clone + Ord + Debug {
     /// Store the "upper" bound (which is an upper bound iff this is a maximization problem).
     fn put_best_score(&mut self, best: ScoreType);
 
+    /// This method is needed for calling the Masked Hamming Distnace functions e.g. `distance`.
+    fn mask(&self) -> &[u8];
+    /// This method is also needed for calling the Masked Hamming Distnace functions e.g. `distance`.
+    fn query(&self) -> &[u8];
+
     /// Return whether this decision has been made; if not, return None,
     /// otherwise, return the decision (true of false)
     fn get_decision(&self, decision_number: usize) -> Option<bool>; // Some(bool) or None
@@ -166,10 +171,12 @@ impl Solution for MinimalSolution {
     // type ScoreType = ScoreType; // mhd_method::ScoreType;
 
     // Take default .. or use this shorter version
+    #[inline]
     fn name(&self) -> &'static str {
         "MinimalSolution"
     }
 
+    #[inline]
     fn short_description(&self) -> String {
         format!(
             "{}: score {}, best score {}",
@@ -179,6 +186,7 @@ impl Solution for MinimalSolution {
         )
     }
 
+    #[inline]
     fn new(size: usize) -> Self {
         let num_bytes = (size as f32 / 8.0).ceil() as usize;
         Self {
@@ -190,6 +198,7 @@ impl Solution for MinimalSolution {
         }
     }
 
+    #[inline]
     fn randomize(&mut self) {
         const TOP_SCORE: ScoreType = 1000;
         let mut generator = thread_rng();
@@ -200,26 +209,42 @@ impl Solution for MinimalSolution {
     }
 
     // Getters and Setters
+    #[inline]
     fn size(&self) -> usize {
         self.size
     } // times 8 bits per byte
 
+    #[inline]
     fn get_score(&self) -> ScoreType {
         self.score
     }
 
+    #[inline]
     fn put_score(&mut self, score: ScoreType) {
         self.score = score;
     }
 
+    #[inline]
     fn get_best_score(&self) -> ScoreType {
         self.best_score
     }
 
+    #[inline]
     fn put_best_score(&mut self, best: ScoreType) {
         self.best_score = best;
     }
 
+    #[inline]
+    fn mask(&self) -> &[u8] {
+        &self.mask
+    }
+
+    #[inline]
+    fn query(&self) -> &[u8] {
+        &self.decisions
+    }
+
+    #[inline]
     fn get_decision(&self, decision_number: usize) -> Option<bool> {
         if !get_bit(&self.mask, decision_number) {
             None
@@ -229,6 +254,7 @@ impl Solution for MinimalSolution {
         }
     }
 
+    #[inline]
     fn make_decision(&mut self, decision_number: usize, decision: bool) {
         put_bit(&mut self.mask, decision_number, true);
         put_bit(&mut self.decisions, decision_number, decision);

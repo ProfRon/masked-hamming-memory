@@ -1,3 +1,4 @@
+use std::cmp::max;
 extern crate structopt;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -26,8 +27,8 @@ struct Opt {
     #[structopt(short, long, default_value = "1.0")]
     time: f32,
 
-    /// Algorithms (solvers) : 1 = depth first, 2 = best first, 4 = MCTS, 7 = 0x111 = all three (etc.).
-    #[structopt(short, long, default_value = "7")]
+    /// Algorithms (solvers) : 1 = depth first, 2 = best first, 4 = MCTS, 8 = MHD, 14 = 0x1111 = all four (etc.).
+    #[structopt(short, long, default_value = "15")]
     algorithms: u8,
 
     /// Number of problems to solve
@@ -47,7 +48,7 @@ struct Opt {
     ///
     /// Known file formats:
     /// csv (Pisinger format).
-    /// txt (rust crate format)
+    /// dat (rust crate format)
     #[structopt(name = "FILE", parse(from_os_str))]
     files: Vec<PathBuf>,
 } // end struct Opt
@@ -55,12 +56,14 @@ struct Opt {
 const DEPTH_FIRST_BIT: u8 = 1;
 const BEST_FIRST_BIT: u8 = 2;
 const MCTS_BIT: u8 = 4;
+const MHD_BIT: u8 = 8;
 
 use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
 use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
-use mhd_mem::implementations::{MonteCarloTreeSolver, Problem01Knapsack, ZeroOneKnapsackSolution};
+use mhd_mem::implementations::{MhdMonteCarloSolver, MonteCarloTreeSolver};
+use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
 use mhd_mem::mhd_method::sample::ScoreType; // used implicitly (only)
 use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
 
@@ -103,48 +106,69 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
         knapsack.basis.capacity =
             (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as ScoreType;
     }; // else, leave capacity alone remain what the random constructor figured out.
-    let mut dfs_score: ScoreType = 1;
-    let mut bfs_score: ScoreType = 1;
-    let mut mcts_score: ScoreType = 1;
-    let mut monte_score: ScoreType = 1;
+    let mut dfs_score: ScoreType = ZERO_SCORE;
+    let mut bfs_score: ScoreType = ZERO_SCORE;
+    let mut mcts_score: ScoreType = ZERO_SCORE;
+    let mut monte_score: ScoreType = ZERO_SCORE;
+    let mut mhd_score: ScoreType = ZERO_SCORE;
+
+    println!(" "); // blank line seperator -> output
     if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         dfs_score =
             run_one_problem_one_solver(&opt, &knapsack, &mut DepthFirstSolver::new(opt.size));
+        assert!(ZERO_SCORE < dfs_score); // so dfs_score not unused
     }; // endif depth first
+
     if 0 != (opt.algorithms & BEST_FIRST_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         bfs_score =
             run_one_problem_one_solver(&opt, &knapsack, &mut BestFirstSolver::new(opt.size));
+        assert!(ZERO_SCORE < bfs_score); // so dfs_score not unused
     }; // end if best first
+
     if 0 != (opt.algorithms & MCTS_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         let mut solver = MonteCarloTreeSolver::builder(knapsack);
         mcts_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        assert!(ZERO_SCORE < mcts_score); // out of habit
 
         // Do it again, but full monte
         solver.clear();
         solver.full_monte = true;
         print!("FullMonte{}: ", prob_num + 1);
         monte_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        assert!(ZERO_SCORE < monte_score); // out of habit
     }; // end if best first
 
-    if 6 == (opt.algorithms & (BEST_FIRST_BIT | MCTS_BIT)) {
-        assert_ne!(0, dfs_score, "DFS score should not be zero");
-        let other_ratio = (bfs_score as f32) / (dfs_score as f32);
-        assert_ne!(0, dfs_score, "BFS score should not be zero");
-        let test_ratio: f32 = (mcts_score as f32) / (dfs_score as f32);
-        let monte_ratio: f32 = (monte_score as f32) / (mcts_score as f32);
+    if 0 != (opt.algorithms & MHD_BIT) {
+        print!("Knapsack {}: ", prob_num + 1);
+        let mut solver = MhdMonteCarloSolver::builder(knapsack);
+        mhd_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        assert!(ZERO_SCORE < mhd_score); // out of habit
+    }; // end if best first
+
+    let best_score = max(
+        max(max(max(dfs_score, bfs_score), mcts_score), monte_score),
+        mhd_score,
+    );
+    println!("best score was {} (mhd score was {})", best_score, mhd_score);
+
+    if 12 == (opt.algorithms & (MHD_BIT | MCTS_BIT)) {
+        assert_ne!(0, mcts_score, "MCTS score should not be zero");
+        let test_ratio: f32 = (mhd_score as f32) / (mcts_score as f32);
+        assert_ne!(0, monte_score, "MONTE score should not be zero");
+        let monte_ratio: f32 = (mhd_score as f32) / (monte_score as f32);
         *ratio *= test_ratio;
         println!(
-            "test bfs ratio = {}, mcts_ratio = {}, overall mcts ratio = {} (monte = {})",
-            other_ratio, test_ratio, ratio, monte_ratio
+            "mhd/mcts ratio = {}, mhd/monte = {}, overall mhd/mcts ratio = {}",
+            test_ratio, monte_ratio, ratio
         );
     }; // end if 3
 } // end run_one_problem
 
 fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) -> usize {
-    println!("Processing Filename: {:?}", file_name);
+    println!("\nProcessing Filename: {:?}", file_name);
     let mut counter: usize = 0;
     let file = std::fs::File::open(file_name).unwrap();
     let mut input = io::BufReader::new(file);
@@ -202,7 +226,9 @@ use std::fs::File;
 use std::io;
 // use mhd_mem::mhd_method::ScoreType; -- already imported above
 use mhd_mem::implementations::{parse_dot_csv_stream, parse_dot_dat_stream};
+use mhd_mem::mhd_method::ZERO_SCORE;
 
+/********************************* MAIN *****************************/
 fn main() {
     let mut opt = Opt::from_args();
     println!("{:?}\n", opt);
@@ -211,8 +237,8 @@ fn main() {
     assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
     assert!(opt.verbose < 4, "Too verbose: Maximum verbosity is vvv");
     assert!(
-        opt.algorithms < 8,
-        "Illegal algorith (code 8 or more not allowed)"
+        opt.algorithms < 16,
+        "Illegal algorithm (code 16 or more not allowed)"
     );
 
     if 0 < opt.verbose {

@@ -1,6 +1,7 @@
+use rand::prelude::*;
 use std::fmt::Debug;
 
-use mhd_method::ScoreType; // Not used: NUM_BYTES
+use mhd_method::{Sample, ScoreType}; // Not used: NUM_BYTES
 use mhd_optimizer::Solution;
 // use mhd_optimizer::Solver;
 
@@ -155,4 +156,38 @@ pub trait Problem: Sized + Clone + Debug {
 
         result
     } // end children_of_solution
+
+    fn random_completion(&self, solution: &Self::Sol, index: usize, decision: bool) -> Self::Sol {
+        let mut generator = thread_rng();
+        let mut result = solution.clone();
+        let mut decision_num = index;
+        let mut next_decision = decision;
+        loop {
+            debug_assert!(!self.solution_is_complete(&result));
+            result.make_decision(decision_num, next_decision);
+            self.apply_rules(&mut result);
+            debug_assert!(self.rules_audit_passed(&result));
+            if self.solution_is_complete(&result) {
+                // We're done! Return!
+                return result;
+            } else {
+                // if result not yet complete
+                decision_num = self
+                    .first_open_decision(&result)
+                    .expect("Should be an open decision");
+                next_decision = generator.gen();
+            };
+        } // end loop
+    } // end random_completion
+
+    #[inline]
+    fn sample_from_solution(&self, solution: &Self::Sol) -> Sample {
+        debug_assert!(self.solution_is_complete(solution));
+        let result = Sample {
+            width: self.problem_size(),
+            score: self.solution_score(solution),
+            bytes: solution.query().to_vec(),
+        };
+        result
+    } // end sample_from_solution
 } // end trait Problem

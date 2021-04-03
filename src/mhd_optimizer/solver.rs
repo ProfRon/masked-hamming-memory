@@ -9,7 +9,8 @@ use std::error::Error;
 use mhd_method::ScoreType;
 use mhd_optimizer::{Problem, Solution};
 
-static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(60); // can be changed
+// Noe: "cargo test" expects tests to finish in less than 60 seconds
+static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(45); // can be changed
 
 /// ## The Solver Trait
 ///
@@ -36,8 +37,15 @@ pub trait Solver<Sol: Solution> {
     /// Number of solutions stored in this container
     fn number_of_solutions(&self) -> usize;
 
+    /// Has this solver ever seen a solution?
     fn is_empty(&self) -> bool {
         0 == self.number_of_solutions()
+    }
+
+    /// Has this solver found the best solution it can?
+    /// Default = when the solver is (again) empty
+    fn is_finished(&self) -> bool {
+        self.is_empty()
     }
 
     /// Discard any solutions currently stored in container
@@ -95,6 +103,7 @@ pub trait Solver<Sol: Solution> {
     /// This is the crux of this whole project: The `find_best_solution` method.
     /// It does what it says here.
     /// Originally outside this (Problem) Trait, but the compiler is making this difficult...
+    #[allow(clippy::or_fun_call)]
     fn find_best_solution<Prob: Problem<Sol = Sol>>(
         &mut self,
         problem: &Prob,
@@ -189,7 +198,7 @@ pub trait Solver<Sol: Solution> {
             }; // end if complete or can be better than current best...
 
             // Terminate out if loop?
-            if self.is_empty()
+            if self.is_finished()
                 || (time_limit < start_time.elapsed())
                 || (GLOBAL_TIME_LIMIT < global_start_time.elapsed())
             {

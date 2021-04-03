@@ -59,7 +59,7 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
     fn clear(&mut self) {
         self.solutions.clear();
         let size = self.best_solution.size();
-        self.best_solution = Sol::new( size );
+        self.best_solution = Sol::new(size);
     }
 
     #[inline]

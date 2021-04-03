@@ -23,7 +23,7 @@ fn bench_optimization<Sol: Solution, Solv: Solver<Sol>, Prob: Problem<Sol = Sol>
     solver.clear();
 
     let the_best = solver
-        .find_best_solution(problem, Duration::from_secs_f32(1.0))
+        .find_best_solution(problem, Duration::from_secs_f32(3.1415926))
         .expect("could not find best solution on bench");
 
     let best_score = the_best.get_score();
@@ -86,6 +86,11 @@ fn bench_one_size(group: &mut BenchmarkGroup<WallTime>, size: usize) {
         MonteCarloTreeSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem_a);
     bench_one_combo(group, BENCH_NAME, &problem_a, &mut solver_mc);
 
+    // ...and then with the MHD Solver
+    let mut solver_mhd =
+        MhdMonteCarloSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem_a);
+    bench_one_combo(group, BENCH_NAME, &problem_a, &mut solver_mhd);
+
     // First one problem, then another, since they are not mutable
     let problem_b = Problem01Knapsack::random(size);
 
@@ -101,6 +106,11 @@ fn bench_one_size(group: &mut BenchmarkGroup<WallTime>, size: usize) {
     let mut solver_mcts =
         MonteCarloTreeSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&problem_b);
     bench_one_combo(group, BENCH_NAME, &problem_b, &mut solver_mcts);
+
+    // ...and then with the MHD Solver
+    let mut solver_mhd2 =
+        MhdMonteCarloSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&problem_b);
+    bench_one_combo(group, BENCH_NAME, &problem_b, &mut solver_mhd2);
 }
 
 fn bench_sizes(c: &mut Criterion) {
@@ -199,56 +209,56 @@ fn bench_directory(c: &mut Criterion) {
 /********************************* MHD Memory Benchmarks *********************************/
 use mhd_mem::mhd_method::*;
 
-fn bench_mhd_memory( width : usize, height : usize ) {
-    let mut mem = MhdMemory::new( width );
+fn bench_mhd_memory(width: usize, height: usize) {
+    let mut mem = MhdMemory::new(width);
 
-    mem.write_n_random_samples( height );
+    mem.write_n_random_samples(height);
 
     trace!(
         "Benchmark Memory ({} width X {} rows) has scores min {} < avg {} < max {} < total {}",
-        width, height,
-        mem.min_score, mem.avg_score(), mem.max_score, mem.total_score, );
+        width,
+        height,
+        mem.min_score,
+        mem.avg_score(),
+        mem.max_score,
+        mem.total_score,
+    );
 
-    const NUM_READS : usize = 32; // more than sample size 10 but not TOO many
+    const NUM_READS: usize = 32; // more than sample size 10 but not TOO many
 
     for _ in 0..NUM_READS {
-        let query = Sample::new( width, ZERO_SCORE );
-        let mask  = Sample::new( width, ZERO_SCORE );
-        let result = mem.masked_read( &mask.bytes, &query.bytes );
-        assert!( result > ZERO_SCORE );
-    }; // end for NUM_READS reads
-
-}// end bench_mhd_memory
+        let query = Sample::new(width, ZERO_SCORE);
+        let mask = Sample::new(width, ZERO_SCORE);
+        let result = mem.masked_read(&mask.bytes, &query.bytes);
+        assert!(result > ZERO_SCORE);
+    } // end for NUM_READS reads
+} // end bench_mhd_memory
 
 fn bench_mhd_memory_sizes(c: &mut Criterion) {
-
-        let mut group = c.benchmark_group("memory_sizes");
+    let mut group = c.benchmark_group("memory_sizes");
     group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
-    // group.measurement_time( Duration::from_secs_f32( 61.0 ) );
+                                             // group.measurement_time( Duration::from_secs_f32( 61.0 ) );
 
-    for width in [8, 128, 1024, 2048 ].iter() {
+    for width in [8, 128, 1024, 2048].iter() {
         for height in [8, 128, 1024, 2048].iter() {
-            let bench_parm = format!( "{}X{}", *width, *height );
-            group.bench_function(
-            BenchmarkId::new("MHD_Mem_Bench", bench_parm, ),
-            |b| {
-                    b.iter(|| bench_mhd_memory( *width, *height))
-                }
-            );
-        }; // end for loops
-    }; // end for widths
+            let bench_parm = format!("{}X{}", *width, *height);
+            group.bench_function(BenchmarkId::new("MHD_Mem_Bench", bench_parm), |b| {
+                b.iter(|| bench_mhd_memory(*width, *height))
+            });
+        } // end for loops
+    } // end for widths
 
     group.finish();
 } // end bench_mhd_memory_sizes
 
-
-
 // criterion_group!(randomBenches, );
-criterion_group!(benches,  bench_mhd_memory_sizes, bench_sizes, bench_directory, );
+criterion_group!(
+    benches,
+    bench_sizes,
+    bench_mhd_memory_sizes,
+    bench_directory,
+);
 criterion_main!(benches);
-
-
-
 
 /********************************** OBSOLETE OLD HAMMING BENCHES ****************************
 use criterion::{Criterion, Bencher, ParameterizedBenchmark, PlotConfiguration, AxisScale};

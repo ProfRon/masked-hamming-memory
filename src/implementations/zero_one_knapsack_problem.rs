@@ -109,6 +109,16 @@ impl Solution for ZeroOneKnapsackSolution {
     }
 
     #[inline]
+    fn mask(&self) -> &[u8] {
+        self.basis.mask()
+    }
+
+    #[inline]
+    fn query(&self) -> &[u8] {
+        &self.basis.query()
+    }
+
+    #[inline]
     fn get_decision(&self, decision_number: usize) -> Option<bool> {
         self.basis.get_decision(decision_number)
     }

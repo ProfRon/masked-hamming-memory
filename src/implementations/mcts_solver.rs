@@ -11,7 +11,7 @@ use mhd_optimizer::{Problem, Solution, Solver};
 
 /**************************************************************************************/
 // Helper Struct -- the MCTS Tree Node Struct
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct MonteTreeNode {
     pub exhausted: bool,
     pub counter: usize,
@@ -21,13 +21,16 @@ pub struct MonteTreeNode {
 }
 
 type UcbType = f64;
+#[allow(clippy::unnecessary_cast)]
 const UCB_ZERO: UcbType = 0.0 as UcbType;
+#[allow(clippy::unnecessary_cast)]
 const UCB_MAX: UcbType = ScoreType::MAX as UcbType;
+#[allow(clippy::unnecessary_cast)]
 const UCB_C_P: UcbType = 2.828427125 as UcbType; // 2 x sqrt(2), subject to change, see Jupyterbook.
 
 impl MonteTreeNode {
     #[inline]
-    pub fn new() -> Self {
+    pub fn default() -> Self {
         Self {
             exhausted: false,
             max_score: ZERO_SCORE,
@@ -35,6 +38,11 @@ impl MonteTreeNode {
             true_branch: None,
             false_branch: None,
         }
+    }
+
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     // Here a synonym for building the root of the whole tree
@@ -101,7 +109,7 @@ impl MonteTreeNode {
             false_box.clear();
             self.false_branch = None; // Do I have to call Drop?!?
         }; // end if true_branch not None
-        // next tree lines only necessary for root, but cheap...
+           // next tree lines only necessary for root, but cheap...
         self.exhausted = false;
         self.max_score = ZERO_SCORE;
         self.counter = 0;
@@ -188,7 +196,7 @@ impl MonteTreeNode {
         high_score: ScoreType,
     ) -> ScoreType {
         assert!(problem.solution_is_legal(solution)); // !!!
-        assert!(! self.exhausted ); // logic above should make that impossible
+        assert!(!self.exhausted); // logic above should make that impossible
         if problem.solution_is_complete(solution) {
             trace!(
                 "Top of grow_tree, COMPLETE solution score {} (high score {})",
@@ -248,14 +256,15 @@ impl MonteTreeNode {
             // unbox the choosen node
             assert!(choosen_branch.is_some());
             if let Some(boxed_node) = choosen_branch {
-                assert!( !boxed_node.exhausted ); // if it was, we shouldn't be here...
+                assert!(!boxed_node.exhausted); // if it was, we shouldn't be here...
 
                 // BOUND:
                 // we COULD call problem.could_be_better than, but we'd need access to the current
                 // best solution.  We use high_score instead.
-                let new_score : ScoreType;
+                let new_score: ScoreType;
                 if solution.get_best_score() <= high_score
-                    || problem.solution_is_complete( &solution ) {
+                    || problem.solution_is_complete(&solution)
+                {
                     boxed_node.exhausted = true;
                     new_score = solution.get_score();
                 } else {
@@ -350,14 +359,19 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MonteCarloTreeSolv
 
     #[inline]
     fn is_empty(&self) -> bool {
-        (0 == self.mcts_root.counter) || self.mcts_root.exhausted
+        0 == self.mcts_root.counter
+    }
+
+    #[inline]
+    fn is_finished(&self) -> bool {
+        self.mcts_root.exhausted
     }
 
     #[inline]
     fn clear(&mut self) {
         self.mcts_root.clear();
         let size = self.best_solution.size();
-        self.best_solution = Sol::new( size );
+        self.best_solution = Sol::new(size);
     }
 
     #[inline]
@@ -434,7 +448,7 @@ mod more_tests {
             MonteCarloTreeSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem);
         assert!(solver.is_empty());
 
-        debug!("Start of test_mcts_solver, knapsack = {:?}", problem );
+        debug!("Start of test_mcts_solver, knapsack = {:?}", problem);
 
         let solution1 = solver.pop().expect("pop() should return Some(sol)");
 
@@ -451,13 +465,18 @@ mod more_tests {
 
         assert!(problem.rules_audit_passed(&solution1));
 
-        if problem.solution_is_complete( &solution1 ) {
-            solver.new_best_solution( &problem, solution1 ); // Warning: solution1 moved!
+        if problem.solution_is_complete(&solution1) {
+            solver.new_best_solution(&problem, solution1); // Warning: solution1 moved!
         } else {
-            warn!( "First Solution returned is not complete? S1 = {:?}", solution1 );
-            warn!( "                      current best solution = {:?}", solver.best_solution() );
+            warn!(
+                "First Solution returned is not complete? S1 = {:?}",
+                solution1
+            );
+            warn!(
+                "                      current best solution = {:?}",
+                solver.best_solution()
+            );
         };
-
 
         let solution2 = solver.pop().expect("pop() should return Some(sol)");
 
@@ -474,13 +493,18 @@ mod more_tests {
 
         assert!(solver.problem.rules_audit_passed(&solution2));
 
-        if problem.solution_is_complete( &solution2 ) {
-            solver.new_best_solution( &problem, solution2 ); // Warning: solution1 moved!
+        if problem.solution_is_complete(&solution2) {
+            solver.new_best_solution(&problem, solution2); // Warning: solution1 moved!
         } else {
-            warn!( "Second Solution returned is not complete? S1 = {:?}", solution2 );
-            warn!( "                      current best solution = {:?}", solver.best_solution() );
+            warn!(
+                "Second Solution returned is not complete? S1 = {:?}",
+                solution2
+            );
+            warn!(
+                "                      current best solution = {:?}",
+                solver.best_solution()
+            );
         };
-
     }
 
     #[test]
@@ -496,7 +520,7 @@ mod more_tests {
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        debug!("Start of test find_solution, knapsack = {:?}", knapsack );
+        debug!("Start of test find_solution, knapsack = {:?}", knapsack);
 
         let the_best = solver
             .find_best_solution(&knapsack, time_limit)
@@ -508,7 +532,7 @@ mod more_tests {
         );
 
         assert!(solver.mcts_root.exhausted);
-        assert!( solver.mcts_root.counter <= MAX_COUNTER );
+        assert!(solver.mcts_root.counter <= MAX_COUNTER);
 
         assert!(solver.problem.solution_is_legal(&the_best));
         assert!(solver.problem.solution_is_complete(&the_best));
@@ -517,7 +541,6 @@ mod more_tests {
             the_best.get_score()
         );
         assert!(the_best.get_score() <= solver.problem.capacity);
-
     }
 
     #[test]
@@ -533,7 +556,7 @@ mod more_tests {
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        debug!("Start of test find_solution, knapsack = {:?}", knapsack );
+        debug!("Start of test find_solution, knapsack = {:?}", knapsack);
 
         let the_best = solver
             .find_best_solution(&knapsack, time_limit)
@@ -545,7 +568,7 @@ mod more_tests {
         );
 
         assert!(solver.mcts_root.exhausted);
-        assert!( solver.mcts_root.counter <= MAX_COUNTER );
+        assert!(solver.mcts_root.counter <= MAX_COUNTER);
 
         assert!(solver.problem.solution_is_legal(&the_best));
         assert!(solver.problem.solution_is_complete(&the_best));
@@ -553,7 +576,6 @@ mod more_tests {
             solver.problem.solution_score(&the_best),
             the_best.get_score()
         );
-
     }
 
     #[test]
@@ -569,40 +591,43 @@ mod more_tests {
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        debug!("Start of test find_solution, knapsack = {:?}", knapsack );
+        debug!("Start of test find_solution, knapsack = {:?}", knapsack);
 
         let the_best = solver
             .find_best_solution(&knapsack, time_limit)
             .expect("could not find best solution");
 
+        assert!(solver.problem.solution_is_legal(&the_best));
+        assert!(solver.problem.solution_is_complete(&the_best));
+        assert_eq!(
+            solver.problem.solution_score(&the_best),
+            the_best.get_score()
+        );
+
         // Now test solver.clear()!!!
         solver.clear();
         assert!(solver.is_empty());
         assert_eq!(solver.mcts_root.counter, 0);
-        assert!( ! solver.mcts_root.exhausted );
+        assert!(!solver.mcts_root.exhausted);
         assert!(solver.mcts_root.true_branch.is_none());
         assert!(solver.mcts_root.false_branch.is_none());
 
         // Two birds with one stone -- we haven't tested the full monte yet!!!
         solver.full_monte = true;
-        debug!(
-            "Tree after clear:\n{}",
-            solver.mcts_root.debug_dump_node()
-        );
+        debug!("Tree after clear:\n{}", solver.mcts_root.debug_dump_node());
 
         let second_best = solver
             .find_best_solution(&knapsack, time_limit)
             .expect("could not find 2nd best solution");
 
         assert!(solver.mcts_root.exhausted);
-        assert!( solver.mcts_root.counter <= MAX_COUNTER );
+        assert!(solver.mcts_root.counter <= MAX_COUNTER);
 
         assert!(solver.problem.solution_is_legal(&second_best));
         assert!(solver.problem.solution_is_complete(&second_best));
         assert_eq!(
             solver.problem.solution_score(&second_best),
-            the_best.get_score()
+            second_best.get_score()
         );
-
     }
 }
