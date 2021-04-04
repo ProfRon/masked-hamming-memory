@@ -34,16 +34,22 @@ pub trait Solver<Sol: Solution> {
 
     // Methods used by the Unified Optimization Algorithm (identified above)
 
+    /// Number of bits per solution, number of decisions to be made in eacn solution
+    #[inline]
+    fn width( &self ) -> usize { self.best_solution().size() }
+
     /// Number of solutions stored in this container
     fn number_of_solutions(&self) -> usize;
 
     /// Has this solver ever seen a solution?
+    #[inline]
     fn is_empty(&self) -> bool {
         0 == self.number_of_solutions()
     }
 
     /// Has this solver found the best solution it can?
     /// Default = when the solver is (again) empty
+    #[inline]
     fn is_finished(&self) -> bool {
         self.is_empty()
     }
@@ -66,6 +72,7 @@ pub trait Solver<Sol: Solution> {
     fn best_solution(&self) -> &Sol;
 
     /// Shortcut
+    #[inline]
     fn best_score(&self) -> ScoreType {
         self.best_solution().get_score()
     }

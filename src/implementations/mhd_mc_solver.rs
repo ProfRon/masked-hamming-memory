@@ -16,11 +16,20 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
     // a replacement for Self::new( size )
     #[inline]
     pub fn builder(problem: &Prob) -> Self {
-        Self {
+        // build a memory....
+        let mut product = Self {
             mhd_memory: MhdMemory::new(problem.problem_size()),
             best_solution: problem.random_solution(),
             problem: problem.clone(),
+        };
+        // bootstrap the memory with random samples (but legal ones!)
+        while product.number_of_solutions() < problem.problem_size() {
+            // create a square memory -- with height == width
+            let solution = problem.random_solution();
+            product.mhd_memory.write_sample(&problem.sample_from_solution(&solution));
         }
+        // Finished! Return what we've built!
+        product
     }
 
 } // end private Methods
@@ -110,6 +119,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
         // Done! Solution is complete! Write it into the memory and return it
         self.mhd_memory
             .write_sample(&self.problem.sample_from_solution(&solution));
+
         Some(solution)
     }
 
@@ -145,7 +155,10 @@ mod more_tests {
         assert!(problem.is_legal());
         let mut solver =
             MhdMonteCarloSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem);
-        assert!(solver.is_empty());
+
+        assert!(!solver.is_empty()); // bootstraping!
+        assert_eq!( solver.width(), NUM_DECISIONS );
+        assert_eq!( solver.number_of_solutions(), NUM_DECISIONS );
 
         debug!("Start of test_mc_mhd_solver, knapsack = {:?}", problem);
 
