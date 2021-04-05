@@ -189,7 +189,7 @@ impl MhdMemory {
         assert!(self.width <= 8 * query.len());
         // let threshold = std::cmp::max( 8,std::cmp::min( 4, mask.iter().count_ones() ) );
         const THRESHOLD: u64 = 4; // TODO : Optimize threshold!
-        const UCB_CONSTANT : f64 = 5.65685425; // == 4* 2.sqrt()
+        const UCB_CONSTANT : f64 = 2.828427125; // or 5.65685425 == 4* 2.sqrt()
         let mut hits_on_0: usize = 0;
         let mut hits_on_1: usize = 0;
         let (score_false, score_true, weight_false, weight_true) = self
