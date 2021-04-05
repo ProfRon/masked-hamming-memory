@@ -188,29 +188,32 @@ impl MhdMemory {
         assert!(self.width <= 8 * mask.len());
         assert!(self.width <= 8 * query.len());
         // let threshold = std::cmp::max( 8,std::cmp::min( 4, mask.iter().count_ones() ) );
-        const THRESHOLD: u64 = 8; // TODO : Optimize threshold!
-        let mut hit_on_0 = false; // until proven true
-        let mut hit_on_1 = false; // until proven true
+        const THRESHOLD: u64 = 4; // TODO : Optimize threshold!
+        const UCB_CONSTANT : f64 = 5.65685425; // == 4* 2.sqrt()
+        let mut hits_on_0: usize = 0;
+        let mut hits_on_1: usize = 0;
         let (score_false, score_true, weight_false, weight_true) = self
             .samples
             .iter()
             .map(|s| {
                 // use a closure here to capture query and mask
                 let dist = distance(mask, query, &s.bytes);
-                let dist_plus_1 = (dist + 1) as f64; // adding one prevents division by zero later
-                                                     // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
-                let weight = 1.0 / dist_plus_1; // TODO DECIDE! Squared or not!!!
-                let s_at_index = s.get_bit(index);
                 if THRESHOLD < dist {
                     (0.0f64, 0.0f64, 0.0f64, 0.0f64)
-                } else if s_at_index {
-                    hit_on_1 = true;
-                    (0.0f64, weight * s.score as f64, 0.0f64, weight) // return score
-                } else {
+                } else { // if dist <= THRESHOLD
+                    let dist_plus_1 = (dist + 1) as f64; // adding one prevents division by zero later
+                    // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
+                    let weight = 1.0 / dist_plus_1; // TODO DECIDE! Squared or not!!!
+                    let s_at_index = s.get_bit(index);
+                    if s_at_index {
+                        if 0 == dist { hits_on_1 += 1 };
+                        (0.0f64, weight * s.score as f64, 0.0f64, weight) // return score
+                    } else {
                     // if dist <= threshold AND NOT s_at_index
-                    hit_on_0 = true;
-                    (weight * s.score as f64, 0.0f64, weight, 0.0f64) // return score
-                }
+                        if 0 == dist { hits_on_0 += 1 };
+                        (weight * s.score as f64, 0.0f64, weight, 0.0f64) // return score
+                    }
+                } // endif dist <= THRESHOLD
             })
             .fold(
                 (0.0, 0.0, 0.0, 0.0),
@@ -220,34 +223,49 @@ impl MhdMemory {
             );
 
         // We now know if there were any hits on 0, or on 1, and if so, with what scores
-        let result = if !hit_on_0 {
-            if !hit_on_1 {
-                // if NOT hit_on_0 AND ALSO NOT hit_on_1... flip a coin!
+        let result = if 0 == hits_on_0 {
+            if 0 == hits_on_1 {
+                // if 0 == hit_on_0 == hit_on_1... flip a coin!
                 rand::thread_rng().gen::<bool>()
             } else {
-                // if NOT hit_on_0 BUT hit_on_1, return...
+                // if 0 == hits_on_0 BUT 0 < hits_on_1, return...
                 false
             }
-        } else if !hit_on_1 {
-            // if NOT hit_on_1 BUT hit_on_0, return...
+        } else if 0 == hits_on_1 {
+            // if NOT hits_on_1 BUT hits_on_0, return...
             true
         } else {
-            // if hit_on_1 AND hit_on_0
+            // if 0 < hits_on_1 AND 0 < hits_on_0
             // Exploitation: true_score / best_score - false_score / best_score = true- false /best
             let denominator = self.max_score as f64;
             let true_exploitation = (score_true / weight_true) / denominator;
             let false_exploitation = (score_false / weight_false) / denominator;
-            let total_weight = weight_true + weight_false;
-            assert!(0.0 < total_weight);
-            let true_exploration = weight_true / total_weight;
-            let false_exploration = weight_false / total_weight;
+
+            // exploration -- trickier...
+            let total_hits : f64 = (hits_on_0 + hits_on_1) as f64;
+            let ln_total_hits = total_hits.ln();
+            let true_exploration =  (ln_total_hits / hits_on_1 as f64).sqrt() * UCB_CONSTANT;
+            let false_exploration = (ln_total_hits / hits_on_0 as f64).sqrt() * UCB_CONSTANT;
+
+            // UCB Formula, kinda...
             let true_sum = true_exploitation + true_exploration;
-            assert!(0.0 < true_sum);
-            assert!(true_sum <= 2.0);
+            if true_sum <= 0.0 {
+                error!("True Sum = {} = exploration = {} + exploitation {} <= 0.0",
+                        true_sum, true_exploration, true_exploitation );
+            };
+            // assert!(0.0 < true_sum);
+            // assert!(true_sum <= UCB_CONSTANT+1.0);
             let false_sum = false_exploitation + false_exploration;
-            assert!(0.0 < false_sum);
-            assert!(false_sum <= 2.0);
-            if false_sum < true_sum {
+            if false_sum <= 0.0 {
+                error!("False Sum = {} = exploration = {} + exploitation {} <= 0.0",
+                       true_sum, false_exploration, false_exploitation );
+            };
+            // assert!(0.0 < false_sum);
+            // assert!(false_sum <= UCB_CONSTANT+1.0);
+
+            // DECIDE!
+            // Are deterministic decisions a bad idea because they repeat?!?
+/*******    if false_sum < true_sum {
                 true
             } else if true_sum < false_sum {
                 false
@@ -255,12 +273,16 @@ impl MhdMemory {
                 // true_sum == false_sum  --- flip a coin!
                 rand::thread_rng().gen()
             }
+********/
+            // Or are probablistic decisions even worse? Because ... flaky?
+            let probability = true_sum / (true_sum + false_sum);
+            rand::thread_rng().gen_bool( probability )
         };
 
         trace!(
-            "hits = ({},{}), scores = ({}, {}), weights =  ({}, {}), result = {}",
-            hit_on_0,
-            hit_on_1,
+            "MHD MEM: hits = ({},{}), scores = ({}, {}), weights =  ({}, {}), result = {}",
+            hits_on_0,
+            hits_on_1,
             score_false,
             score_true,
             weight_false,

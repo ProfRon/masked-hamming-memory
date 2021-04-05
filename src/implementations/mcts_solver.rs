@@ -217,25 +217,24 @@ impl MonteTreeNode {
 
             self.counter += 1;
 
-            trace!(
-                "Top of grow_tree, depth {}, counter = {}, solution score {} (high score {})",
-                problem
-                    .first_open_decision(solution)
-                    .expect("Must have an open decsion"),
-                self.counter,
-                solution.get_score(),
-                high_score
-            );
-
             // decide on a branch!
             let decision = self.best_ucb_branch(full_monte, high_score);
-            trace!("grow_tree decides for (direction) {}", decision);
 
             // Fix solution ... compare Problem::produce_children()
             debug_assert!(problem.solution_is_legal(solution));
             let index = problem
                 .first_open_decision(solution)
                 .expect("Should have an open decision");
+
+            trace!(
+                "Grow_tree: depth {}, counter = {}, solution score {} (high score {}) => {}",
+                index,
+                self.counter,
+                solution.get_score(),
+                high_score,
+                decision
+            );
+
             solution.make_decision(index, decision);
             debug_assert!(problem.solution_is_legal(solution));
             problem.apply_rules(solution);

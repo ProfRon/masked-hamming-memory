@@ -86,14 +86,14 @@ pub trait Problem: Sized + Clone + Debug {
     /// Note that the default version assumes we're maximizing.
     #[inline]
     fn better_than(&self, new_solution: &Self::Sol, old_solution: &Self::Sol) -> bool {
-        old_solution.get_best_score() <= new_solution.get_best_score()
+        old_solution.get_best_score() < new_solution.get_best_score()
     }
 
     /// Is the "upper bound" of new_solution better than score the old solution?
     /// Note that the default version assumes we're maximizing.
     #[inline]
     fn can_be_better_than(&self, new_solution: &Self::Sol, old_solution: &Self::Sol) -> bool {
-        self.solution_best_score(old_solution) <= self.solution_best_score(new_solution)
+        self.solution_best_score(old_solution) < self.solution_best_score(new_solution)
     }
 
     /// Find the index of the next decision to make (bit to set), if any,

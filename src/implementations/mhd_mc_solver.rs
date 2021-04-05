@@ -1,3 +1,5 @@
+use log::*;
+
 use mhd_method::*;
 use mhd_optimizer::{Problem, Solution, Solver};
 
@@ -23,7 +25,8 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
             problem: problem.clone(),
         };
         // bootstrap the memory with random samples (but legal ones!)
-        while product.number_of_solutions() < problem.problem_size() {
+        // while product.number_of_solutions() < problem.problem_size() {
+        for _ in 0..problem.problem_size() {
             // create a square memory -- with height == width
             let solution = problem.random_solution();
             product.mhd_memory.write_sample(&problem.sample_from_solution(&solution));
@@ -110,6 +113,15 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
             let decision =
                 self.mhd_memory
                     .read_and_decide(solution.mask(), solution.query(), open_decision);
+
+            trace!(
+                "MHD MCTS: depth {}, solution score {} (high score {}) => {}",
+                open_decision,
+                solution.get_score(),
+                self.best_solution.get_score(),
+                decision
+            );
+
             // now that we've made our decision, modify "solution" until it's complete
             solution.make_decision(open_decision, decision);
             self.problem.apply_rules(&mut solution);
@@ -145,7 +157,6 @@ mod more_tests {
 
     use super::*;
     use implementations::*;
-    use log::*; // for info, trace, warn, etc.
     use mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
 
     #[test]
@@ -158,7 +169,7 @@ mod more_tests {
 
         assert!(!solver.is_empty()); // bootstraping!
         assert_eq!( solver.width(), NUM_DECISIONS );
-        assert_eq!( solver.number_of_solutions(), NUM_DECISIONS );
+        assert!( solver.number_of_solutions() <= NUM_DECISIONS );
 
         debug!("Start of test_mc_mhd_solver, knapsack = {:?}", problem);
 
