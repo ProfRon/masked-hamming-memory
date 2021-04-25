@@ -108,7 +108,12 @@ pub trait Solver<Sol: Solution> {
         result // return result!!
     } // end accept_solution
 
-    /*******************************************************************************/
+    // Wrapper for problem.children_of_solution() -- to allow solver specific hacks...
+    fn children_of_solution<Prob: Problem<Sol = Sol>>(&mut self, parent: &Sol, problem: &Prob, )
+        -> Vec< Sol > {
+        problem.children_of_solution( parent )
+    }
+        /*******************************************************************************/
     /// This is the crux of this whole project: The `find_best_solution` method.
     /// It does what it says here.
     /// Originally outside this (Problem) Trait, but the compiler is making this difficult...
@@ -152,10 +157,11 @@ pub trait Solver<Sol: Solution> {
         loop {
             num_visitations += 1;
 
+            // Get a solution from the solver -- "pop" a solution
             let next_solution = self.pop().expect("solver's queue could not pop");
 
-            // Compare above: ""; visits; depth; score; complete; high score;"");
             trace!(
+                // CSV Fiels: "; visits; depth; score; complete; high score;"
                 "; {}; {}; {}; {}; {};",
                 num_visitations,
                 problem
@@ -169,15 +175,19 @@ pub trait Solver<Sol: Solution> {
             debug_assert!(problem.rules_audit_passed(&next_solution));
 
             if problem.solution_is_complete(&next_solution) {
-                // This only happens with the MCTS solver (and perhaps other future solvers)
                 if self.new_best_solution(problem, next_solution) {
                     // Reset timer!
                     // That means we have converted if we go for time_limit without a new best solution!
                     start_time = Instant::now();
-                }; // do not push....
+                };
+                // do not push....
             } else if problem.can_be_better_than(&next_solution, self.best_solution()) {
                 // BOUND (above) and BRANCH (below)
-                let children = problem.children_of_solution(&next_solution);
+
+                // Get children
+                let children = self.children_of_solution(&next_solution, problem );
+
+                // Evaluate complete children, push (some) incomplete chldren
                 for child in children {
                     debug_assert!(problem.rules_audit_passed(&child));
                     if !problem.solution_is_complete(&child) {

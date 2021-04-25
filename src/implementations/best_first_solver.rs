@@ -2,13 +2,14 @@
 ///
 ///
 ///
-use mhd_optimizer::{Solution, Solver};
+use mhd_optimizer::{PriorityType, Solution, Solver};
 
 /// ## Example Solver Implementation: Best First Search
 ///
 ///
 use mhd_method::ZERO_SCORE; // ScoreType not needed (?!?)
 use std::collections::BinaryHeap;
+// use num::NumCast;
 
 #[derive(Debug, Clone)]
 pub struct BestFirstSolver<Sol: Solution> {
@@ -64,7 +65,10 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
 
     #[inline]
     fn push(&mut self, solution: Sol) {
-        self.solutions.push(solution);
+        let p : PriorityType  = (solution.get_score() + solution.get_best_score()) as PriorityType;
+        let mut new_solution = solution.clone();
+        new_solution.set_priority( p );
+        self.solutions.push(new_solution );
     }
 
     #[inline]

@@ -77,7 +77,7 @@ pub mod mhd_method {
 
 pub mod mhd_optimizer {
     pub mod solution;
-    pub use self::solution::{MinimalSolution, Solution};
+    pub use self::solution::{MinimalSolution, Solution, PriorityType, };
 
     pub mod solver;
     pub use self::solver::Solver;
@@ -104,6 +104,9 @@ pub mod implementations {
 
     pub mod mhd_mc_solver;
     pub use self::mhd_mc_solver::*;
+
+    pub mod bf_mhd_mc_solver;
+    pub use self::bf_mhd_mc_solver::*;
 
     pub mod parsers;
     pub use self::parsers::{parse_dot_csv_stream, parse_dot_dat_stream};

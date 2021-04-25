@@ -1,22 +1,27 @@
 use log::*;
 
 use mhd_method::*;
-use mhd_optimizer::{Problem, Solution, Solver};
+use mhd_optimizer::{Problem, PriorityType, Solution, Solver};
+use std::collections::BinaryHeap;
 
 /// # Example Implementations
 ///
-///
-///
 
-pub struct MhdMonteCarloSolver<Sol: Solution, Prob: Problem<Sol = Sol>> {
+/**************************************************************************************/
+/// ## Example Solver Implementation: MCTS, Monte Carlo Tree Search
+///
+pub struct BestfirstMhdMonteCarloSolver<Sol: Solution, Prob: Problem<Sol = Sol>> {
     pub mhd_memory: MhdMemory,
+    pub solutions: BinaryHeap< Sol >,
     pub best_solution: Sol,
     pub problem: Prob,
 }
 
-impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
+/// Extra Methods for the BestfirstMhdMonteCarloSolver type (trait, whatever)
+impl<Sol: Solution, Prob: Problem<Sol = Sol>> BestfirstMhdMonteCarloSolver<Sol, Prob> {
 
     // Never use an empty mhd memory -- when empty, add some rows!
+    // Used by builder and clear (and who knows what else meanwhile?)
     fn bootstrap_memory( &mut self ) {
         assert!( self.mhd_memory.is_empty( ));
         // bootstrap the memory with random samples (but legal ones!)
@@ -32,12 +37,12 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
         }
     }
 
-    // a replacement for Self::new( size )
-    #[inline]
+    /// a replacement for Self::new( size )
     pub fn builder(problem: &Prob) -> Self {
         // build a memory....
         let mut product = Self {
             mhd_memory: MhdMemory::new(problem.problem_size()),
+            solutions: BinaryHeap::new(),
             best_solution: problem.random_solution(),
             problem: problem.clone(),
         };
@@ -48,56 +53,46 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
     }
 } // end private Methods
 
-/**************************************************************************************/
-/// ## Example Solver Implementation: MCTS, Monte Carlo Tree Search
-///
 /// Here are the public methods needed to implement Solver<Sol>
-impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolver<Sol, Prob> {
+impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for BestfirstMhdMonteCarloSolver<Sol, Prob> {
     #[inline]
     fn name(&self) -> &'static str {
-        "MhdMonteCarloSolver "
+        "BestfirstMhdMonteCSolver "
     }
 
     #[inline]
     fn short_description(&self) -> String {
         format!(
-            "{}, memory has width {} and {} rows",
+            "{}, memory has width {}, {} rows and {} leaves",
             self.name(),
             self.mhd_memory.width(),
-            self.mhd_memory.num_samples()
+            self.mhd_memory.num_samples(),
+            self.solutions.len(),
         )
     }
 
     #[inline]
     fn new(_: usize) -> Self {
-        panic!("New(size) not define for MhdMonteCarloSolver!");
+        panic!("New(size) not defined for BestfirstMhdMonteCarloSolver!");
     }
 
     // Methods used by the Unified Optimization Algorithm (identified above)
 
     #[inline]
     fn number_of_solutions(&self) -> usize {
-        self.mhd_memory.num_samples()
+        self.solutions.len()
     }
 
     #[inline]
     fn is_empty(&self) -> bool {
-        self.mhd_memory.is_empty()
+        self.solutions.is_empty()
     }
 
-    #[inline]
-    fn is_finished(&self) -> bool {
-        let max_solutions: usize = if 32 < self.mhd_memory.width {
-            u32::MAX as usize
-        } else {
-            1 << self.mhd_memory.width() // 2 ^ width
-        };
-        // now, return true, finished, exhausted when...
-        max_solutions < self.number_of_solutions()
-    }
+    // take default fn is_finished(&self) -> bool
 
     #[inline]
     fn clear(&mut self) {
+        self.solutions.clear();
         let width = self.mhd_memory.width();
         self.mhd_memory.clear();
         self.bootstrap_memory( );
@@ -106,45 +101,63 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
 
     #[inline]
     fn push(&mut self, solution: Sol) {
-        // we'd like to check for completion, but can't use problem.solution_is_complete( s )
-        if self.best_score() < solution.get_score() {
-            panic!("Push not implemented!");
-        }
+        self.solutions.push(solution);
+    }
+
+    #[inline]
+    fn pop(&mut self) -> Option<Sol> {
+        self.solutions.pop()
     }
 
     /////// THIS IS WHERE THE MAGIC TAKES PLACE!!! ///////
-    fn pop(&mut self) -> Option<Sol> {
-        let mut solution = self.problem.starting_solution();
-        while !self.problem.solution_is_complete(&solution) {
-            let open_decision = self
-                .problem
-                .first_open_decision(&solution)
-                .expect("Should have an open decision");
+    fn children_of_solution< ArgProb : Problem >(&mut self, parent: &Sol, _: &ArgProb, ) -> Vec< Sol > {
+        let mut result = Vec::< Sol >::new(); // initially empty...
+        if self.problem.solution_is_complete(&parent) {
+            // Done! Solution is complete! Write it into the memory and return it
+            self.mhd_memory
+                .write_sample(&self.problem.sample_from_solution(&parent));
+            // return empty vector (it has no children, so we're done)
+            result
+        } else {
+            // solution is NOT complete (is incomplete) -- it has children
+            let open_decision = self.problem.first_open_decision(&parent)
+                                                  .expect("Should have an open decision");
             // Decide whether to set the next open bit to true or false, 1 or 0
             // First, query the mhd memory
-            let decision =
-                self.mhd_memory
-                    .read_and_decide(solution.mask(), solution.query(), open_decision);
+            let priorities =
+                self.mhd_memory.read_2_priorities(
+                    parent.mask(),
+                    parent.query(),
+                    open_decision
+                );
 
             trace!(
-                "MHD MCTS: depth {}, solution score {} (high score {}) => {}",
+                "BF MHD BEST FIRST MCTS: depth {}, solution score {} (high score {}) => prios ({},{})",
                 open_decision,
-                solution.get_score(),
+                parent.get_score(),
                 self.best_solution.get_score(),
-                decision
+                priorities.0, priorities.1,
             );
 
-            // now that we've made our decision, modify "solution" until it's complete
-            solution.make_decision(open_decision, decision);
-            self.problem.apply_rules(&mut solution);
-            debug_assert!(self.problem.rules_audit_passed(&solution));
-        } // end while solution not complete
+            // Push both children into result vector
+            let mut false_child = parent.clone( );
+            false_child.make_decision(open_decision, false );
+            self.problem.apply_rules(&mut false_child );
+            false_child.set_priority( priorities.0 as PriorityType );
+            debug_assert!( self.problem.rules_audit_passed(&false_child));
+            result.push( false_child );
 
-        // Done! Solution is complete! Write it into the memory and return it
-        self.mhd_memory
-            .write_sample(&self.problem.sample_from_solution(&solution));
+            let mut true_child = parent.clone( );
+            true_child.make_decision(open_decision, true );
+            self.problem.apply_rules(&mut true_child );
+            true_child.set_priority( priorities.1 as PriorityType );
+            debug_assert!( self.problem.rules_audit_passed(&true_child));
+            result.push( true_child );
 
-        Some(solution)
+            // return
+            result
+
+        }
     }
 
     #[inline]

@@ -1,14 +1,17 @@
 /// # The Unified Decision Optimization Algorithm with the MHD Memory
 /// ## The Solution Trait
 ///
-use std::fmt::Debug;
+use std::fmt::Debug;  // or {Debug, Display}, if necessary ever again...
 
 use mhd_method::{ScoreType, ZERO_SCORE};
 
+pub type PriorityType = f32; // that can change at any time, so we give it a name
+
 pub trait Solution: Sized + Clone + Ord + Debug {
+
     // First, an "associated type"
-    // Compare <file:///home/ron/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/share/doc/rust/html/book/ch19-03-advanced-traits.html>
-    // type ScoreType: PartialOrd + Debug + Display;
+    // type PriorityType: PartialOrd + Debug + Display;
+    // Moved! See above...
 
     /// Every instance of this struct should have a descriptive name (for tracing, debugging).
     /// Default works, but is very long (override it to make it friendlier).
@@ -43,12 +46,12 @@ pub trait Solution: Sized + Clone + Ord + Debug {
     /// size, dimension, number of decisions which can be made.
     fn size(&self) -> usize;
 
-    /// `estimate` is used for sorting (used in turn in the Solver trait):
-    /// Note that it works with get_score() and get_best_score() -- and NO problems-specific
-    /// information!
-    fn estimate(&self) -> ScoreType {
-        (self.get_score() + self.get_best_score()) / 2
-    }
+    /// `priority` is used for sorting (used in turn in the Solver trait):
+    /// The definition here is a default; Solvers are free to overrule this.
+    fn priority(&self) -> PriorityType;
+
+    /// Setter function for solvers (optional)
+    fn set_priority( &mut self, prio : PriorityType );
 
     /// Return the score stored with this solution.
     /// Note that the score is not _calculated_  -- only a problem instance can do that.
@@ -165,10 +168,12 @@ pub struct MinimalSolution {
     pub decisions: Vec<u8>, // but we wouldn't have the get_bit and set_bit methods!
     pub score: ScoreType,
     pub best_score: ScoreType, // best score possible
+    pub priority : PriorityType,
 }
 
 impl Solution for MinimalSolution {
     // type ScoreType = ScoreType; // mhd_method::ScoreType;
+    // type PriorityType = f32;
 
     // Take default .. or use this shorter version
     #[inline]
@@ -195,6 +200,7 @@ impl Solution for MinimalSolution {
             decisions: vec![0x0; num_bytes], // all zeros == all decisions are false (zero)
             score: ZERO_SCORE,
             best_score: ZERO_SCORE,
+            priority : 0.0,
         }
     }
 
@@ -213,6 +219,12 @@ impl Solution for MinimalSolution {
     fn size(&self) -> usize {
         self.size
     } // times 8 bits per byte
+
+    #[inline]
+    fn priority(&self) -> PriorityType { self.priority }
+
+    #[inline]
+    fn set_priority( &mut self, prio : PriorityType ) { self.priority = prio }
 
     #[inline]
     fn get_score(&self) -> ScoreType {
@@ -261,13 +273,13 @@ impl Solution for MinimalSolution {
     }
 } // end impl Soluton for MinimalSolution
 
-/// ## Default Sorting Implementations (hopefully allowed)
+/// ## Default Sorting Implementations
 use std::cmp::*;
 
 // Ord requires Eq, which requires PartialEq
 impl PartialEq for MinimalSolution {
     fn eq(&self, other: &Self) -> bool {
-        self.get_score() == other.get_score()
+        self.priority() == other.priority()
     }
 }
 
@@ -275,13 +287,13 @@ impl Eq for MinimalSolution {}
 
 impl Ord for MinimalSolution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_score().cmp(&other.get_score())
+        self.priority().partial_cmp(&other.priority()).expect("Ordering")
     }
 }
 
 impl PartialOrd for MinimalSolution {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.get_score().cmp(&other.get_score()))
+        self.priority().partial_cmp(&other.priority())
     }
 }
 
@@ -315,5 +327,9 @@ mod more_tests {
         sol.put_best_score(4242);
         assert_eq!(42, sol.get_score());
         assert_eq!(4242, sol.get_best_score());
+
+        assert_eq!( 0.0, sol.priority() );
+        sol.set_priority( 42.42  );
+        assert_eq!( 42.42, sol.priority() );
     }
 }

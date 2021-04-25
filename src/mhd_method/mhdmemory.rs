@@ -184,12 +184,51 @@ impl MhdMemory {
         result as ScoreType
     } // end maked_read
 
-    pub fn read_and_decide(&self, mask: &[u8], query: &[u8], index: usize) -> bool {
+    // Utility DRY function, used only in read_2_scores, below
+    fn calculate_priority(
+        &self,
+        hits_count: usize,
+        total_hits: usize,
+        score: f64,
+        weight: f64,
+    ) -> f64 {
+        const UCB_CONSTANT: f64 = 2.828427125; // or 5.65685425 == 4* 2.sqrt()
+        let max_score = self.max_score as f64;
+        if 0 == hits_count {
+            max_score * 100.0
+        } else {
+            // if 0 < hits_count
+            let exploitation = (score / weight) / max_score;
+
+            // exploration -- trickier...
+            let ln_total_hits = (total_hits as f64).ln();
+            let exploration = (ln_total_hits / hits_count as f64).sqrt() * UCB_CONSTANT;
+
+            // UCB Formula, kinda...
+            let result = exploitation + exploration;
+            if result <= 0.0 {
+                error!(
+                    "result = {} = exploration = {} + exploitation {} <= 0.0",
+                    result, exploration, exploitation
+                );
+            };
+            // Return
+            result
+        }
+    }
+
+    /// This method evaluates what happens if we take the solution implied by `mask` and `query`,
+    /// set the bit at `index` to be true, and to be false, and return the results as a pair of
+    /// floats `(f64,f64) == ( prio_false, prio_true )`
+    /// (so that `result.0` is `prio_false` and `prio.1` is `score_true`).
+    pub fn read_2_priorities(&self, mask: &[u8], query: &[u8], index: usize) -> (f64, f64) {
         assert!(self.width <= 8 * mask.len());
         assert!(self.width <= 8 * query.len());
+
+        // STEP 1: Calculate (score_false, score_true, weight_false, weight_true)
+
         // let threshold = std::cmp::max( 8,std::cmp::min( 4, mask.iter().count_ones() ) );
         const THRESHOLD: u64 = 4; // TODO : Optimize threshold!
-        const UCB_CONSTANT: f64 = 2.828427125; // or 5.65685425 == 4* 2.sqrt()
         let mut hits_on_0: usize = 0;
         let mut hits_on_1: usize = 0;
         let (score_false, score_true, weight_false, weight_true) = self
@@ -202,9 +241,10 @@ impl MhdMemory {
                     (0.0f64, 0.0f64, 0.0f64, 0.0f64)
                 } else {
                     // if dist <= THRESHOLD
-                    let dist_plus_1 = (dist + 1) as f64; // adding one prevents division by zero later
+                    let dist_plus_1 = (dist + 1) as f64; // prevents division by zero later
+                                                         // TODO DECIDE! Squared or not!!!
                                                          // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
-                    let weight = 1.0 / dist_plus_1; // TODO DECIDE! Squared or not!!!
+                    let weight = 1.0 / dist_plus_1;
                     let s_at_index = s.get_bit(index);
                     if s_at_index {
                         if 0 == dist {
@@ -227,81 +267,50 @@ impl MhdMemory {
                 },
             );
 
-        // We now know if there were any hits on 0, or on 1, and if so, with what scores
-        let result = if 0 == hits_on_0 {
-            if 0 == hits_on_1 {
-                // if 0 == hit_on_0 == hit_on_1... flip a coin!
-                rand::thread_rng().gen::<bool>()
-            } else {
-                // if 0 == hits_on_0 BUT 0 < hits_on_1, return...
-                false
-            }
-        } else if 0 == hits_on_1 {
-            // if NOT hits_on_1 BUT hits_on_0, return...
-            true
-        } else {
-            // if 0 < hits_on_1 AND 0 < hits_on_0
-            // Exploitation: true_score / best_score - false_score / best_score = true- false /best
-            let denominator = self.max_score as f64;
-            let true_exploitation = (score_true / weight_true) / denominator;
-            let false_exploitation = (score_false / weight_false) / denominator;
-
-            // exploration -- trickier...
-            let total_hits: f64 = (hits_on_0 + hits_on_1) as f64;
-            let ln_total_hits = total_hits.ln();
-            let true_exploration = (ln_total_hits / hits_on_1 as f64).sqrt() * UCB_CONSTANT;
-            let false_exploration = (ln_total_hits / hits_on_0 as f64).sqrt() * UCB_CONSTANT;
-
-            // UCB Formula, kinda...
-            let true_sum = true_exploitation + true_exploration;
-            if true_sum <= 0.0 {
-                error!(
-                    "True Sum = {} = exploration = {} + exploitation {} <= 0.0",
-                    true_sum, true_exploration, true_exploitation
-                );
-            };
-            // assert!(0.0 < true_sum);
-            // assert!(true_sum <= UCB_CONSTANT+1.0);
-            let false_sum = false_exploitation + false_exploration;
-            if false_sum <= 0.0 {
-                error!(
-                    "False Sum = {} = exploration = {} + exploitation {} <= 0.0",
-                    true_sum, false_exploration, false_exploitation
-                );
-            };
-            // assert!(0.0 < false_sum);
-            // assert!(false_sum <= UCB_CONSTANT+1.0);
-
-            // DECIDE!
-            // Are deterministic decisions a bad idea because they repeat?!?
-            /*******    if false_sum < true_sum {
-                            true
-                        } else if true_sum < false_sum {
-                            false
-                        } else {
-                            // true_sum == false_sum  --- flip a coin!
-                            rand::thread_rng().gen()
-                        }
-            ********/
-            // Or are probablistic decisions even worse? Because ... flaky?
-            let probability = true_sum / (true_sum + false_sum);
-            rand::thread_rng().gen_bool(probability)
-        };
-
+        // STEP 2: Convert (score_false, score_true, weight_false, weight_true) into 2 scores
+        // and return those scores
+        let total_hits = hits_on_0 + hits_on_1;
+        let result = (
+            self.calculate_priority(hits_on_0, total_hits, score_false, weight_false),
+            self.calculate_priority(hits_on_1, total_hits, score_true, weight_true),
+        );
         trace!(
-            "MHD MEM: hits = ({},{}), scores = ({}, {}), weights =  ({}, {}), result = {}",
+            "MHD MEM: hits = ({},{}), scores = ({}, {}), weights =  ({}, {}), result = ({},{})",
             hits_on_0,
             hits_on_1,
             score_false,
             score_true,
             weight_false,
             weight_true,
-            result
+            result.0, result.1,
         );
 
         // Return...
         result
     } // end maked_read
+
+    #[inline]
+    pub fn read_and_decide(&self, mask: &[u8], query: &[u8], index: usize) -> bool {
+
+        let priorities = self.read_2_priorities(mask, query, index);
+
+        // DECIDE!
+        // Are deterministic decisions a bad idea because they repeat?!?
+        let partial_false_cmp_true = priorities.0.partial_cmp(&priorities.1);
+        let false_cmp_true = partial_false_cmp_true.expect("Not None");
+        match false_cmp_true {
+            std::cmp::Ordering::Less => true,
+            std::cmp::Ordering::Greater => false,
+            std::cmp::Ordering::Equal => rand::thread_rng().gen::<bool>(),
+        }
+
+        // Or are probablistic decisions even worse? Because ... flaky?
+        /****        debug_assert!( 0.0 < priorities.0 );
+                     debug_assert!( 0.0 < priorities.1 );
+                     let probability = priorities.1 / (priorities.0 + priorities.1);
+                     rand::thread_rng().gen_bool(probability)
+        ****/
+    }
 
     #[inline]
     pub fn write_random_sample(&mut self) {

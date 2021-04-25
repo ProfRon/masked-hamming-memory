@@ -16,7 +16,7 @@ use rand_distr::{Distribution, Gamma};
 
 use implementations::ProblemSubsetSum;
 use mhd_method::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
-use mhd_optimizer::{MinimalSolution, Problem, Solution};
+use mhd_optimizer::{MinimalSolution, Problem, Solution, PriorityType, };
 
 /********************************************************************************************/
 ///## Customized Solution Type for the 0/1 Knapsack
@@ -29,10 +29,12 @@ pub struct ZeroOneKnapsackSolution {
     pub basis: MinimalSolution,
     pub score: ScoreType,
     pub best_score: ScoreType, // best score possible
+    // no priority field -- we use basis.priority!
 }
 
 impl Solution for ZeroOneKnapsackSolution {
     // type ScoreType = ScoreType;
+    // type PriorityType = <MinimalSolution as Solution>::PriorityType;
 
     // Default is too long; here is a friendlier version of name()
     #[inline]
@@ -57,6 +59,7 @@ impl Solution for ZeroOneKnapsackSolution {
             basis: MinimalSolution::new(size),
             score: ZERO_SCORE,
             best_score: ZERO_SCORE,
+
         }
     }
 
@@ -68,19 +71,11 @@ impl Solution for ZeroOneKnapsackSolution {
         self.best_score = self.score + generator.gen::<ScoreType>();
     }
 
-    // Experimental heuristic!!
-    // Here, we estimate the urgendy (scheduling priority) of a solution
-    // as its value (its score) divied by its weight (the score of the basis),
-    // i.e. the density of the value per kilogram, so to apeak...
-    // Note: We add one to weight to avoid dividing by zero,
-    // and multiply by 100 to get percent, actually to compensate for integer return value
     #[inline]
-    fn estimate(&self) -> ScoreType {
-        // Rejected Alternatives:
-        // *   100 * self.get_score() / (1 + self.basis.get_score())
-        // *   Default -- average of get_score and get_best_score()
-        self.get_score() + self.basis.get_score()
-    }
+    fn priority(&self) -> PriorityType { self.basis.priority() }
+
+    #[inline]
+    fn set_priority( &mut self, prio : PriorityType ) { self.basis.priority = prio }
 
     // Getters and Setters
     #[inline]
@@ -135,7 +130,7 @@ use std::cmp::*;
 // Ord requires Eq, which requires PartialEq
 impl PartialEq for ZeroOneKnapsackSolution {
     fn eq(&self, other: &Self) -> bool {
-        self.estimate() == other.estimate()
+        self.priority() == other.priority()
     }
 }
 
@@ -143,13 +138,13 @@ impl Eq for ZeroOneKnapsackSolution {}
 
 impl Ord for ZeroOneKnapsackSolution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.estimate().cmp(&other.estimate())
+        self.priority().partial_cmp(&other.priority()).expect("Ordering")
     }
 }
 
 impl PartialOrd for ZeroOneKnapsackSolution {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.estimate().cmp(&other.estimate()))
+        self.priority().partial_cmp(&other.priority())
     }
 }
 
