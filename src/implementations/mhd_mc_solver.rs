@@ -29,12 +29,13 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
         for _ in 0..problem.problem_size() {
             // create a square memory -- with height == width
             let solution = problem.random_solution();
-            product.mhd_memory.write_sample(&problem.sample_from_solution(&solution));
+            product
+                .mhd_memory
+                .write_sample(&problem.sample_from_solution(&solution));
         }
         // Finished! Return what we've built!
         product
     }
-
 } // end private Methods
 
 /**************************************************************************************/
@@ -76,10 +77,10 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
 
     #[inline]
     fn is_finished(&self) -> bool {
-        let max_solutions : usize = if 32 < self.mhd_memory.width {
+        let max_solutions: usize = if 32 < self.mhd_memory.width {
             u32::MAX as usize
         } else {
-            1 << self.mhd_memory.width()  // 2 ^ width
+            1 << self.mhd_memory.width() // 2 ^ width
         };
         // now, return true, finished, exhausted when...
         max_solutions < self.number_of_solutions()
@@ -168,8 +169,8 @@ mod more_tests {
             MhdMonteCarloSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem);
 
         assert!(!solver.is_empty()); // bootstraping!
-        assert_eq!( solver.width(), NUM_DECISIONS );
-        assert!( solver.number_of_solutions() <= NUM_DECISIONS );
+        assert_eq!(solver.width(), NUM_DECISIONS);
+        assert!(solver.number_of_solutions() <= NUM_DECISIONS);
 
         debug!("Start of test_mc_mhd_solver, knapsack = {:?}", problem);
 

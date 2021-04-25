@@ -1,3 +1,5 @@
+use mhd_method::distance_::*;
+use mhd_method::sample::*;
 /// # The MHD Memory Struct
 /// Formally, the memory consists of a collection of `samples`, and various `read` and `write` operations.
 ///
@@ -38,8 +40,6 @@
 /// assert_eq!( test_mem.avg_score(), target_avg );
 /// ```
 use rand::Rng;
-use mhd_method::distance_::*;
-use mhd_method::sample::*;
 // use ::mhd_method::util::*;    // Not needed, according to compiler
 // use ::mhd_method::weight_::*; // Not needed, according to compiler
 
@@ -189,7 +189,7 @@ impl MhdMemory {
         assert!(self.width <= 8 * query.len());
         // let threshold = std::cmp::max( 8,std::cmp::min( 4, mask.iter().count_ones() ) );
         const THRESHOLD: u64 = 4; // TODO : Optimize threshold!
-        const UCB_CONSTANT : f64 = 2.828427125; // or 5.65685425 == 4* 2.sqrt()
+        const UCB_CONSTANT: f64 = 2.828427125; // or 5.65685425 == 4* 2.sqrt()
         let mut hits_on_0: usize = 0;
         let mut hits_on_1: usize = 0;
         let (score_false, score_true, weight_false, weight_true) = self
@@ -200,17 +200,22 @@ impl MhdMemory {
                 let dist = distance(mask, query, &s.bytes);
                 if THRESHOLD < dist {
                     (0.0f64, 0.0f64, 0.0f64, 0.0f64)
-                } else { // if dist <= THRESHOLD
+                } else {
+                    // if dist <= THRESHOLD
                     let dist_plus_1 = (dist + 1) as f64; // adding one prevents division by zero later
-                    // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
+                                                         // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
                     let weight = 1.0 / dist_plus_1; // TODO DECIDE! Squared or not!!!
                     let s_at_index = s.get_bit(index);
                     if s_at_index {
-                        if 0 == dist { hits_on_1 += 1 };
+                        if 0 == dist {
+                            hits_on_1 += 1
+                        };
                         (0.0f64, weight * s.score as f64, 0.0f64, weight) // return score
                     } else {
-                    // if dist <= threshold AND NOT s_at_index
-                        if 0 == dist { hits_on_0 += 1 };
+                        // if dist <= threshold AND NOT s_at_index
+                        if 0 == dist {
+                            hits_on_0 += 1
+                        };
                         (weight * s.score as f64, 0.0f64, weight, 0.0f64) // return score
                     }
                 } // endif dist <= THRESHOLD
@@ -242,41 +247,45 @@ impl MhdMemory {
             let false_exploitation = (score_false / weight_false) / denominator;
 
             // exploration -- trickier...
-            let total_hits : f64 = (hits_on_0 + hits_on_1) as f64;
+            let total_hits: f64 = (hits_on_0 + hits_on_1) as f64;
             let ln_total_hits = total_hits.ln();
-            let true_exploration =  (ln_total_hits / hits_on_1 as f64).sqrt() * UCB_CONSTANT;
+            let true_exploration = (ln_total_hits / hits_on_1 as f64).sqrt() * UCB_CONSTANT;
             let false_exploration = (ln_total_hits / hits_on_0 as f64).sqrt() * UCB_CONSTANT;
 
             // UCB Formula, kinda...
             let true_sum = true_exploitation + true_exploration;
             if true_sum <= 0.0 {
-                error!("True Sum = {} = exploration = {} + exploitation {} <= 0.0",
-                        true_sum, true_exploration, true_exploitation );
+                error!(
+                    "True Sum = {} = exploration = {} + exploitation {} <= 0.0",
+                    true_sum, true_exploration, true_exploitation
+                );
             };
             // assert!(0.0 < true_sum);
             // assert!(true_sum <= UCB_CONSTANT+1.0);
             let false_sum = false_exploitation + false_exploration;
             if false_sum <= 0.0 {
-                error!("False Sum = {} = exploration = {} + exploitation {} <= 0.0",
-                       true_sum, false_exploration, false_exploitation );
+                error!(
+                    "False Sum = {} = exploration = {} + exploitation {} <= 0.0",
+                    true_sum, false_exploration, false_exploitation
+                );
             };
             // assert!(0.0 < false_sum);
             // assert!(false_sum <= UCB_CONSTANT+1.0);
 
             // DECIDE!
             // Are deterministic decisions a bad idea because they repeat?!?
-/*******    if false_sum < true_sum {
-                true
-            } else if true_sum < false_sum {
-                false
-            } else {
-                // true_sum == false_sum  --- flip a coin!
-                rand::thread_rng().gen()
-            }
-********/
+            /*******    if false_sum < true_sum {
+                            true
+                        } else if true_sum < false_sum {
+                            false
+                        } else {
+                            // true_sum == false_sum  --- flip a coin!
+                            rand::thread_rng().gen()
+                        }
+            ********/
             // Or are probablistic decisions even worse? Because ... flaky?
             let probability = true_sum / (true_sum + false_sum);
-            rand::thread_rng().gen_bool( probability )
+            rand::thread_rng().gen_bool(probability)
         };
 
         trace!(

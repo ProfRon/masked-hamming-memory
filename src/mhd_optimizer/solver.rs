@@ -36,7 +36,9 @@ pub trait Solver<Sol: Solution> {
 
     /// Number of bits per solution, number of decisions to be made in eacn solution
     #[inline]
-    fn width( &self ) -> usize { self.best_solution().size() }
+    fn width(&self) -> usize {
+        self.best_solution().size()
+    }
 
     /// Number of solutions stored in this container
     fn number_of_solutions(&self) -> usize;

@@ -152,7 +152,10 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
         max(max(max(dfs_score, bfs_score), mcts_score), monte_score),
         mhd_score,
     );
-    println!("best score was {} (mhd score was {})", best_score, mhd_score);
+    println!(
+        "best score was {} (mhd score was {})",
+        best_score, mhd_score
+    );
 
     if 12 == (opt.algorithms & (MHD_BIT | MCTS_BIT)) {
         assert_ne!(0, mcts_score, "MCTS score should not be zero");
