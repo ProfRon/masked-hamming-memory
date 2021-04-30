@@ -173,7 +173,8 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for BestfirstMhdMonteC
         // debug_assert!(self.best_score() <= solution.get_score());
         self.best_solution = solution;
     } //end store_best_solution
-} // end imp Solver for MhdMonteCarloSolver
+
+} // end imp Solver for BestfirstMhdMonteCarloSolver
 
 /**************************************************************************************/
 //////////////// TESTs for ProblemSubsetSum with  MonteCarloTreeSolver /////////////////
@@ -185,68 +186,51 @@ mod more_tests {
     use mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
 
     #[test]
-    fn test_mc_mhd_solver() {
+    fn test_bf_mc_mhd_solver() {
         const NUM_DECISIONS: usize = 8; // for a start
         let problem = ProblemSubsetSum::random(NUM_DECISIONS);
         assert!(problem.is_legal());
         let mut solver =
-            MhdMonteCarloSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem);
+            BestfirstMhdMonteCarloSolver::<MinimalSolution, ProblemSubsetSum>::builder(&problem);
 
-        assert!(!solver.is_empty()); // bootstraping!
-        assert_eq!(solver.width(), NUM_DECISIONS);
-        assert!(solver.number_of_solutions() <= NUM_DECISIONS);
-
-        debug!("Start of test_mc_mhd_solver, knapsack = {:?}", problem);
-
-        let solution1 = solver.pop().expect("pop() should return Some(sol)");
-
+        assert!(solver.is_empty());
+        let solution = MinimalSolution::random(NUM_DECISIONS);
+        solver.push(solution);
         assert!(!solver.is_empty());
-        assert!(problem.rules_audit_passed(&solution1));
+        assert_eq!(solver.number_of_solutions(), 1);
+        let solution = MinimalSolution::random(NUM_DECISIONS);
+        solver.push(solution);
+        assert_eq!(solver.number_of_solutions(), 2);
 
-        if problem.solution_is_complete(&solution1) {
-            solver.new_best_solution(&problem, solution1); // Warning: solution1 moved!
-        } else {
-            warn!(
-                "First Solution returned is not complete? S1 = {:?}",
-                solution1
-            );
-            warn!(
-                "                      current best solution = {:?}",
-                solver.best_solution()
-            );
-        };
+        let _ = solver.pop();
+        assert_eq!(solver.number_of_solutions(), 1);
+        let _ = solver.pop();
+        assert!(solver.is_empty());
 
-        let solution2 = solver.pop().expect("pop() should return Some(sol)");
-        assert!(!solver.is_empty());
-        assert!(solver.problem.rules_audit_passed(&solution2));
+        // Try again, to test clear
+        let solution = MinimalSolution::random(NUM_DECISIONS);
+        solver.push(solution);
+        let solution = MinimalSolution::random(NUM_DECISIONS);
+        solver.push(solution);
+        assert_eq!(solver.number_of_solutions(), 2);
+        solver.clear();
+        assert!(solver.is_empty());
 
-        if problem.solution_is_complete(&solution2) {
-            solver.new_best_solution(&problem, solution2); // Warning: solution1 moved!
-        } else {
-            warn!(
-                "Second Solution returned is not complete? S1 = {:?}",
-                solution2
-            );
-            warn!(
-                "                      current best solution = {:?}",
-                solver.best_solution()
-            );
-        };
     }
 
     #[test]
-    fn test_mcts_find_solution() {
+    fn test_bf_mcts_find_solution() {
         const FEW_DECISIONS: usize = 8; // so we can be sure to find THE optimum!
 
         let knapsack = ProblemSubsetSum::random(FEW_DECISIONS);
         assert!(knapsack.is_legal());
         let mut solver =
-            MhdMonteCarloSolver::<MinimalSolution, ProblemSubsetSum>::builder(&knapsack);
+            BestfirstMhdMonteCarloSolver::<MinimalSolution, ProblemSubsetSum>::builder(&knapsack);
 
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        debug!("Start of test find_solution, knapsack = {:?}", knapsack);
+        debug!("Start of test_bf_mcts_find_solution, knapsack = {:?}", knapsack);
 
         let the_best = solver
             .find_best_solution(&knapsack, time_limit)
@@ -262,18 +246,18 @@ mod more_tests {
     }
 
     #[test]
-    fn test_mcts_find_01knapsack_solution() {
+    fn test_bf_mcts_find_01knapsack_solution() {
         const FEW_DECISIONS: usize = 8; // so we can be sure to find THE optimum!
 
         let knapsack = Problem01Knapsack::random(FEW_DECISIONS);
         assert!(knapsack.is_legal());
         let mut solver =
-            MhdMonteCarloSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&knapsack);
+            BestfirstMhdMonteCarloSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&knapsack);
 
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        debug!("Start of test find_solution, knapsack = {:?}", knapsack);
+        debug!("Start of test_bf_mcts_find_01knapsack_solution, knapsack = {:?}", knapsack);
 
         let the_best = solver
             .find_best_solution(&knapsack, time_limit)
@@ -288,18 +272,18 @@ mod more_tests {
     }
 
     #[test]
-    fn test_mcts_solve_mutliple_knapsacks() {
+    fn test_bf_mcts_solve_mutliple_knapsacks() {
         const FEW_DECISIONS: usize = 8; // so we can be sure to find THE optimum!
 
         let knapsack = Problem01Knapsack::random(FEW_DECISIONS);
         assert!(knapsack.is_legal());
         let mut solver =
-            MhdMonteCarloSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&knapsack);
+            BestfirstMhdMonteCarloSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&knapsack);
 
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        debug!("Start of test find_solution, knapsack = {:?}", knapsack);
+        debug!("Start of test_bf_mcts_solve_mutliple_knapsacks, knapsack = {:?}", knapsack);
 
         let the_best = solver
             .find_best_solution(&knapsack, time_limit)

@@ -120,7 +120,7 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 /// Examples:
 /// ```rust
 /// use mhd_mem::mhd_method::{ ScoreType, ZERO_SCORE };
-/// use mhd_mem::mhd_optimizer::{ Solution, MinimalSolution };
+/// use mhd_mem::mhd_optimizer::{ Solution, PriorityType, MinimalSolution };
 /// let sol0 = MinimalSolution::new( 8 );
 /// let sol1 = MinimalSolution::random( 8 );
 ///
@@ -150,8 +150,10 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 /// assert_eq!( sol2.get_best_score(), 88 as ScoreType );
 ///
 /// let mut sol3 = MinimalSolution::new( 4 );
-/// sol3.put_score(      64 as ScoreType );
-/// sol3.put_best_score( 88 as ScoreType );
+/// sol2.set_priority( 42.00 as PriorityType );
+/// sol3.set_priority( 42.42 as PriorityType );
+/// assert_eq!( 42.00, sol2.priority() );
+/// assert_eq!( 42.42, sol3.priority() );
 /// assert!( sol2 < sol3 );
 /// assert!( ! (sol2 == sol3) );
 /// ```

@@ -301,7 +301,7 @@ mod more_tests {
 
         // Now test solver.clear()!!!
         solver.clear();
-        assert!(solver.is_empty());
+        assert!(!solver.is_empty()); // Bootstrapping, again!
 
         let second_best = solver
             .find_best_solution(&knapsack, time_limit)

@@ -27,8 +27,8 @@ struct Opt {
     #[structopt(short, long, default_value = "1.0")]
     time: f32,
 
-    /// Algorithms (solvers) : 1 = depth first, 2 = best first, 4 = MCTS, 8 = MHD, 14 = 0x1111 = all four (etc.).
-    #[structopt(short, long, default_value = "15")]
+    /// Algorithms (solvers) : 1 = depth first, 2 = best first, 4 = MCTS, 8 = MHD, 16 = BF MHD MCTS, 31 = 0x11111 = all of them ...
+    #[structopt(short, long, default_value = "31")]
     algorithms: u8,
 
     /// Number of problems to solve
@@ -57,10 +57,12 @@ const DEPTH_FIRST_BIT: u8 = 1;
 const BEST_FIRST_BIT: u8 = 2;
 const MCTS_BIT: u8 = 4;
 const MHD_BIT: u8 = 8;
+const BF_MHD_BIT: u8 = 16;
 
 use std::time::{Duration, Instant};
 
 extern crate mhd_mem;
+use mhd_mem::implementations::BestfirstMhdMonteCarloSolver;
 use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
 use mhd_mem::implementations::{MhdMonteCarloSolver, MonteCarloTreeSolver};
 use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
@@ -111,6 +113,7 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
     let mut mcts_score: ScoreType = ZERO_SCORE;
     let mut monte_score: ScoreType = ZERO_SCORE;
     let mut mhd_score: ScoreType = ZERO_SCORE;
+    let mut bf_mhd_score: ScoreType = ZERO_SCORE;
 
     println!(" "); // blank line seperator -> output
     if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
@@ -148,13 +151,18 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
         assert!(ZERO_SCORE < mhd_score); // out of habit
     }; // end if best first
 
-    let best_score = max(
-        max(max(max(dfs_score, bfs_score), mcts_score), monte_score),
-        mhd_score,
-    );
+    if 0 != (opt.algorithms & BF_MHD_BIT) {
+        print!("Knapsack {}: ", prob_num + 1);
+        let mut solver = BestfirstMhdMonteCarloSolver::builder(knapsack);
+        bf_mhd_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        assert!(ZERO_SCORE < mhd_score); // out of habit
+    }; // end if best first
+
+    let best_score = [ dfs_score, bfs_score, mcts_score, monte_score, mhd_score, bf_mhd_score ]
+        .iter().fold( ZERO_SCORE, | s0, s1 | max( s0, *s1 ) );
     println!(
-        "best score was {} (mhd score was {})",
-        best_score, mhd_score
+        "best score was {} (mhd score was {}, bf_mhd was {})",
+        best_score, mhd_score, bf_mhd_score
     );
 
     if 12 == (opt.algorithms & (MHD_BIT | MCTS_BIT)) {
@@ -240,8 +248,8 @@ fn main() {
     assert!(opt.capacity < 100.0, "Capacity cannot be 100% or greater");
     assert!(opt.verbose < 4, "Too verbose: Maximum verbosity is vvv");
     assert!(
-        opt.algorithms < 16,
-        "Illegal algorithm (code 16 or more not allowed)"
+        opt.algorithms < 32,
+        "Illegal algorithm (code 32 or more not allowed)"
     );
 
     if 0 < opt.verbose {
