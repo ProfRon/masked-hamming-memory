@@ -64,11 +64,11 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
     }
 
     #[inline]
-    fn push(&mut self, solution: Sol) {
+    fn push(&mut self, mut solution: Sol) {
         let p : PriorityType  = (solution.get_score() + solution.get_best_score()) as PriorityType;
-        let mut new_solution = solution.clone();
-        new_solution.set_priority( p );
-        self.solutions.push(new_solution );
+        // let mut new_solution = solution.clone(); clippy sez we don't need this (?)
+        solution.set_priority( p );
+        self.solutions.push(solution );
     }
 
     #[inline]
