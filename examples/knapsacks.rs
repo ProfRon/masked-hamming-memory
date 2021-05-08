@@ -120,42 +120,36 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32,
         print!("Knapsack {}: ", prob_num + 1);
         dfs_score =
             run_one_problem_one_solver(&opt, &knapsack, &mut DepthFirstSolver::new(opt.size));
-        assert!(ZERO_SCORE < dfs_score); // so dfs_score not unused
     }; // endif depth first
 
     if 0 != (opt.algorithms & BEST_FIRST_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         bfs_score =
             run_one_problem_one_solver(&opt, &knapsack, &mut BestFirstSolver::new(opt.size));
-        assert!(ZERO_SCORE < bfs_score); // so dfs_score not unused
     }; // end if best first
 
     if 0 != (opt.algorithms & MCTS_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         let mut solver = MonteCarloTreeSolver::builder(knapsack);
         mcts_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
-        assert!(ZERO_SCORE < mcts_score); // out of habit
 
         // Do it again, but full monte
         solver.clear();
         solver.full_monte = true;
         print!("FullMonte{}: ", prob_num + 1);
         monte_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
-        assert!(ZERO_SCORE < monte_score); // out of habit
     }; // end if best first
 
     if 0 != (opt.algorithms & MHD_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         let mut solver = MhdMonteCarloSolver::builder(knapsack);
         mhd_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
-        assert!(ZERO_SCORE < mhd_score); // out of habit
     }; // end if best first
 
     if 0 != (opt.algorithms & BF_MHD_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         let mut solver = BestfirstMhdMonteCarloSolver::builder(knapsack);
         bf_mhd_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
-        assert!(ZERO_SCORE < mhd_score); // out of habit
     }; // end if best first
 
     let best_score = [ dfs_score, bfs_score, mcts_score, monte_score, mhd_score, bf_mhd_score ]
