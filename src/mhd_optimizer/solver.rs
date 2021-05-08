@@ -109,11 +109,14 @@ pub trait Solver<Sol: Solution> {
     } // end accept_solution
 
     // Wrapper for problem.children_of_solution() -- to allow solver specific hacks...
-    fn children_of_solution<Prob: Problem<Sol = Sol>>(&mut self, parent: &Sol, problem: &Prob, )
-        -> Vec< Sol > {
-        problem.children_of_solution( parent )
+    fn children_of_solution<Prob: Problem<Sol = Sol>>(
+        &mut self,
+        parent: &Sol,
+        problem: &Prob,
+    ) -> Vec<Sol> {
+        problem.children_of_solution(parent)
     }
-        /*******************************************************************************/
+    /*******************************************************************************/
     /// This is the crux of this whole project: The `find_best_solution` method.
     /// It does what it says here.
     /// Originally outside this (Problem) Trait, but the compiler is making this difficult...
@@ -185,7 +188,7 @@ pub trait Solver<Sol: Solution> {
                 // BOUND (above) and BRANCH (below)
 
                 // Get children
-                let children = self.children_of_solution(&next_solution, problem );
+                let children = self.children_of_solution(&next_solution, problem);
 
                 // Evaluate complete children, push (some) incomplete chldren
                 for child in children {
