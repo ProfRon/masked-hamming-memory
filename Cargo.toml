@@ -16,7 +16,8 @@ A rust crate to implement Bernd Klauer's MHD (Masked Hamming Distance) Associati
 NP-Hard problems e.g. Knapsack problems (etc.)
 """
 
-autoexamples = false
+# Where did the next line come from? The Hamming crate (my role model)?
+# autoexamples = false
 
 [features]
 unstable = []
@@ -42,5 +43,5 @@ name = "benches"
 harness = false
 
 # Next two lines based on a suggestion from the flamegraph crate
-[profile.release]
-debug = true
+# [profile.release]
+# debug = true
