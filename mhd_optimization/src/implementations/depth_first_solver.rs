@@ -1,45 +1,81 @@
 /// # Example Implementations
 ///
 ///
-///
-use mhd_optimizer::{PriorityType, Solution, Solver};
+use optimizer::{Solution, Solver};
 
-/// ## Example Solver Implementation: Best First Search
+/// ## Example Solver Implementation: Depth First Search
 ///
 ///
-use mhd_method::ZERO_SCORE; // ScoreType not needed (?!?)
-use std::collections::BinaryHeap;
-// use num::NumCast;
+/// ```rust
+/// use mhd_optimization::optimizer::{ Solution, MinimalSolution, Solver };
+/// use mhd_optimization::implementations::DepthFirstSolver;
+///
+/// let mut my_solver = DepthFirstSolver::< MinimalSolution >::new( 8 );
+///
+/// assert_eq!( my_solver.number_of_solutions(), 0 );
+/// assert!( my_solver.is_empty() );
+///
+/// let sol0 = MinimalSolution::new( 8 );
+/// let sol1 = MinimalSolution::random( 8 );
+///
+/// assert_eq!( sol0.get_score(), 0 );
+/// assert_eq!( sol0.get_best_score(), 0 );
+/// assert_eq!( sol0.get_decision( 0 ), None );
+///
+/// let mut sol2 = MinimalSolution::new( 4 );
+/// sol2.make_decision( 0, true );
+/// sol2.make_decision( 1, false );
+/// sol2.make_decision( 2, true );
+/// assert!(   sol2.get_decision( 0 ).unwrap( ) );
+/// assert!( ! sol2.get_decision( 1 ).unwrap( ) );
+/// assert!(   sol2.get_decision( 2 ).unwrap( ) );
+/// assert_eq!( sol0.get_decision( 3 ), None );
+///
+/// sol2.put_score(      42  );
+/// sol2.put_best_score( 88  );
+/// assert_eq!( sol2.get_score(),      42  );
+/// assert_eq!( sol2.get_best_score(), 88  );
+///
+/// my_solver.push( sol0 );
+/// my_solver.push( sol1 );
+/// my_solver.push( sol2 );
+///
+/// assert_eq!( my_solver.number_of_solutions(), 3 );
+///
+/// let popped = my_solver.pop( ).unwrap();
+/// assert!( ! popped.get_decision( 1 ).unwrap( ) );
+///
+///
+/// ```
 
 #[derive(Debug, Clone)]
-pub struct BestFirstSolver<Sol: Solution> {
-    pub solutions: BinaryHeap<Sol>,
+pub struct DepthFirstSolver<Sol: Solution> {
+    pub solutions: Vec<Sol>,
     best_solution: Sol,
 }
 
-impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
+impl<Sol: Solution> Solver<Sol> for DepthFirstSolver<Sol> {
+    // type Sol = TwoSampleSolution;
+
     #[inline]
     fn name(&self) -> &'static str {
-        "BestFirstSolver "
+        "DepthFirstSolver"
     }
 
     #[inline]
     fn short_description(&self) -> String {
         format!(
-            "{} holding {} solutions, best score {}",
+            "{} holding {} solutions, best score is {}",
             self.name(),
             self.number_of_solutions(),
-            match self.solutions.peek() {
-                None => ZERO_SCORE,
-                Some(sol) => sol.get_score(),
-            }
+            self.best_solution().get_best_score(),
         )
     }
 
     #[inline]
     fn new(size: usize) -> Self {
         Self {
-            solutions: BinaryHeap::new(),
+            solutions: Vec::new(),
             best_solution: Sol::new(size),
         }
     }
@@ -64,11 +100,8 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
     }
 
     #[inline]
-    fn push(&mut self, mut solution: Sol) {
-        let p : PriorityType  = (solution.get_score() + solution.get_best_score()) as PriorityType;
-        // let mut new_solution = solution.clone(); clippy sez we don't need this (?)
-        solution.set_priority( p );
-        self.solutions.push(solution );
+    fn push(&mut self, solution: Sol) {
+        self.solutions.push(solution);
     }
 
     #[inline]
@@ -89,19 +122,21 @@ impl<Sol: Solution> Solver<Sol> for BestFirstSolver<Sol> {
         // debug_assert!(self.best_score() <= solution.get_score());
         self.best_solution = solution;
     }
-} // end imp Solver for BestFirstSolver
 
-///////////////////// TESTs for ProblemSubsetSum with  BestFirstSolver /////////////////////
+    // take default new_best_soluiton() method
+}
+
+///////////////////// TESTs for DepthFirstSolver /////////////////////
 #[cfg(test)]
 mod more_tests {
     use super::*;
-    use implementations::ProblemSubsetSum;
-    use mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
+    use optimizer::{MinimalSolution, Solution};
+
+    const NUM_DECISIONS: usize = 64; // for a start
 
     #[test]
-    fn test_best_first_solver_solver() {
-        const NUM_DECISIONS: usize = 64; // for a start
-        let mut solver = BestFirstSolver::<MinimalSolution>::new(NUM_DECISIONS);
+    fn test_depth_first_solver_solver() {
+        let mut solver = DepthFirstSolver::<MinimalSolution>::new(NUM_DECISIONS);
         assert!(solver.is_empty());
         let solution = MinimalSolution::random(NUM_DECISIONS);
         solver.push(solution);
@@ -124,26 +159,5 @@ mod more_tests {
         assert_eq!(solver.number_of_solutions(), 2);
         solver.clear();
         assert!(solver.is_empty());
-    }
-
-    #[test]
-    fn test_find_best_first_solution() {
-        const FEW_DECISIONS: usize = 4; // so we can be sure to find THE optimum!
-        let knapsack = ProblemSubsetSum::random(FEW_DECISIONS);
-        let mut second_solver = BestFirstSolver::<MinimalSolution>::new(FEW_DECISIONS);
-
-        use std::time::Duration;
-        let time_limit = Duration::new(1, 0); // 1 second
-
-        assert!(knapsack.is_legal());
-
-        let the_best = second_solver
-            .find_best_solution(&knapsack, time_limit)
-            .expect("could not find best solution");
-
-        assert!(knapsack.solution_is_legal(&the_best));
-        assert!(knapsack.solution_is_complete(&the_best));
-        assert_eq!(knapsack.solution_score(&the_best), knapsack.capacity);
-        assert_eq!(the_best.get_score(), knapsack.capacity);
     }
 }

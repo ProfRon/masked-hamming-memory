@@ -1,13 +1,13 @@
 use log::*;
 use rand::prelude::*; // for info, trace, warn, etc.
 
-use mhd_method::{ScoreType, ZERO_SCORE}; // ScoreType not needed (?!?)
+use mhd_memory::{ScoreType, ZERO_SCORE}; // ScoreType not needed (?!?)
 
 /// # Example Implementations
 ///
 ///
 ///
-use mhd_optimizer::{Problem, Solution, Solver};
+use optimizer::{Problem, Solution, Solver};
 
 /**************************************************************************************/
 // Helper Struct -- the MCTS Tree Node Struct
@@ -415,7 +415,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MonteCarloTreeSolv
 mod more_tests {
     use super::*;
     use implementations::*;
-    use mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
+    use optimizer::{MinimalSolution, Problem, Solution, Solver};
 
     const NUM_DECISIONS: usize = 64; // for a start
 

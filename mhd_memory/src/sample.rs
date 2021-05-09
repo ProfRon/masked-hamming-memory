@@ -30,7 +30,7 @@ pub const ZERO_SCORE: ScoreType = 0;
 ///
 /// ## Examples:
 /// ```rust
-/// use mhd_mem::mhd_method::{Sample, ScoreType, ZERO_SCORE };
+/// use mhd_memory::{Sample, ScoreType, ZERO_SCORE };
 /// const NUM_BITS : usize = 356; // arbitrary, .... 44.5 bytes
 /// let the_answer = 42 as ScoreType;
 /// let row0  =  Sample::new( NUM_BITS, the_answer );

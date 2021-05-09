@@ -1,0 +1,48 @@
+[package]
+name = "mhd_optimization"
+version = "0.0.1"
+authors = ["Ronald Moore <ronald.moore@h-da.de>"]
+
+license = "MIT/Apache-2.0"   # Because the hamming crate uses that one
+keywords = ["masked hamming distance", "associative memory", "content addressable memory",
+            "hamming distance", "optimization", "NP-hard problems", "knapsack problems"]
+homepage = "https://github.com/ProfRon/masked-hamming-memory"
+repository = "https://github.com/ProfRon/masked-hamming-memory"
+documentation = "https://github.com/ProfRon/masked-hamming-memory"
+
+description = """
+A rust crate to implement Bernd Klauer's MHD (Masked Hamming Distance) Associative Memory 
+(more or less) in Rust -- building on Huonw's excellent "hamming" crate -- and apply this to solvig
+NP-Hard problems e.g. Knapsack problems (etc.)
+"""
+
+# Where did the next line come from? The Hamming crate (my role model)?
+# autoexamples = false
+
+[features]
+unstable = []
+
+[dependencies]
+hamming      = "0.1"
+rand         = "0.8"
+rand_distr   = "0.4"
+log          = "0.4"
+simplelog    = "0.9"
+structopt    = "0.3"
+mhd_memory = { path = "../mhd_memory" }
+
+[dev-dependencies]
+# quickcheck   = "0.2"
+criterion    = "0.3"
+
+[[example]]
+name = "knapsacks"
+
+# Next three lines based on a suggestion from the criterion crate
+[[bench]]
+name = "benches"
+harness = false
+
+# Next two lines based on a suggestion from the flamegraph crate
+# [profile.release]
+# debug = true

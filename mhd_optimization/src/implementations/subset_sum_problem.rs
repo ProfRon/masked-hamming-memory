@@ -18,8 +18,8 @@ extern crate rand_distr;
 
 use rand_distr::{Bernoulli, Distribution, Gamma}; // formerly used: Exp
 
-use mhd_method::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
-use mhd_optimizer::{MinimalSolution, Problem, Solution};
+use mhd_memory::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
+use optimizer::{MinimalSolution, Problem, Solution};
 
 #[derive(Debug, Clone)]
 pub struct ProblemSubsetSum {
@@ -344,7 +344,7 @@ mod tests {
     use super::*;
 
     use implementations::DepthFirstSolver;
-    use mhd_optimizer::Solver;
+    use optimizer::Solver;
 
     #[test]
     fn test_random_weights() {

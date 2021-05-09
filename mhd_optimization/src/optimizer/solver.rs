@@ -6,8 +6,8 @@ use std::error::Error;
 // use std::fs::OpenOptions; // and/or File, if we want to overwrite a file...
 // use std::io::prelude::*; // for writeln! (write_fmt)
 
-use mhd_method::ScoreType;
-use mhd_optimizer::{Problem, Solution};
+use mhd_memory::ScoreType;
+use optimizer::{Problem, Solution};
 
 // Noe: "cargo test" expects tests to finish in less than 60 seconds
 static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(45); // can be changed
@@ -96,13 +96,16 @@ pub trait Solver<Sol: Solution> {
         let result = problem.better_than(&solution, self.best_solution());
         if result {
             // i.e. if solution is better than best_solution
+            // record best solutios score (only for debug!)
+            let sol_score = solution.get_score();
             // record new best solution.
             self.store_best_solution(solution);
 
             // record new best solution as trace and as a line in trace.csv
             debug!(
-                "Optimizer finds new BEST score {}!",
-                self.best_solution().get_score()
+                "Optimizer finds new BEST score {} (== {}?)!",
+                self.best_solution().get_score(),
+                sol_score,
             );
         }; // end solution  better than old best solution
         result // return result!!

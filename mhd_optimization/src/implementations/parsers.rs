@@ -6,8 +6,8 @@ use implementations::Problem01Knapsack;
 /// A module full of software to read file formats and create problems
 /// -- problems in the sense of the problems we want to solve,
 /// or more precisely, the ones we've implemented elsewhere in this module ("implementations").
-use mhd_method::sample::ScoreType; // Not used: NUM_BYTES
-use mhd_optimizer::Problem;
+use mhd_memory::sample::ScoreType; // Not used: NUM_BYTES
+use optimizer::Problem;
 
 /////////// Extra File Input Methods
 // (Notes to self):

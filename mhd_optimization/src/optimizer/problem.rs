@@ -1,8 +1,8 @@
 use rand::prelude::*;
 use std::fmt::Debug;
 
-use mhd_method::{Sample, ScoreType}; // Not used: NUM_BYTES
-use mhd_optimizer::Solution;
+use mhd_memory::{Sample, ScoreType}; // Not used: NUM_BYTES
+use optimizer::Solution;
 // use mhd_optimizer::Solver;
 
 /// ## The Problem Trait

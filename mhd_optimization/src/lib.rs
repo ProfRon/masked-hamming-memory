@@ -1,5 +1,4 @@
-//! A crate to count ones and xor bytes, fast (aka popcount, hamming
-//! weight and hamming distance).
+//! A crate to apply the MHD-Memory to Optimization (NP-Hard) Problems.
 //!
 //! # Installation
 //!
@@ -7,22 +6,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! mhd_mem = "0.1"
+//! mhd_optimization = "0.0.1"
 //! ```
 //!
 //! # Examples
 //!
 //! ```rust
-//! use mhd_mem::mhd_method::*;
-//! assert_eq!( weight(&[1, 0xFF, 1, 0xFF]), 1 + 8 + 1 + 8);
-//! assert_eq!( distance(&[0xFF, 0xFF], &[1, 0xFF], &[0xFF, 1]), 7 + 7);
-//! assert_eq!( Sample::default().score, ZERO_SCORE ); // Sample width is 200 bits
-//! assert_eq!( Sample::new( 120, 42 as ScoreType ).get_bit( 7 ), false );
-//! assert_eq!( 120, MhdMemory::new( 120 ).width );
-//! assert_eq!(   0, MhdMemory::new( 120 ).num_samples() );
-//!
-//! use mhd_mem::mhd_optimizer::*;
-//! use mhd_mem::implementations::*;
+//! use mhd_optimization::optimizer::*;
+//! use mhd_optimization::implementations::*;
 //!
 //! const NUM_DECISIONS: usize = 4; // for a start
 //!
@@ -40,7 +31,7 @@
 //! assert!(knapsack.solution_is_complete(&the_best));
 //
 //! let best_score = the_best.get_score();
-//! assert!(ZERO_SCORE < best_score);
+//! assert!(0  < best_score);
 //! assert_eq!(best_score, knapsack.solution_score(&the_best));
 //! ```
 
@@ -55,27 +46,9 @@ extern crate rand_distr;
 extern crate simplelog;
 extern crate structopt;
 
-#[cfg(test)]
-extern crate quickcheck;
+extern crate mhd_memory;
 
-pub mod mhd_method {
-
-    pub mod util;
-
-    pub mod weight_;
-    pub use self::weight_::weight;
-
-    pub mod distance_;
-    pub use self::distance_::{distance, distance_fast, truncated_distance};
-
-    pub mod sample;
-    pub use self::sample::{Sample, ScoreType, ZERO_SCORE};
-
-    pub mod mhdmemory;
-    pub use self::mhdmemory::MhdMemory;
-}
-
-pub mod mhd_optimizer {
+pub mod optimizer {
     pub mod solution;
     pub use self::solution::{MinimalSolution, Solution, PriorityType, };
 

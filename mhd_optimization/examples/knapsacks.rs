@@ -61,13 +61,15 @@ const BF_MHD_BIT: u8 = 16;
 
 use std::time::{Duration, Instant};
 
-extern crate mhd_mem;
-use mhd_mem::implementations::BestfirstMhdMonteCarloSolver;
-use mhd_mem::implementations::{BestFirstSolver, DepthFirstSolver};
-use mhd_mem::implementations::{MhdMonteCarloSolver, MonteCarloTreeSolver};
-use mhd_mem::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
-use mhd_mem::mhd_method::sample::ScoreType; // used implicitly (only)
-use mhd_mem::mhd_optimizer::{Problem, Solution, Solver};
+extern crate mhd_memory;
+use mhd_memory::ScoreType; // used implicitly (only)
+
+extern crate mhd_optimization;
+use mhd_optimization::optimizer::{Problem, Solution, Solver};
+use mhd_optimization::implementations::BestfirstMhdMonteCarloSolver;
+use mhd_optimization::implementations::{BestFirstSolver, DepthFirstSolver};
+use mhd_optimization::implementations::{MhdMonteCarloSolver, MonteCarloTreeSolver};
+use mhd_optimization::implementations::{Problem01Knapsack, ZeroOneKnapsackSolution};
 
 fn run_one_problem_one_solver(
     opt: &Opt,
@@ -229,9 +231,9 @@ use log::*;
 use simplelog::*;
 use std::fs::File;
 use std::io;
-// use mhd_mem::mhd_method::ScoreType; -- already imported above
-use mhd_mem::implementations::{parse_dot_csv_stream, parse_dot_dat_stream};
-use mhd_mem::mhd_method::ZERO_SCORE;
+// use mhd_mem::mhd_memory::ScoreType; -- already imported above
+use mhd_memory::ZERO_SCORE;
+use mhd_optimization::implementations::{parse_dot_csv_stream, parse_dot_dat_stream};
 
 /********************************* MAIN *****************************/
 fn main() {

@@ -3,7 +3,7 @@
 ///
 use std::fmt::Debug;  // or {Debug, Display}, if necessary ever again...
 
-use mhd_method::{ScoreType, ZERO_SCORE};
+use mhd_memory::{ScoreType, ZERO_SCORE};
 
 pub type PriorityType = f32; // that can change at any time, so we give it a name
 
@@ -119,15 +119,14 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 ///
 /// Examples:
 /// ```rust
-/// use mhd_mem::mhd_method::{ ScoreType, ZERO_SCORE };
-/// use mhd_mem::mhd_optimizer::{ Solution, PriorityType, MinimalSolution };
+/// use mhd_optimization::optimizer::{ Solution, PriorityType, MinimalSolution };
 /// let sol0 = MinimalSolution::new( 8 );
 /// let sol1 = MinimalSolution::random( 8 );
 ///
 /// assert_eq!( sol0.name(), "MinimalSolution");
-/// assert_eq!( sol0.get_score(), ZERO_SCORE );
+/// assert_eq!( sol0.get_score(), 0 );
 /// // assert_eq!( sol0.get_score(), sol1.get_score() );
-/// assert_eq!( sol0.get_best_score(), ZERO_SCORE );
+/// assert_eq!( sol0.get_best_score(), 0 );
 /// // assert_eq!( sol0.get_best_score(), sol1.get_best_score() );
 /// assert_eq!( sol0.get_decision( 0 ), None );
 ///
@@ -144,10 +143,10 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 /// assert!(   sol2.get_decision( 2 ).unwrap( ) );
 /// assert_eq!( sol0.get_decision( 3 ), None );
 ///
-/// sol2.put_score(      42 as ScoreType );
-/// sol2.put_best_score( 88 as ScoreType );
-/// assert_eq!( sol2.get_score(),      42 as ScoreType );
-/// assert_eq!( sol2.get_best_score(), 88 as ScoreType );
+/// sol2.put_score(      42  );
+/// sol2.put_best_score( 88  );
+/// assert_eq!( sol2.get_score(),      42  );
+/// assert_eq!( sol2.get_best_score(), 88  );
 ///
 /// let mut sol3 = MinimalSolution::new( 4 );
 /// sol2.set_priority( 42.00 as PriorityType );
@@ -160,7 +159,7 @@ pub trait Solution: Sized + Clone + Ord + Debug {
 use rand::prelude::*;
 use std::cmp::Ordering;
 
-use mhd_method::util::*; // pub fn get_bit( bytes: &[u8], bit_index: usize ) -> bool
+use mhd_memory::util::*; // pub fn get_bit( bytes: &[u8], bit_index: usize ) -> bool
                          // use std::fmt::Display <-- Already imported, above
 
 #[derive(Debug, Clone)]
@@ -174,7 +173,7 @@ pub struct MinimalSolution {
 }
 
 impl Solution for MinimalSolution {
-    // type ScoreType = ScoreType; // mhd_method::ScoreType;
+    // type ScoreType = ScoreType; // mhd_memory::ScoreType;
     // type PriorityType = f32;
 
     // Take default .. or use this shorter version

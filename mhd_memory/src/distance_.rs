@@ -64,14 +64,14 @@ pub struct DistanceError {
 /// let m = vec![0xFF; 1000];
 /// let x = vec![0xFF; 1000];
 /// let y = vec![0; 1000];
-/// assert_eq!(mhd_mem::mhd_method::distance_fast(&m, &x, &y), Ok(8 * 1000));
+/// assert_eq!( mhd_memory::distance_fast(&m, &x, &y), Ok(8 * 1000));
 ///
 /// // same alignment, but moderately complicated
-/// assert_eq!(mhd_mem::mhd_method::distance_fast(&m[1..1000 - 8], &x[1..1000 - 8], &y[8 + 1..]), Ok(8 * (1000 - 8 - 1)));
+/// assert_eq!( mhd_memory::distance_fast(&m[1..1000 - 8], &x[1..1000 - 8], &y[8 + 1..]), Ok(8 * (1000 - 8 - 1)));
 ///
 /// // differing alignments
-/// assert!(mhd_mem::mhd_method::distance_fast(&m[1..], &x[1..],   &y[..999]).is_err());
-/// assert!(mhd_mem::mhd_method::distance_fast(&m[1..], &x[..999], &y[..999]).is_err());
+/// assert!( mhd_memory::distance_fast(&m[1..], &x[1..],   &y[..999]).is_err());
+/// assert!( mhd_memory::distance_fast(&m[1..], &x[..999], &y[..999]).is_err());
 /// ```
 pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceError> {
     assert_eq!(x.len(), y.len());
@@ -176,7 +176,7 @@ pub fn distance_fast(mask: &[u8], x: &[u8], y: &[u8]) -> Result<u64, DistanceErr
 /// let mask = vec![0xF0; 1000];
 /// let x    = vec![0xFF; 1000];
 /// let y    = vec![0; 1000];
-/// assert_eq!(mhd_mem::mhd_method::distance(&mask, &x, &y), 4 * 1000);
+/// assert_eq!( mhd_memory::distance(&mask, &x, &y), 4 * 1000);
 /// ```
 pub fn distance(mask: &[u8], x: &[u8], y: &[u8]) -> u64 {
     distance_fast(mask, x, y)
@@ -199,7 +199,7 @@ pub fn distance(mask: &[u8], x: &[u8], y: &[u8]) -> u64 {
 /// let lvec  = vec![0xF0; 2]; // l ^ r = 0xFF
 /// let rvec  = vec![0x0F; 2]; // i.e.  8 different bits / byte
 ///
-/// assert_eq!( 14, mhd_mem::mhd_method::truncated_distance( 14, &lvec, &rvec ) );
+/// assert_eq!( 14, mhd_memory::truncated_distance( 14, &lvec, &rvec ) );
 /// ```
 
 pub fn truncated_distance(masked_bits: u64, left: &[u8], right: &[u8]) -> u64 {

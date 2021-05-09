@@ -1,5 +1,5 @@
-use mhd_method::distance_::*;
-use mhd_method::sample::*;
+use distance_::*;
+use sample::*;
 /// # The MHD Memory Struct
 /// Formally, the memory consists of a collection of `samples`, and various `read` and `write` operations.
 ///
@@ -9,7 +9,7 @@ use mhd_method::sample::*;
 ///
 /// ```rust
 ///
-/// use mhd_mem::mhd_method::{MhdMemory, Sample, ScoreType };
+/// use mhd_memory::{MhdMemory, Sample, ScoreType };
 /// const NUM_BITS : usize = 356; // arbitrary, .... 44.5 bytes
 /// let mut test_mem = MhdMemory::new( NUM_BITS);
 /// assert!( test_mem.is_empty() );
@@ -40,8 +40,8 @@ use mhd_method::sample::*;
 /// assert_eq!( test_mem.avg_score(), target_avg );
 /// ```
 use rand::Rng;
-// use ::mhd_method::util::*;    // Not needed, according to compiler
-// use ::mhd_method::weight_::*; // Not needed, according to compiler
+// use ::mhd_memory::util::*;    // Not needed, according to compiler
+// use ::mhd_memory::weight_::*; // Not needed, according to compiler
 
 #[derive(Debug, Default, Clone)]
 pub struct MhdMemory {

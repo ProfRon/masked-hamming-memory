@@ -1,9 +1,8 @@
 extern crate criterion;
 extern crate mhd_mem;
 
-// use mhd_mem::mhd_method::*;
-use mhd_mem::implementations::*;
-use mhd_mem::mhd_optimizer::{MinimalSolution, Problem, Solution, Solver};
+// use mhd_mem::mhd_memory::*;
+use mhd_optimization::{MinimalSolution, Problem, Solution, Solver};
 
 extern crate log;
 use log::*;
@@ -207,7 +206,7 @@ fn bench_directory(c: &mut Criterion) {
 }
 
 /********************************* MHD Memory Benchmarks *********************************/
-use mhd_mem::mhd_method::*;
+use mhd_mem::mhd_memory::*;
 
 fn bench_mhd_memory(width: usize, height: usize) {
     let mut mem = MhdMemory::new(width);
@@ -325,11 +324,11 @@ fn distance_bench<F: 'static + FnMut(&[u8], &[u8], &[u8]) -> u64>(mut f: F) -> i
 create_benchmarks! {
     fn weight(SIZES) {
         "naive" => weight_bench(naive_weight),
-        "weight" => weight_bench(mhd_mem::mhd_method::weight),
+        "weight" => weight_bench(mhd_mem::mhd_memory::weight),
     }
     fn distance(SIZES) {
         "naive" => distance_bench(naive_distance),
-        "distance" => distance_bench(mhd_mem::mhd_method::distance),
+        "distance" => distance_bench(mhd_mem::mhd_memory::distance),
     }
 }
 

@@ -15,8 +15,8 @@ use rand::prelude::*;
 use rand_distr::{Distribution, Gamma};
 
 use implementations::ProblemSubsetSum;
-use mhd_method::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
-use mhd_optimizer::{MinimalSolution, Problem, Solution, PriorityType, };
+use mhd_memory::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
+use optimizer::{MinimalSolution, Problem, Solution, PriorityType, };
 
 /********************************************************************************************/
 ///## Customized Solution Type for the 0/1 Knapsack
@@ -379,7 +379,7 @@ mod tests {
     use super::*;
     use implementations::{DepthFirstSolver, Problem01Knapsack, ZeroOneKnapsackSolution};
     use log::*;
-    use mhd_optimizer::{Problem, Solution, Solver};
+    use optimizer::{Problem, Solution, Solver};
 
     #[test]
     fn test_random_weights() {
