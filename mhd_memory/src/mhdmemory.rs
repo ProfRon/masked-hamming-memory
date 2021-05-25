@@ -113,8 +113,8 @@ impl MhdMemory {
             .find(|s_in_mem| s_in_mem.bytes == query.bytes)
     } // end sample_present
 
-    #[inline]
-    pub fn write_sample(&mut self, new_sample: &Sample) {
+    /// returns true iff new_sample not yet in memory (returns false if already there)
+    pub fn write_sample(&mut self, new_sample: &Sample) -> bool {
         assert_eq!(self.width, new_sample.size());
 
         // First take care of the scores
@@ -123,12 +123,14 @@ impl MhdMemory {
             self.max_score = new_sample.score;
             self.min_score = new_sample.score;
             self.samples.push(new_sample.clone());
+            true
         } else {
             match self.search(&new_sample) {
                 Some(elder_sample) => {
                     // Check that the scores match TOO, which they must...
                     assert_eq!(elder_sample.score, new_sample.score);
-                    // But otherwise do nothing!
+                    // But otherwise do nothingm, but return false
+                    false
                 }
                 None => {
                     // if not empty, and query not found in memory:
@@ -142,11 +144,12 @@ impl MhdMemory {
                     };
                     self.total_score += new_sample.score;
                     self.samples.push(new_sample.clone());
-                }
-            }
-        };
+                    // return...
+                    true
+                } // end case None
+            } // end match None
+        } // end if not empty
 
-        // Then take care of the bytes and actually adding the new sample to the memory
     } // end write_sample
 
     /// Calculate the weighted sum of all the samples in the memory,
@@ -191,26 +194,26 @@ impl MhdMemory {
         score: f64,
         weight: f64,
     ) -> f64 {
-        const UCB_CONSTANT: f64 = 11.313708499; // = 8 * sqrt(2) ; or 5.65685425; or 2.828427125...
+        const UCB_CONSTANT: f64 = 113.13708499; // = 80 * sqrt(2) ; or 5.65685425; or 2.828427125...
         let max_score = self.max_score as f64;
         if 0 == hits_count {
             max_score * 100.0
         } else {
             // if 0 < hits_count
             let exploitation = (score / weight) / max_score;
+            if exploitation <= 0.0 {
+                error!( "exploitation = {} <= 0.0", exploitation );
+            };
 
             // exploration -- trickier...
             let ln_total_hits = (total_hits as f64).ln();
             let exploration = (ln_total_hits / hits_count as f64).sqrt() * UCB_CONSTANT;
+            if exploration <= 0.0 {
+                error!( "exploration = {} <= 0.0", exploration );
+            };
 
             // UCB Formula, kinda...
             let result = exploitation + exploration;
-            if result <= 0.0 {
-                error!(
-                    "result = {} = exploration = {} + exploitation {} <= 0.0",
-                    result, exploration, exploitation
-                );
-            };
 
             trace!( "MHD Priority{} = Exploit {} + Expore {}", result, exploitation, exploration );
             // Return
@@ -297,7 +300,6 @@ impl MhdMemory {
 
         // DECIDE!
         // Are deterministic decisions a bad idea because they repeat?!?
-        /***********
         let partial_false_cmp_true = priorities.0.partial_cmp(&priorities.1);
         let false_cmp_true = partial_false_cmp_true.expect("Not None");
         match false_cmp_true {
@@ -305,13 +307,14 @@ impl MhdMemory {
             std::cmp::Ordering::Greater => false,
             std::cmp::Ordering::Equal => rand::thread_rng().gen::<bool>(),
         }
-        **************/
         // Or are probablistic decisions even worse? Because ... flaky?
+        /***********
         assert!( 0.0 < priorities.0 );
         assert!( 0.0 < priorities.1 );
         let probability = priorities.1 / (priorities.0 + priorities.1);
         // return ....
         rand::thread_rng().gen_bool(probability)
+        **************/
     }
 
     #[inline]

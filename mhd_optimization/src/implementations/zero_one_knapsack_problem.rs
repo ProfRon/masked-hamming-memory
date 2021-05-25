@@ -24,7 +24,7 @@ use optimizer::{MinimalSolution, Problem, Solution, PriorityType, };
 /// So we define our own before we go further.
 ///
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq )]
 pub struct ZeroOneKnapsackSolution {
     pub basis: MinimalSolution,
     pub score: ScoreType,
@@ -128,11 +128,11 @@ impl Solution for ZeroOneKnapsackSolution {
 use std::cmp::*;
 
 // Ord requires Eq, which requires PartialEq
-impl PartialEq for ZeroOneKnapsackSolution {
-    fn eq(&self, other: &Self) -> bool {
-        self.priority() == other.priority()
-    }
-}
+// impl PartialEq for ZeroOneKnapsackSolution {
+//     fn eq(&self, other: &Self) -> bool {
+//         self == other
+//     }
+// }
 
 impl Eq for ZeroOneKnapsackSolution {}
 

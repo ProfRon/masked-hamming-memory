@@ -119,6 +119,7 @@ pub trait Solver<Sol: Solution> {
     ) -> Vec<Sol> {
         problem.children_of_solution(parent)
     }
+
     /*******************************************************************************/
     /// This is the crux of this whole project: The `find_best_solution` method.
     /// It does what it says here.
@@ -164,7 +165,14 @@ pub trait Solver<Sol: Solution> {
             num_visitations += 1;
 
             // Get a solution from the solver -- "pop" a solution
-            let next_solution = self.pop().expect("solver's queue could not pop");
+            let pop_result= self.pop();
+
+            if pop_result.is_none() {
+                debug!( "Solver: Pop returns None, so we're done here!");
+                break;
+            };
+
+            let next_solution = pop_result.unwrap( ); // must be unwrappable, see above....
 
             trace!(
                 // CSV Fields: "; visits; depth; score; complete; high score;"

@@ -162,7 +162,7 @@ use std::cmp::Ordering;
 use mhd_memory::util::*; // pub fn get_bit( bytes: &[u8], bit_index: usize ) -> bool
                          // use std::fmt::Display <-- Already imported, above
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq )]
 pub struct MinimalSolution {
     pub size: usize,
     pub mask: Vec<u8>, // we could have used Vec<u8> (twice) here (and saved two scores),
@@ -278,11 +278,11 @@ impl Solution for MinimalSolution {
 use std::cmp::*;
 
 // Ord requires Eq, which requires PartialEq
-impl PartialEq for MinimalSolution {
-    fn eq(&self, other: &Self) -> bool {
-        self.priority() == other.priority()
-    }
-}
+// impl PartialEq for MinimalSolution {
+//     fn eq(&self, other: &Self) -> bool {
+//        self == other
+//    }
+// }
 
 impl Eq for MinimalSolution {}
 

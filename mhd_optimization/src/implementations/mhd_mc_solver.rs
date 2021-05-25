@@ -48,6 +48,60 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
         // Finished! Return what we've built!
         product
     }
+
+    /// **The whole magic is _here!_**
+    ///
+    /// `find_new_solution()` is a recursive utility function that uses MCTS
+    /// using an MHD Memory instead of a tree to find a new solution-- and
+    /// knows how to react should it find a solution which is already in the memory.
+    fn find_new_solution(&mut self, solution : &Sol) -> Option<Sol> {
+        if self.problem.solution_is_complete( solution ) {
+            if self.mhd_memory
+                .write_sample(&self.problem.sample_from_solution( solution )) {
+                trace!( "find_new_solution, returning new solution!");
+                Some( solution.clone() )
+            } else {
+                trace!( "find_new_solution, returning NONE = No Solution!");
+                None
+            }
+        } else { // if sol is NOT complete (is incomplete)
+            let open_decision = self
+                .problem
+                .first_open_decision(solution )
+                .expect("Should have an open decision");
+            // Decide whether to set the next open bit to true or false, 1 or 0
+            // First, query the mhd memory
+            let decision =
+                self.mhd_memory
+                    .read_and_decide(solution.mask(), solution.query(), open_decision);
+
+            // Now, try this solution and see if it's usable...
+            let mut child = solution.clone();
+            child.make_decision(open_decision, decision);
+            self.problem.apply_rules(&mut child );
+            debug_assert!(self.problem.rules_audit_passed(&child ));
+
+            trace!( "find_new_solution, depth = {}, first try = {}", open_decision, decision );
+
+            let first_try = self.find_new_solution( &child );
+            if first_try.is_some() {
+                trace!( "find_new_solution({}), first try was a hit!!", open_decision );
+                first_try
+            } else { // if first is none, then we change our mind about decision (!)
+                child = solution.clone(); // go back one step
+                let not_decision = ! decision;
+                trace!( "find_new_solution, depth = {}, second try = {}", open_decision, not_decision );
+                child.make_decision(open_decision, not_decision );
+                self.problem.apply_rules(&mut child );
+                debug_assert!(self.problem.rules_audit_passed(&child ));
+                // try this new child and return the result, even if none
+                let second_try = self.find_new_solution( &child );
+                trace!( "find_new_solution({}) 2nd try was a hit? {}!", open_decision, second_try.is_some() );
+                second_try
+            }
+        }
+    }
+
 } // end private Methods
 
 /**************************************************************************************/
@@ -115,51 +169,28 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
         }
     }
 
-    /////// THIS IS WHERE THE MAGIC TAKES PLACE!!! ///////
     fn pop(&mut self) -> Option<Sol> {
-        let mut solution = self.problem.starting_solution();
-        while !self.problem.solution_is_complete(&solution) {
-            let open_decision = self
-                .problem
-                .first_open_decision(&solution)
-                .expect("Should have an open decision");
-            // Decide whether to set the next open bit to true or false, 1 or 0
-            // First, query the mhd memory
-            let decision =
-                self.mhd_memory
-                    .read_and_decide(solution.mask(), solution.query(), open_decision);
-
-            trace!(
-                "MHD MCTS: depth {}, solution score {} (high score {}) => {}",
-                open_decision,
-                solution.get_score(),
-                self.best_solution.get_score(),
-                decision
-            );
-
-            // now that we've made our decision, modify "solution" until it's complete
-            solution.make_decision(open_decision, decision);
-            self.problem.apply_rules(&mut solution);
-            debug_assert!(self.problem.rules_audit_passed(&solution));
-
-        } // end while solution not complete
-
-        // Done! Solution is complete! Write it into the memory and return it
-        self.mhd_memory
-            .write_sample(&self.problem.sample_from_solution(&solution));
-
-        debug!(
-            "MHD MCTS: Return solution with score {}",
-            solution.get_score(),
-        );
-
-        if solution == self.best_solution  {
-            self.repitition_count += 1;
-        } else {
-            self.repitition_count += 0;
-        }
-
-        Some(solution)
+        match self.find_new_solution( & self.problem.starting_solution() ) {
+            None => {
+                debug!( "MHD MCTS POP Returns NONE!!" );
+                None
+            }
+            Some( solution ) => {
+                assert!(self.problem.solution_is_complete(&solution));
+                assert_ne!( solution, self.best_solution );
+                // if solution == self.best_solution {
+                //     self.repitition_count += 1;
+                // } else {
+                //     self.repitition_count = 0;
+                // }
+                debug!(
+                    "MHD MCTS POP: Returns solution with score {}, repitition count {}",
+                    solution.get_score(),
+                    self.repitition_count,
+                );
+                Some(solution)
+            } // end case Some(solution)
+        } // end match
     }
 
     #[inline]
