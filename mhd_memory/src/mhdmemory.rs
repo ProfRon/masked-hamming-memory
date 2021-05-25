@@ -1,5 +1,8 @@
 use distance_::*;
 use sample::*;
+use rand::Rng;
+use log::*;
+
 /// # The MHD Memory Struct
 /// Formally, the memory consists of a collection of `samples`, and various `read` and `write` operations.
 ///
@@ -39,9 +42,6 @@ use sample::*;
 /// let target_avg : ScoreType = target_total / (3 as ScoreType); // == 123 ?
 /// assert_eq!( test_mem.avg_score(), target_avg );
 /// ```
-use rand::Rng;
-// use ::mhd_memory::util::*;    // Not needed, according to compiler
-// use ::mhd_memory::weight_::*; // Not needed, according to compiler
 
 #[derive(Debug, Default, Clone)]
 pub struct MhdMemory {
@@ -52,7 +52,6 @@ pub struct MhdMemory {
     pub samples: Vec<Sample>, // initially empty
 } // end struct Sample
 
-use log::*;
 
 impl MhdMemory {
     #[inline]
@@ -192,7 +191,7 @@ impl MhdMemory {
         score: f64,
         weight: f64,
     ) -> f64 {
-        const UCB_CONSTANT: f64 = 2.828427125; // or 5.65685425 == 4* 2.sqrt()
+        const UCB_CONSTANT: f64 = 11.313708499; // = 8 * sqrt(2) ; or 5.65685425; or 2.828427125...
         let max_score = self.max_score as f64;
         if 0 == hits_count {
             max_score * 100.0
@@ -212,6 +211,8 @@ impl MhdMemory {
                     result, exploration, exploitation
                 );
             };
+
+            trace!( "MHD Priority{} = Exploit {} + Expore {}", result, exploitation, exploration );
             // Return
             result
         }
@@ -296,6 +297,7 @@ impl MhdMemory {
 
         // DECIDE!
         // Are deterministic decisions a bad idea because they repeat?!?
+        /***********
         let partial_false_cmp_true = priorities.0.partial_cmp(&priorities.1);
         let false_cmp_true = partial_false_cmp_true.expect("Not None");
         match false_cmp_true {
@@ -303,13 +305,13 @@ impl MhdMemory {
             std::cmp::Ordering::Greater => false,
             std::cmp::Ordering::Equal => rand::thread_rng().gen::<bool>(),
         }
-
+        **************/
         // Or are probablistic decisions even worse? Because ... flaky?
-        /****        debug_assert!( 0.0 < priorities.0 );
-                     debug_assert!( 0.0 < priorities.1 );
-                     let probability = priorities.1 / (priorities.0 + priorities.1);
-                     rand::thread_rng().gen_bool(probability)
-        ****/
+        assert!( 0.0 < priorities.0 );
+        assert!( 0.0 < priorities.1 );
+        let probability = priorities.1 / (priorities.0 + priorities.1);
+        // return ....
+        rand::thread_rng().gen_bool(probability)
     }
 
     #[inline]

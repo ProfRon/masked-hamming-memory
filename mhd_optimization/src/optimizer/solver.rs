@@ -167,7 +167,7 @@ pub trait Solver<Sol: Solution> {
             let next_solution = self.pop().expect("solver's queue could not pop");
 
             trace!(
-                // CSV Fiels: "; visits; depth; score; complete; high score;"
+                // CSV Fields: "; visits; depth; score; complete; high score;"
                 "; {}; {}; {}; {}; {};",
                 num_visitations,
                 problem
@@ -185,6 +185,15 @@ pub trait Solver<Sol: Solution> {
                     // Reset timer!
                     // That means we have converted if we go for time_limit without a new best solution!
                     start_time = Instant::now();
+                    // new_best_solution already gave debug output,
+                    // but without start_time or num_visitations...
+                    debug!(
+                        // CSV Fiels: "; visits; depth; score; complete; high score;"
+                        "Solver found new BEST after {:?}, {} visitations, score = {} ",
+                        start_time,
+                        num_visitations,
+                        self.best_solution().get_score()
+                    );
                 };
                 // do not push....
             } else if problem.can_be_better_than(&next_solution, self.best_solution()) {

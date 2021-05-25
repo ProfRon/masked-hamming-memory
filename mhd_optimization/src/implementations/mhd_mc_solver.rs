@@ -12,6 +12,7 @@ pub struct MhdMonteCarloSolver<Sol: Solution, Prob: Problem<Sol = Sol>> {
     pub mhd_memory: MhdMemory,
     pub best_solution: Sol,
     pub problem: Prob,
+    pub repitition_count: usize,
 }
 
 impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
@@ -40,6 +41,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
             mhd_memory: MhdMemory::new(problem.problem_size()),
             best_solution: problem.random_solution(),
             problem: problem.clone(),
+            repitition_count: 0,
         };
         // bootstrap the memory with random samples (but legal ones!)
         product.bootstrap_memory( );
@@ -93,7 +95,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
             1 << self.mhd_memory.width() // 2 ^ width
         };
         // now, return true, finished, exhausted when...
-        max_solutions < self.number_of_solutions()
+        ( self.mhd_memory.width() <= self.repitition_count ) || (max_solutions < self.number_of_solutions())
     }
 
     #[inline]
@@ -102,6 +104,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
         self.mhd_memory.clear();
         self.bootstrap_memory( );
         self.best_solution = Sol::new(width);
+        self.repitition_count = 0;
     }
 
     #[inline]
@@ -138,6 +141,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
             solution.make_decision(open_decision, decision);
             self.problem.apply_rules(&mut solution);
             debug_assert!(self.problem.rules_audit_passed(&solution));
+
         } // end while solution not complete
 
         // Done! Solution is complete! Write it into the memory and return it
@@ -148,6 +152,12 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
             "MHD MCTS: Return solution with score {}",
             solution.get_score(),
         );
+
+        if solution == self.best_solution  {
+            self.repitition_count += 1;
+        } else {
+            self.repitition_count += 0;
+        }
 
         Some(solution)
     }
