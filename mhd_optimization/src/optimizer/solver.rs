@@ -10,7 +10,7 @@ use mhd_memory::ScoreType;
 use optimizer::{Problem, Solution};
 
 // Noe: "cargo test" expects tests to finish in less than 60 seconds
-static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(45); // can be changed
+static GLOBAL_TIME_LIMIT: Duration = Duration::from_secs(60); // can be changed
 
 /// ## The Solver Trait
 ///

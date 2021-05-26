@@ -102,7 +102,7 @@ pub fn parse_dot_dat_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
 }
 
 /// This parser reads one problem from a "dot csv" file -- taken to be in "Pisinger format,
-/// where each file contains 1ßß knapsack problems --
+/// where each file contains 100 knapsack problems --
 /// and returns one problem -- or nothing, if no problem could be read.
 
 // The file format is as follows:
@@ -170,7 +170,7 @@ pub fn parse_dot_csv_stream<R: io::BufRead>(mut input: R) -> io::Result<Problem0
     assert_eq!(2, tokens.len(), "expected c <int> (only)");
     assert_eq!("z", tokens[0], "expected z <int> (did not find z)");
     let goal: ScoreType = tokens[1].parse().expect("Expect Ziel (goal score)");
-    println!("                                        GOAL = {}", goal);
+    println!("\n                                        GOAL = {}", goal);
 
     // line 5 = time <int>
     let mut line = String::new();

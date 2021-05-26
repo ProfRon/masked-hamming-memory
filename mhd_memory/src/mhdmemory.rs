@@ -294,27 +294,27 @@ impl MhdMemory {
     } // end maked_read
 
     #[inline]
-    pub fn read_and_decide(&self, mask: &[u8], query: &[u8], index: usize) -> bool {
-
+    pub fn read_and_decide(&self, mask: &[u8], query: &[u8], index: usize, full_monte : bool ) -> bool {
         let priorities = self.read_2_priorities(mask, query, index);
 
         // DECIDE!
-        // Are deterministic decisions a bad idea because they repeat?!?
-        let partial_false_cmp_true = priorities.0.partial_cmp(&priorities.1);
-        let false_cmp_true = partial_false_cmp_true.expect("Not None");
-        match false_cmp_true {
-            std::cmp::Ordering::Less => true,
-            std::cmp::Ordering::Greater => false,
-            std::cmp::Ordering::Equal => rand::thread_rng().gen::<bool>(),
-        }
-        // Or are probablistic decisions even worse? Because ... flaky?
-        /***********
-        assert!( 0.0 < priorities.0 );
-        assert!( 0.0 < priorities.1 );
-        let probability = priorities.1 / (priorities.0 + priorities.1);
-        // return ....
-        rand::thread_rng().gen_bool(probability)
-        **************/
+        if full_monte {
+            // Are probablistic decisions too flaky?
+            assert!(0.0 < priorities.0);
+            assert!(0.0 < priorities.1);
+            let probability = priorities.1 / (priorities.0 + priorities.1);
+            // return ....
+            rand::thread_rng().gen_bool(probability)
+        } else {
+            // Are deterministic decisions too stable?
+            let partial_false_cmp_true = priorities.0.partial_cmp(&priorities.1);
+            let false_cmp_true = partial_false_cmp_true.expect("Not None");
+            match false_cmp_true {
+                std::cmp::Ordering::Less => true,
+                std::cmp::Ordering::Greater => false,
+                std::cmp::Ordering::Equal => rand::thread_rng().gen::<bool>(),
+            } // end match
+        } // end if NOT full_monte
     }
 
     #[inline]
@@ -474,8 +474,7 @@ mod tests {
         assert_eq!(2 * NUM_ROWS, memory.num_samples());
     }
 
-    #[test]
-    fn test_read_for_decision() {
+    fn test_read_for_decision( full_monte : bool ) {
         const NUM_BITS: usize = 16;
         const NUM_ROWS: usize = 32; // Must be at least four!!!
 
@@ -505,7 +504,7 @@ mod tests {
             let random_mask = &Sample::random(NUM_BITS);
             index = (index + 1) % NUM_BITS;
             let decision =
-                memory.read_and_decide(&random_mask.bytes, &memory.samples[row].bytes, index);
+                memory.read_and_decide(&random_mask.bytes, &memory.samples[row].bytes, index, full_monte );
             if decision {
                 true_decisions += 1
             } else {
@@ -530,4 +529,15 @@ mod tests {
         assert!(true_decisions < NUM_ROWS);
         assert!(false_decisions < NUM_ROWS);
     } // end test read_for_decsions
+
+    #[test]
+    fn test_read_for_decision_full_monte( ) {
+        test_read_for_decision( true );
+    }
+
+    #[test]
+    fn test_read_for_decision_not_monte( ) {
+        test_read_for_decision( false );
+    }
+
 } // end mod tests

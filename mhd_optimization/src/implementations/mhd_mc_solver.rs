@@ -12,7 +12,7 @@ pub struct MhdMonteCarloSolver<Sol: Solution, Prob: Problem<Sol = Sol>> {
     pub mhd_memory: MhdMemory,
     pub best_solution: Sol,
     pub problem: Prob,
-    pub repitition_count: usize,
+    pub full_monte: bool,
 }
 
 impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
@@ -41,7 +41,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
             mhd_memory: MhdMemory::new(problem.problem_size()),
             best_solution: problem.random_solution(),
             problem: problem.clone(),
-            repitition_count: 0,
+            full_monte: false, // until overwritten with true
         };
         // bootstrap the memory with random samples (but legal ones!)
         product.bootstrap_memory( );
@@ -73,7 +73,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
             // First, query the mhd memory
             let decision =
                 self.mhd_memory
-                    .read_and_decide(solution.mask(), solution.query(), open_decision);
+                    .read_and_decide(solution.mask(), solution.query(), open_decision, self.full_monte );
 
             // Now, try this solution and see if it's usable...
             let mut child = solution.clone();
@@ -143,13 +143,26 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
 
     #[inline]
     fn is_finished(&self) -> bool {
-        let max_solutions: usize = if 32 < self.mhd_memory.width {
-            u32::MAX as usize
-        } else {
+        // Max size should be about a gigabyte.
+        // Problem: Small problems lead to many, many solutions (max)....
+        // Alternative = 2 ^width. So, where is the threshold?
+        // width      width in bytes     max_solutions in 1 GB  2^width
+        // 256        32                 32 Mega = 2^25   <     2^256
+        // 64         8                 128 Mega = 2^27   <     2^64
+        // 32         4                 256 Mega = 2^28   <     2^32
+        // 28         4 (!)             256 Mega = 2^28   =     2^28
+        // 24         3                 341 Mega = 2^28ish >  2^24
+        // 16         2                 512 Mega = 2^29    >  2^16
+        let max_solutions: usize = if self.mhd_memory.width <= 28 {
             1 << self.mhd_memory.width() // 2 ^ width
+        } else { // if 28 < self.mhd_memory.width
+            const MAX_MEMORY : usize = 1 << 30;
+            let width_in_bytes = (self.mhd_memory.width() +7) / 8;
+            MAX_MEMORY / width_in_bytes
         };
         // now, return true, finished, exhausted when...
-        ( self.mhd_memory.width() <= self.repitition_count ) || (max_solutions < self.number_of_solutions())
+        // ( self.mhd_memory.width() <= self.repitition_count ) || ...
+        max_solutions < self.number_of_solutions()
     }
 
     #[inline]
@@ -158,7 +171,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
         self.mhd_memory.clear();
         self.bootstrap_memory( );
         self.best_solution = Sol::new(width);
-        self.repitition_count = 0;
+        // Leave full_monte as it is (?!?)
     }
 
     #[inline]
@@ -178,16 +191,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
             Some( solution ) => {
                 assert!(self.problem.solution_is_complete(&solution));
                 assert_ne!( solution, self.best_solution );
-                // if solution == self.best_solution {
-                //     self.repitition_count += 1;
-                // } else {
-                //     self.repitition_count = 0;
-                // }
-                debug!(
-                    "MHD MCTS POP: Returns solution with score {}, repitition count {}",
-                    solution.get_score(),
-                    self.repitition_count,
-                );
+                debug!( "MHD MCTS POP: Returns solution with score {}", solution.get_score()  );
                 Some(solution)
             } // end case Some(solution)
         } // end match
@@ -348,6 +352,7 @@ mod more_tests {
         // Now test solver.clear()!!!
         solver.clear();
         assert!(!solver.is_empty()); // Bootstrapping, again!
+        solver.full_monte = true; // two birds with one stone...  sozusagen...
 
         let second_best = solver
             .find_best_solution(&knapsack, time_limit)

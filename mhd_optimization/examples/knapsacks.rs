@@ -105,76 +105,76 @@ fn run_one_problem_one_solver(
     the_best.get_score()
 }
 
-fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, ratio: &mut f32, prob_num: u16) {
+const DFS_INDEX: usize         = 0;
+const BFS_INDEX: usize         = 1;
+const MCTS_INDEX: usize        = 2;
+const MCTS_MONTE_INDEX: usize  = 3;
+const MHD_INDEX: usize         = 4;
+const MHD_MONTE_INDEX: usize   = 5;
+const BF_MHD_SCORE: usize      = 6;
+const NUM_SCORES: usize        = 7;
+
+fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, prob_num: u16) {
     if 0.0 != opt.capacity {
         knapsack.basis.capacity =
             (knapsack.weights_sum() as f32 * (opt.capacity / 100.0)) as ScoreType;
     }; // else, leave capacity alone remain what the random constructor figured out.
-    let mut dfs_score: ScoreType = ZERO_SCORE;
-    let mut bfs_score: ScoreType = ZERO_SCORE;
-    let mut mcts_score: ScoreType = ZERO_SCORE;
-    let mut monte_score: ScoreType = ZERO_SCORE;
-    let mut mhd_score: ScoreType = ZERO_SCORE;
-    let mut bf_mhd_score: ScoreType = ZERO_SCORE;
+
+    let mut scores = [ 0 as ScoreType ; NUM_SCORES ];
 
     println!(" "); // blank line seperator -> output
     if 0 != (opt.algorithms & DEPTH_FIRST_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
-        dfs_score =
+        scores[ DFS_INDEX ] =
             run_one_problem_one_solver(&opt, &knapsack, &mut DepthFirstSolver::new(opt.size));
     }; // endif depth first
 
     if 0 != (opt.algorithms & BEST_FIRST_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
-        bfs_score =
+        scores[ BFS_INDEX ] =
             run_one_problem_one_solver(&opt, &knapsack, &mut BestFirstSolver::new(opt.size));
     }; // end if best first
 
     if 0 != (opt.algorithms & MCTS_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         let mut solver = MonteCarloTreeSolver::builder(knapsack);
-        mcts_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        scores[ MCTS_INDEX ] = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
 
         // Do it again, but full monte
         solver.clear();
         solver.full_monte = true;
         print!("FullMonte{}: ", prob_num + 1);
-        monte_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        scores[ MCTS_MONTE_INDEX ] = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
     }; // end if best first
 
     if 0 != (opt.algorithms & MHD_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         let mut solver = MhdMonteCarloSolver::builder(knapsack);
-        mhd_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        scores[ MHD_INDEX ] = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+
+        // Do it again, but full monte
+        solver.clear();
+        solver.full_monte = true;
+        print!("MHDMonte {}: ", prob_num + 1);
+        scores[ MHD_MONTE_INDEX ] = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
     }; // end if best first
 
     if 0 != (opt.algorithms & BF_MHD_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         let mut solver = BestfirstMhdMonteCarloSolver::builder(knapsack);
-        bf_mhd_score = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        scores[ BF_MHD_SCORE ] = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
     }; // end if best first
 
-    let best_score = [ dfs_score, bfs_score, mcts_score, monte_score, mhd_score, bf_mhd_score ]
-        .iter().fold( ZERO_SCORE, | s0, s1 | max( s0, *s1 ) );
-    println!(
-        "best score was {} (mhd score was {}, bf_mhd was {})",
-        best_score, mhd_score, bf_mhd_score
-    );
+    let best_score = scores.iter().fold( ZERO_SCORE, | s0, s1 | max( s0, *s1 ) );
+    assert_ne!( best_score, 0 );
+    print!( "Best score was {}, ", best_score );
+    let fbest : f32 = best_score as f32;
+    let ratios : Vec< f32 > = scores.iter().map( | s | *s as f32 / fbest ).collect();
+    println!( "ratios are {:?}", ratios );
 
-    if 12 == (opt.algorithms & (MHD_BIT | MCTS_BIT)) {
-        assert_ne!(0, mcts_score, "MCTS score should not be zero");
-        let test_ratio: f32 = (mhd_score as f32) / (mcts_score as f32);
-        assert_ne!(0, monte_score, "MONTE score should not be zero");
-        let monte_ratio: f32 = (mhd_score as f32) / (monte_score as f32);
-        *ratio *= test_ratio;
-        println!(
-            "mhd/mcts ratio = {}, mhd/monte = {}, overall mhd/mcts ratio = {}",
-            test_ratio, monte_ratio, ratio
-        );
-    }; // end if 3
 } // end run_one_problem
 
-fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) -> usize {
+fn run_one_file(opt: &Opt, file_name: &PathBuf ) -> usize {
     println!("\nProcessing Filename: {:?}", file_name);
     let mut counter: usize = 0;
     let file = std::fs::File::open(file_name).unwrap();
@@ -190,7 +190,7 @@ fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) -> usize {
                 // or end of file
                 match parse_dot_dat_stream(&mut input) {
                     Err(_) => break,
-                    Ok(mut knapsack) => run_one_problem(&opt, &mut knapsack, ratio, prob_num),
+                    Ok(mut knapsack) => run_one_problem(&opt, &mut knapsack, prob_num),
                 }; // end match parse_dot_dat
                 counter += 1;
             } // end for  problems in file
@@ -200,7 +200,7 @@ fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) -> usize {
                 // or end of file
                 match parse_dot_csv_stream(&mut input) {
                     Err(_) => break,
-                    Ok(mut knapsack) => run_one_problem(&opt, &mut knapsack, ratio, prob_num),
+                    Ok(mut knapsack) => run_one_problem(&opt, &mut knapsack, prob_num),
                 }; // end match parse_dot_dat
                 counter += 1;
             } // end for  problems in file
@@ -211,12 +211,12 @@ fn run_one_file(opt: &Opt, file_name: &PathBuf, ratio: &mut f32) -> usize {
     counter
 } // end run_one_file
 
-fn run_one_directory(opt: &Opt, path: &PathBuf, ratio: &mut f32) -> usize {
+fn run_one_directory(opt: &Opt, path: &PathBuf ) -> usize {
     let mut num_tests: usize = 0;
     for entry_result in path.read_dir().expect("read_dir call failed") {
         match entry_result {
             Ok(dir_entry) => {
-                num_tests += run_one_file(opt, &dir_entry.path(), ratio);
+                num_tests += run_one_file(opt, &dir_entry.path() );
             }
             Err(e) => warn!("Error {:?} in directory {:?}", e, path),
         };
@@ -270,7 +270,6 @@ fn main() {
         .unwrap();
     }; // end if verbose
 
-    let mut ratio: f32 = 1.0;
     let mut num_tests: usize = 0;
     if opt.files.is_empty() {
         // FIRST USE CASE : No files, random data
@@ -280,7 +279,7 @@ fn main() {
         }
         for prob_num in 0..opt.num_problems {
             let mut knapsack = Problem01Knapsack::random(opt.size);
-            run_one_problem(&opt, &mut knapsack, &mut ratio, prob_num);
+            run_one_problem(&opt, &mut knapsack, prob_num);
         } // for 0 <= prob_num < num_problems
         num_tests = opt.num_problems as usize;
     } else {
@@ -289,13 +288,13 @@ fn main() {
         // SECOND USE CASE : No files, random data
         for file_name in opt.files.iter() {
             if file_name.is_file() {
-                num_tests += run_one_file(&opt, file_name, &mut ratio);
+                num_tests += run_one_file(&opt, file_name );
             } else if file_name.is_dir() {
-                num_tests += run_one_directory(&opt, file_name, &mut ratio);
+                num_tests += run_one_directory(&opt, file_name );
             } else if !file_name.exists() {
                 warn!("file name {:?} does not exist.", file_name);
             } else {
-                // if file esxists, but is neither file nor dir
+                // if file exists, but is neither file nor dir
                 warn!(
                     "file name {:?} exists, but is neither a file nor a directory",
                     file_name
@@ -303,9 +302,10 @@ fn main() {
             };
         } // end for all files
     }; // end if there are files
-    let geo_mean = (ratio as f64).powf(1.0 / (num_tests as f64));
-    println!(
-        "At the end, ratio = {}, n = {}, geo mean = {}",
-        ratio, num_tests, geo_mean
-    );
+    println!( "Finished with {} tests (total)", num_tests );
+    // let geo_mean = (ratio as f64).powf(1.0 / (num_tests as f64));
+    // println!(
+    //     "At the end, ratio = {}, n = {}, geo mean = {}",
+    //     ratio, num_tests, geo_mean
+    // );
 }
