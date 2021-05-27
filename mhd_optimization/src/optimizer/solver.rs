@@ -165,14 +165,14 @@ pub trait Solver<Sol: Solution> {
             num_visitations += 1;
 
             // Get a solution from the solver -- "pop" a solution
-            let pop_result= self.pop();
+            let pop_result = self.pop();
 
             if pop_result.is_none() {
-                debug!( "Solver: Pop returns None, so we're done here!");
+                debug!("Solver: Pop returns None, so we're done here!");
                 break;
             };
 
-            let next_solution = pop_result.unwrap( ); // must be unwrappable, see above....
+            let next_solution = pop_result.unwrap(); // must be unwrappable, see above....
 
             trace!(
                 // CSV Fields: "; visits; depth; score; complete; high score;"

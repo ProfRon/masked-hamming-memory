@@ -32,19 +32,16 @@ extern crate log;
 extern crate rand;
 extern crate rand_distr;
 
+pub mod util;
 
-    pub mod util;
+pub mod weight_;
+pub use self::weight_::weight;
 
-    pub mod weight_;
-    pub use self::weight_::weight;
+pub mod distance_;
+pub use self::distance_::{distance, distance_fast, truncated_distance};
 
-    pub mod distance_;
-    pub use self::distance_::{distance, distance_fast, truncated_distance};
+pub mod sample;
+pub use self::sample::{Sample, ScoreType, ZERO_SCORE};
 
-    pub mod sample;
-    pub use self::sample::{Sample, ScoreType, ZERO_SCORE};
-
-    pub mod mhdmemory;
-    pub use self::mhdmemory::MhdMemory;
-
-
+pub mod mhdmemory;
+pub use self::mhdmemory::MhdMemory;

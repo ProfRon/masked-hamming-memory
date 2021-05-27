@@ -2,8 +2,8 @@ extern crate criterion;
 
 // use mhd_mem::mhd_memory::*;
 extern crate mhd_optimization;
-use mhd_optimization::optimizer::*;
 use mhd_optimization::implementations::*;
+use mhd_optimization::optimizer::*;
 
 extern crate log;
 use log::*;
@@ -206,12 +206,6 @@ fn bench_directory(c: &mut Criterion) {
     group.finish();
 }
 
-
 // criterion_group!(randomBenches, );
-criterion_group!(
-    benches,
-    bench_sizes,
-    bench_directory,
-);
+criterion_group!(benches, bench_sizes, bench_directory,);
 criterion_main!(benches);
-

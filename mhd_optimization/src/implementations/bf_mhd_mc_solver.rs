@@ -1,7 +1,7 @@
 use log::*;
 
 use mhd_memory::*;
-use optimizer::{Problem, PriorityType, Solution, Solver};
+use optimizer::{PriorityType, Problem, Solution, Solver};
 use std::collections::BinaryHeap;
 
 /// # Example Implementations
@@ -12,28 +12,28 @@ use std::collections::BinaryHeap;
 ///
 pub struct BestfirstMhdMonteCarloSolver<Sol: Solution, Prob: Problem<Sol = Sol>> {
     pub mhd_memory: MhdMemory,
-    pub solutions: BinaryHeap< Sol >,
+    pub solutions: BinaryHeap<Sol>,
     pub best_solution: Sol,
     pub problem: Prob,
 }
 
 /// Extra Methods for the BestfirstMhdMonteCarloSolver type (trait, whatever)
 impl<Sol: Solution, Prob: Problem<Sol = Sol>> BestfirstMhdMonteCarloSolver<Sol, Prob> {
-
     // Never use an empty mhd memory -- when empty, add some rows!
     // Used by builder and clear (and who knows what else meanwhile?)
-    fn bootstrap_memory( &mut self ) {
-        assert!( self.mhd_memory.is_empty( ));
+    fn bootstrap_memory(&mut self) {
+        assert!(self.mhd_memory.is_empty());
         // bootstrap the memory with random samples (but legal ones!)
 
         // Actually what I wahted was
         // "while product.number_of_solutions() < problem.problem_size()"
         // but that can take FOREVER due to duplicate solutions @ small width
         // So instead...
-        for _ in 0.. self.problem.problem_size() {
+        for _ in 0..self.problem.problem_size() {
             // create a square memory -- with height == width
             let solution = self.problem.random_solution();
-            self.mhd_memory.write_sample(&self.problem.sample_from_solution(&solution));
+            self.mhd_memory
+                .write_sample(&self.problem.sample_from_solution(&solution));
         }
     }
 
@@ -47,14 +47,16 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> BestfirstMhdMonteCarloSolver<Sol, 
             problem: problem.clone(),
         };
         // bootstrap the memory with random samples (but legal ones!)
-        product.bootstrap_memory( );
+        product.bootstrap_memory();
         // Finished! Return what we've built!
         product
     }
 } // end private Methods
 
 /// Here are the public methods needed to implement Solver<Sol>
-impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for BestfirstMhdMonteCarloSolver<Sol, Prob> {
+impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol>
+    for BestfirstMhdMonteCarloSolver<Sol, Prob>
+{
     #[inline]
     fn name(&self) -> &'static str {
         "BestfirstMhdMonteCSolver "
@@ -95,7 +97,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for BestfirstMhdMonteC
         self.solutions.clear();
         let width = self.mhd_memory.width();
         self.mhd_memory.clear();
-        self.bootstrap_memory( );
+        self.bootstrap_memory();
         self.best_solution = Sol::new(width);
     }
 
@@ -110,8 +112,8 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for BestfirstMhdMonteC
     }
 
     /////// THIS IS WHERE THE MAGIC TAKES PLACE!!! ///////
-    fn children_of_solution< ArgProb : Problem >(&mut self, parent: &Sol, _: &ArgProb, ) -> Vec< Sol > {
-        let mut result = Vec::< Sol >::new(); // initially empty...
+    fn children_of_solution<ArgProb: Problem>(&mut self, parent: &Sol, _: &ArgProb) -> Vec<Sol> {
+        let mut result = Vec::<Sol>::new(); // initially empty...
         if self.problem.solution_is_complete(&parent) {
             // Done! Solution is complete! Write it into the memory and return it
             self.mhd_memory
@@ -120,16 +122,15 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for BestfirstMhdMonteC
             result
         } else {
             // solution is NOT complete (is incomplete) -- it has children
-            let open_decision = self.problem.first_open_decision(&parent)
-                                                  .expect("Should have an open decision");
+            let open_decision = self
+                .problem
+                .first_open_decision(&parent)
+                .expect("Should have an open decision");
             // Decide whether to set the next open bit to true or false, 1 or 0
             // First, query the mhd memory
             let priorities =
-                self.mhd_memory.read_2_priorities(
-                    parent.mask(),
-                    parent.query(),
-                    open_decision
-                );
+                self.mhd_memory
+                    .read_2_priorities(parent.mask(), parent.query(), open_decision);
 
             trace!(
                 "BF MHD BEST FIRST MCTS: depth {}, solution score {} (high score {}) => prios ({},{})",
@@ -140,23 +141,22 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for BestfirstMhdMonteC
             );
 
             // Push both children into result vector
-            let mut false_child = parent.clone( );
-            false_child.make_decision(open_decision, false );
-            self.problem.apply_rules(&mut false_child );
-            false_child.set_priority( priorities.0 as PriorityType );
-            debug_assert!( self.problem.rules_audit_passed(&false_child));
-            result.push( false_child );
+            let mut false_child = parent.clone();
+            false_child.make_decision(open_decision, false);
+            self.problem.apply_rules(&mut false_child);
+            false_child.set_priority(priorities.0 as PriorityType);
+            debug_assert!(self.problem.rules_audit_passed(&false_child));
+            result.push(false_child);
 
-            let mut true_child = parent.clone( );
-            true_child.make_decision(open_decision, true );
-            self.problem.apply_rules(&mut true_child );
-            true_child.set_priority( priorities.1 as PriorityType );
-            debug_assert!( self.problem.rules_audit_passed(&true_child));
-            result.push( true_child );
+            let mut true_child = parent.clone();
+            true_child.make_decision(open_decision, true);
+            self.problem.apply_rules(&mut true_child);
+            true_child.set_priority(priorities.1 as PriorityType);
+            debug_assert!(self.problem.rules_audit_passed(&true_child));
+            result.push(true_child);
 
             // return
             result
-
         }
     }
 
@@ -173,7 +173,6 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for BestfirstMhdMonteC
         // debug_assert!(self.best_score() <= solution.get_score());
         self.best_solution = solution;
     } //end store_best_solution
-
 } // end imp Solver for BestfirstMhdMonteCarloSolver
 
 /**************************************************************************************/
@@ -215,7 +214,6 @@ mod more_tests {
         assert_eq!(solver.number_of_solutions(), 2);
         solver.clear();
         assert!(solver.is_empty());
-
     }
 
     #[test]
@@ -230,7 +228,10 @@ mod more_tests {
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        debug!("Start of test_bf_mcts_find_solution, knapsack = {:?}", knapsack);
+        debug!(
+            "Start of test_bf_mcts_find_solution, knapsack = {:?}",
+            knapsack
+        );
 
         let the_best = solver
             .find_best_solution(&knapsack, time_limit)
@@ -252,12 +253,17 @@ mod more_tests {
         let knapsack = Problem01Knapsack::random(FEW_DECISIONS);
         assert!(knapsack.is_legal());
         let mut solver =
-            BestfirstMhdMonteCarloSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&knapsack);
+            BestfirstMhdMonteCarloSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(
+                &knapsack,
+            );
 
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        debug!("Start of test_bf_mcts_find_01knapsack_solution, knapsack = {:?}", knapsack);
+        debug!(
+            "Start of test_bf_mcts_find_01knapsack_solution, knapsack = {:?}",
+            knapsack
+        );
 
         let the_best = solver
             .find_best_solution(&knapsack, time_limit)
@@ -278,12 +284,17 @@ mod more_tests {
         let knapsack = Problem01Knapsack::random(FEW_DECISIONS);
         assert!(knapsack.is_legal());
         let mut solver =
-            BestfirstMhdMonteCarloSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(&knapsack);
+            BestfirstMhdMonteCarloSolver::<ZeroOneKnapsackSolution, Problem01Knapsack>::builder(
+                &knapsack,
+            );
 
         use std::time::Duration;
         let time_limit = Duration::new(1, 0); // 1 second
 
-        debug!("Start of test_bf_mcts_solve_mutliple_knapsacks, knapsack = {:?}", knapsack);
+        debug!(
+            "Start of test_bf_mcts_solve_mutliple_knapsacks, knapsack = {:?}",
+            knapsack
+        );
 
         let the_best = solver
             .find_best_solution(&knapsack, time_limit)

@@ -50,7 +50,7 @@ extern crate mhd_memory;
 
 pub mod optimizer {
     pub mod solution;
-    pub use self::solution::{MinimalSolution, Solution, PriorityType, };
+    pub use self::solution::{MinimalSolution, PriorityType, Solution};
 
     pub mod solver;
     pub use self::solver::Solver;

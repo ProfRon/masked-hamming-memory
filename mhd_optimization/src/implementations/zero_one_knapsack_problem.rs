@@ -16,7 +16,7 @@ use rand_distr::{Distribution, Gamma};
 
 use implementations::ProblemSubsetSum;
 use mhd_memory::{ScoreType, ZERO_SCORE}; // Not used: NUM_BYTES
-use optimizer::{MinimalSolution, Problem, Solution, PriorityType, };
+use optimizer::{MinimalSolution, PriorityType, Problem, Solution};
 
 /********************************************************************************************/
 ///## Customized Solution Type for the 0/1 Knapsack
@@ -24,12 +24,12 @@ use optimizer::{MinimalSolution, Problem, Solution, PriorityType, };
 /// So we define our own before we go further.
 ///
 
-#[derive(Debug, Clone, PartialEq )]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ZeroOneKnapsackSolution {
     pub basis: MinimalSolution,
     pub score: ScoreType,
     pub best_score: ScoreType, // best score possible
-    // no priority field -- we use basis.priority!
+                               // no priority field -- we use basis.priority!
 }
 
 impl Solution for ZeroOneKnapsackSolution {
@@ -59,7 +59,6 @@ impl Solution for ZeroOneKnapsackSolution {
             basis: MinimalSolution::new(size),
             score: ZERO_SCORE,
             best_score: ZERO_SCORE,
-
         }
     }
 
@@ -72,10 +71,14 @@ impl Solution for ZeroOneKnapsackSolution {
     }
 
     #[inline]
-    fn priority(&self) -> PriorityType { self.basis.priority() }
+    fn priority(&self) -> PriorityType {
+        self.basis.priority()
+    }
 
     #[inline]
-    fn set_priority( &mut self, prio : PriorityType ) { self.basis.priority = prio }
+    fn set_priority(&mut self, prio: PriorityType) {
+        self.basis.priority = prio
+    }
 
     // Getters and Setters
     #[inline]
@@ -138,7 +141,9 @@ impl Eq for ZeroOneKnapsackSolution {}
 
 impl Ord for ZeroOneKnapsackSolution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.priority().partial_cmp(&other.priority()).expect("Ordering")
+        self.priority()
+            .partial_cmp(&other.priority())
+            .expect("Ordering")
     }
 }
 

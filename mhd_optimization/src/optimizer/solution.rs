@@ -1,14 +1,13 @@
 /// # The Unified Decision Optimization Algorithm with the MHD Memory
 /// ## The Solution Trait
 ///
-use std::fmt::Debug;  // or {Debug, Display}, if necessary ever again...
+use std::fmt::Debug; // or {Debug, Display}, if necessary ever again...
 
 use mhd_memory::{ScoreType, ZERO_SCORE};
 
 pub type PriorityType = f32; // that can change at any time, so we give it a name
 
 pub trait Solution: Sized + Clone + Ord + Debug {
-
     // First, an "associated type"
     // type PriorityType: PartialOrd + Debug + Display;
     // Moved! See above...
@@ -51,7 +50,7 @@ pub trait Solution: Sized + Clone + Ord + Debug {
     fn priority(&self) -> PriorityType;
 
     /// Setter function for solvers (optional)
-    fn set_priority( &mut self, prio : PriorityType );
+    fn set_priority(&mut self, prio: PriorityType);
 
     /// Return the score stored with this solution.
     /// Note that the score is not _calculated_  -- only a problem instance can do that.
@@ -162,14 +161,14 @@ use std::cmp::Ordering;
 use mhd_memory::util::*; // pub fn get_bit( bytes: &[u8], bit_index: usize ) -> bool
                          // use std::fmt::Display <-- Already imported, above
 
-#[derive(Debug, Clone, PartialEq )]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MinimalSolution {
     pub size: usize,
     pub mask: Vec<u8>, // we could have used Vec<u8> (twice) here (and saved two scores),
     pub decisions: Vec<u8>, // but we wouldn't have the get_bit and set_bit methods!
     pub score: ScoreType,
     pub best_score: ScoreType, // best score possible
-    pub priority : PriorityType,
+    pub priority: PriorityType,
 }
 
 impl Solution for MinimalSolution {
@@ -201,7 +200,7 @@ impl Solution for MinimalSolution {
             decisions: vec![0x0; num_bytes], // all zeros == all decisions are false (zero)
             score: ZERO_SCORE,
             best_score: ZERO_SCORE,
-            priority : 0.0,
+            priority: 0.0,
         }
     }
 
@@ -222,10 +221,14 @@ impl Solution for MinimalSolution {
     } // times 8 bits per byte
 
     #[inline]
-    fn priority(&self) -> PriorityType { self.priority }
+    fn priority(&self) -> PriorityType {
+        self.priority
+    }
 
     #[inline]
-    fn set_priority( &mut self, prio : PriorityType ) { self.priority = prio }
+    fn set_priority(&mut self, prio: PriorityType) {
+        self.priority = prio
+    }
 
     #[inline]
     fn get_score(&self) -> ScoreType {
@@ -288,7 +291,9 @@ impl Eq for MinimalSolution {}
 
 impl Ord for MinimalSolution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.priority().partial_cmp(&other.priority()).expect("Ordering")
+        self.priority()
+            .partial_cmp(&other.priority())
+            .expect("Ordering")
     }
 }
 
@@ -329,8 +334,8 @@ mod more_tests {
         assert_eq!(42, sol.get_score());
         assert_eq!(4242, sol.get_best_score());
 
-        assert_eq!( 0.0, sol.priority() );
-        sol.set_priority( 42.42  );
-        assert_eq!( 42.42, sol.priority() );
+        assert_eq!(0.0, sol.priority());
+        sol.set_priority(42.42);
+        assert_eq!(42.42, sol.priority());
     }
 }

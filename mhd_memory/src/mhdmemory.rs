@@ -1,7 +1,7 @@
 use distance_::*;
-use sample::*;
-use rand::Rng;
 use log::*;
+use rand::Rng;
+use sample::*;
 
 /// # The MHD Memory Struct
 /// Formally, the memory consists of a collection of `samples`, and various `read` and `write` operations.
@@ -51,7 +51,6 @@ pub struct MhdMemory {
     pub min_score: ScoreType,
     pub samples: Vec<Sample>, // initially empty
 } // end struct Sample
-
 
 impl MhdMemory {
     #[inline]
@@ -149,7 +148,6 @@ impl MhdMemory {
                 } // end case None
             } // end match None
         } // end if not empty
-
     } // end write_sample
 
     /// Calculate the weighted sum of all the samples in the memory,
@@ -202,20 +200,25 @@ impl MhdMemory {
             // if 0 < hits_count
             let exploitation = (score / weight) / max_score;
             if exploitation <= 0.0 {
-                error!( "exploitation = {} <= 0.0", exploitation );
+                error!("exploitation = {} <= 0.0", exploitation);
             };
 
             // exploration -- trickier...
             let ln_total_hits = (total_hits as f64).ln();
             let exploration = (ln_total_hits / hits_count as f64).sqrt() * UCB_CONSTANT;
             if exploration <= 0.0 {
-                error!( "exploration = {} <= 0.0", exploration );
+                error!("exploration = {} <= 0.0", exploration);
             };
 
             // UCB Formula, kinda...
             let result = exploitation + exploration;
 
-            trace!( "MHD Priority{} = Exploit {} + Expore {}", result, exploitation, exploration );
+            trace!(
+                "MHD Priority{} = Exploit {} + Expore {}",
+                result,
+                exploitation,
+                exploration
+            );
             // Return
             result
         }
@@ -286,7 +289,8 @@ impl MhdMemory {
             score_true,
             weight_false,
             weight_true,
-            result.0, result.1,
+            result.0,
+            result.1,
         );
 
         // Return...
@@ -294,7 +298,13 @@ impl MhdMemory {
     } // end maked_read
 
     #[inline]
-    pub fn read_and_decide(&self, mask: &[u8], query: &[u8], index: usize, full_monte : bool ) -> bool {
+    pub fn read_and_decide(
+        &self,
+        mask: &[u8],
+        query: &[u8],
+        index: usize,
+        full_monte: bool,
+    ) -> bool {
         let priorities = self.read_2_priorities(mask, query, index);
 
         // DECIDE!
@@ -474,7 +484,7 @@ mod tests {
         assert_eq!(2 * NUM_ROWS, memory.num_samples());
     }
 
-    fn test_read_for_decision( full_monte : bool ) {
+    fn test_read_for_decision(full_monte: bool) {
         const NUM_BITS: usize = 16;
         const NUM_ROWS: usize = 32; // Must be at least four!!!
 
@@ -503,8 +513,12 @@ mod tests {
         for row in 0..NUM_ROWS {
             let random_mask = &Sample::random(NUM_BITS);
             index = (index + 1) % NUM_BITS;
-            let decision =
-                memory.read_and_decide(&random_mask.bytes, &memory.samples[row].bytes, index, full_monte );
+            let decision = memory.read_and_decide(
+                &random_mask.bytes,
+                &memory.samples[row].bytes,
+                index,
+                full_monte,
+            );
             if decision {
                 true_decisions += 1
             } else {
@@ -531,13 +545,12 @@ mod tests {
     } // end test read_for_decsions
 
     #[test]
-    fn test_read_for_decision_full_monte( ) {
-        test_read_for_decision( true );
+    fn test_read_for_decision_full_monte() {
+        test_read_for_decision(true);
     }
 
     #[test]
-    fn test_read_for_decision_not_monte( ) {
-        test_read_for_decision( false );
+    fn test_read_for_decision_not_monte() {
+        test_read_for_decision(false);
     }
-
 } // end mod tests

@@ -38,7 +38,7 @@ fn bench_mhd_memory(width: usize, height: usize) {
 fn bench_mhd_memory_sizes(c: &mut Criterion) {
     let mut group = c.benchmark_group("memory_sizes");
     group.sampling_mode(SamplingMode::Flat); // "intended for long-running benchmarks"
-    // group.measurement_time( Duration::from_secs_f32( 61.0 ) );
+                                             // group.measurement_time( Duration::from_secs_f32( 61.0 ) );
 
     for width in [8, 128, 1024, 2048].iter() {
         for height in [8, 128, 1024, 2048].iter() {
@@ -53,10 +53,7 @@ fn bench_mhd_memory_sizes(c: &mut Criterion) {
 } // end bench_mhd_memory_sizes
 
 // criterion_group!(randomBenches, );
-criterion_group!(
-    benches,
-    bench_mhd_memory_sizes,
-);
+criterion_group!(benches, bench_mhd_memory_sizes,);
 criterion_main!(benches);
 
 /************* obsolete benchmarks ************
