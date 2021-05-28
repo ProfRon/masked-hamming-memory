@@ -31,6 +31,7 @@ extern crate hamming;
 extern crate log;
 extern crate rand;
 extern crate rand_distr;
+extern crate rayon;
 
 pub mod util;
 

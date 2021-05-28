@@ -25,7 +25,8 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
         // "while product.number_of_solutions() < problem.problem_size()"
         // but that can take FOREVER due to duplicate solutions @ small width
         // So instead...
-        for _ in 0..self.problem.problem_size() {
+        let starting_row_count = self.problem.problem_size().next_power_of_two();
+        for _ in 0..starting_row_count {
             // create a square memory -- with height == width
             let solution = self.problem.random_solution();
             self.mhd_memory
@@ -212,7 +213,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol> for MhdMonteCarloSolve
             }
             Some(solution) => {
                 assert!(self.problem.solution_is_complete(&solution));
-                assert_ne!(solution, self.best_solution);
+                // assert_ne!(solution, self.best_solution); Unlikely but not illegal
                 debug!(
                     "MHD MCTS POP: Returns solution with score {}",
                     solution.get_score()

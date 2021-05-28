@@ -148,15 +148,21 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, prob_num: u16) {
     }; // end if best first
 
     if 0 != (opt.algorithms & MHD_BIT) {
-        print!("Knapsack {}: ", prob_num + 1);
         let mut solver = MhdMonteCarloSolver::builder(knapsack);
+        println!("....MHD has {} samples", solver.mhd_memory.num_samples());
+        print!("Knapsack {}: ", prob_num + 1);
         scores[MHD_INDEX] = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
-
+        println!("....MHD has {} samples", solver.mhd_memory.num_samples());
         // Do it again, but full monte
         solver.clear();
         solver.full_monte = true;
+        println!("....MHD has {} samples", solver.mhd_memory.num_samples());
         print!("MHDMonte {}: ", prob_num + 1);
         scores[MHD_MONTE_INDEX] = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        println!(
+            "....Full Monte MHD has {} samples",
+            solver.mhd_memory.num_samples()
+        );
     }; // end if best first
 
     if 0 != (opt.algorithms & BF_MHD_BIT) {
@@ -259,7 +265,12 @@ fn main() {
             _ => LevelFilter::Trace,
         };
         CombinedLogger::init(vec![
-            TermLogger::new(term_level, Config::default(), TerminalMode::Mixed),
+            TermLogger::new(
+                term_level,
+                Config::default(),
+                TerminalMode::Mixed,
+                ColorChoice::Auto,
+            ),
             WriteLogger::new(
                 file_level,
                 Config::default(),

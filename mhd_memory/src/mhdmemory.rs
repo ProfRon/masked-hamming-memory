@@ -1,6 +1,8 @@
-use distance_::*;
 use log::*;
 use rand::Rng;
+use rayon::prelude::*;
+
+use distance_::*;
 use sample::*;
 
 /// # The MHD Memory Struct
@@ -68,6 +70,7 @@ impl MhdMemory {
     pub fn new(width: usize) -> Self {
         Self {
             width,
+            samples: Vec::with_capacity( width.next_power_of_two() * 2 ),
             ..Default::default()
         }
     }
@@ -108,8 +111,8 @@ impl MhdMemory {
     #[inline]
     pub fn search(&self, query: &Sample) -> Option<&Sample> {
         self.samples
-            .iter()
-            .find(|s_in_mem| s_in_mem.bytes == query.bytes)
+            .par_iter() // RAYON!
+            .find_any(|s_in_mem| s_in_mem.bytes == query.bytes)
     } // end sample_present
 
     /// returns true iff new_sample not yet in memory (returns false if already there)
@@ -159,7 +162,7 @@ impl MhdMemory {
         assert!(self.width <= 8 * query.len());
         let (score_sum, weight_sum) = self
             .samples
-            .iter()
+            .par_iter() // RAYON!!
             .map(|s| {
                 // use a closure here to capture query and mask
                 let dist = distance(mask, query, &s.bytes);
@@ -172,8 +175,14 @@ impl MhdMemory {
                 let weighted_score = floating_avg + weighted_delta;
                 (weighted_score, weight) // return score
             })
-            .fold((0.0, 0.0), |(s0, w0), (s1, w1)| (s0 + s1, w0 + w1));
-
+            // .fold( (0.0, 0.0), |(s0, w0), (s1, w1)| (s0 + s1, w0 + w1)); <- use without rayon
+            // For this Rayon version,
+            // see https://docs.rs/rayon/1.5.1/rayon/iter/trait.ParallelIterator.html#method.reduce
+            // .cloned() // iterating over ( f64, f64 )
+            .reduce(
+                || (0.0, 0.0), // identity element
+                |a, b| (a.0 + b.0, a.1 + b.1),
+            );
         let result = score_sum / weight_sum;
         trace!(
             "sum of scores = {}, sum of weights =  {}, result = {}",
@@ -191,11 +200,11 @@ impl MhdMemory {
         total_hits: usize,
         score: f64,
         weight: f64,
+        other_weight: f64,
     ) -> f64 {
-        const UCB_CONSTANT: f64 = 113.13708499; // = 80 * sqrt(2) ; or 5.65685425; or 2.828427125...
         let max_score = self.max_score as f64;
         if 0 == hits_count {
-            max_score * 100.0
+            max_score * 1024.0 // a.k.a. infinity
         } else {
             // if 0 < hits_count
             let exploitation = (score / weight) / max_score;
@@ -205,9 +214,47 @@ impl MhdMemory {
 
             // exploration -- trickier...
             let ln_total_hits = (total_hits as f64).ln();
-            let exploration = (ln_total_hits / hits_count as f64).sqrt() * UCB_CONSTANT;
-            if exploration <= 0.0 {
-                error!("exploration = {} <= 0.0", exploration);
+            const UCB_METHOD: u8 = 2;  // 0 == close to UCB, 1 = not quite, 2 = not at all
+            let exploration = match UCB_METHOD {
+                0 => {  // This is roughly the UCBT Formula...
+                    const UCB_CONSTANT: f64 = 113.13708499; // = 80 * sqrt(2) ; or 5.65685425; or 2.828427125...
+                    (ln_total_hits / hits_count as f64).sqrt() * UCB_CONSTANT
+                },
+                1 => { // First Approximation to the UCBT
+                    // return the ratio other_weight / weight ...
+                    // i.e. reward small own weight or large other_weight
+                    // ...but add a smidgen to each to avoid division by zero
+                    const SMIDGEN : f64 = 0.0000001;
+                    debug_assert_ne!( (weight+SMIDGEN), 0.0 );
+                    (other_weight + SMIDGEN) / (weight + SMIDGEN)
+                },
+                2 => {
+                    // if NOT UCB_METHOD
+                    // In this version, the alternative with the smaller weight gets a bonus.
+                    // The idea is to "pad" the lighter weight alternative, since it is less certain.
+                    // The amount of padding is based on the differences in their weights and
+                    // can be seen as a correction to the exploitation term.
+                    // Note that exploitation is relative to max_score -- it is a weight score
+                    // divided by max_score, e.g. 0.42 means 42% of max_score.
+                    // If however the weight of the lighter alternative is only 3/4ths (75%) of the
+                    // heavier alternative (again, as a percent of max_score), then we want to add
+                    // 0.25 (25% of max_score) to the lighter priority.  So....
+                    if other_weight <= weight {
+                        0.0
+                    } else {
+                        // if weight < other_weight
+                        let delta_weight = other_weight - weight;
+                        let relation = delta_weight / other_weight; // e.g. 25% see above...
+                        assert!(0.0 < relation);
+                        assert!(relation < 1.0);
+                        // now "return" modifier as exploration
+                        relation
+                    } // end if other is heavier
+                }, // end method 2
+                _ => { error!( "Unknown UCB Method {}", UCB_METHOD ); -1.0 }, // -1 for compiler
+            }; // end let exploration = match...
+            if exploration < 0.0 {
+                error!("exploration = {} < 0.0", exploration);
             };
 
             // UCB Formula, kinda...
@@ -236,55 +283,94 @@ impl MhdMemory {
 
         // let threshold = std::cmp::max( 8,std::cmp::min( 4, mask.iter().count_ones() ) );
         const THRESHOLD: u64 = 4; // TODO : Optimize threshold!
-        let mut hits_on_0: usize = 0;
-        let mut hits_on_1: usize = 0;
-        let (score_false, score_true, weight_false, weight_true) = self
+        let (score_false, score_true, weight_false, weight_true, hits_false, hits_true) = self
             .samples
-            .iter()
+            .par_iter() // RAYON!
             .map(|s| {
                 // use a closure here to capture query and mask
                 let dist = distance(mask, query, &s.bytes);
                 if THRESHOLD < dist {
-                    (0.0f64, 0.0f64, 0.0f64, 0.0f64)
+                    (0.0f64, 0.0f64, 0.0f64, 0.0f64, 0, 0)
                 } else {
                     // if dist <= THRESHOLD
                     let dist_plus_1 = (dist + 1) as f64; // prevents division by zero later
                                                          // TODO DECIDE! Squared or not!!!
                                                          // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
                     let weight = 1.0 / dist_plus_1;
+                    let mut hits_on_0: usize = 0;
+                    let mut hits_on_1: usize = 0;
                     let s_at_index = s.get_bit(index);
                     if s_at_index {
                         if 0 == dist {
-                            hits_on_1 += 1
+                            hits_on_1 = 1;
                         };
-                        (0.0f64, weight * s.score as f64, 0.0f64, weight) // return score
+                        // return 6tuple (score0, score1, weight0, weight1, hits0, hits1 )
+                        (
+                            0.0f64,
+                            weight * s.score as f64,
+                            0.0f64,
+                            weight,
+                            hits_on_0,
+                            hits_on_1,
+                        )
                     } else {
                         // if dist <= threshold AND NOT s_at_index
                         if 0 == dist {
-                            hits_on_0 += 1
+                            hits_on_0 = 1;
                         };
-                        (weight * s.score as f64, 0.0f64, weight, 0.0f64) // return score
+                        // return 6tuple (score0, score1, weight0, weight1, hits0, hits1 )
+                        (
+                            weight * s.score as f64,
+                            0.0f64,
+                            weight,
+                            0.0f64,
+                            hits_on_0,
+                            hits_on_1,
+                        ) // return score
                     }
                 } // endif dist <= THRESHOLD
             })
-            .fold(
-                (0.0, 0.0, 0.0, 0.0),
-                |(s0f, s0t, w0f, w0t), (s1f, s1t, w1f, w1t)| {
-                    (s0f + s1f, s0t + s1t, w0f + w1f, w0t + w1t)
+            // NON-RAYON VERSION
+            // .fold(
+            //     (0.0, 0.0, 0.0, 0.0),
+            //     |(s0f, s0t, w0f, w0t), (s1f, s1t, w1f, w1t)| {
+            //         (s0f + s1f, s0t + s1t, w0f + w1f, w0t + w1t)
+            //     },
+            // );
+            // RAYON VERSION 1
+            .reduce(
+                || (0.0, 0.0, 0.0, 0.0, 0, 0), // the "identity" element
+                |a, b| {
+                    (
+                        a.0 + b.0,
+                        a.1 + b.1,
+                        a.2 + b.2,
+                        a.3 + b.3,
+                        a.4 + b.4,
+                        a.5 + b.5,
+                    )
                 },
             );
+        // RAYON VERSION 2 - Won't work without the trait `Sum<(f64, f64, f64, f64, usize, usize)>`
+        // .sum();
 
         // STEP 2: Convert (score_false, score_true, weight_false, weight_true) into 2 scores
         // and return those scores
-        let total_hits = hits_on_0 + hits_on_1;
+        let total_hits = hits_false + hits_true;
         let result = (
-            self.calculate_priority(hits_on_0, total_hits, score_false, weight_false),
-            self.calculate_priority(hits_on_1, total_hits, score_true, weight_true),
+            self.calculate_priority(
+                hits_false,
+                total_hits,
+                score_false,
+                weight_false,
+                weight_true,
+            ),
+            self.calculate_priority(hits_true, total_hits, score_true, weight_true, weight_false),
         );
         trace!(
             "MHD MEM: hits = ({},{}), scores = ({}, {}), weights =  ({}, {}), result = ({},{})",
-            hits_on_0,
-            hits_on_1,
+            hits_false,
+            hits_true,
             score_false,
             score_true,
             weight_false,

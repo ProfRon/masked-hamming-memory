@@ -27,7 +27,7 @@ hamming      = "0.1"
 rand         = "0.8"
 rand_distr   = "0.4"
 log          = "0.4"
-simplelog    = "0.9"
+simplelog    = "0.10"
 structopt    = "0.3"
 mhd_memory = { path = "../mhd_memory" }
 
