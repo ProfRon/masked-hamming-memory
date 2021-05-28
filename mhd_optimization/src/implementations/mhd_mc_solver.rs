@@ -31,7 +31,9 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
             let solution = self.problem.random_solution();
             self.mhd_memory
                 .write_sample(&self.problem.sample_from_solution(&solution));
-        }
+        };
+        debug!("MHD MCSolver Builder -- Size goal was {}, build size {}",
+                 starting_row_count, self.mhd_memory.num_samples() );
     }
 
     // a replacement for Self::new( size )

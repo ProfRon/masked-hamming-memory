@@ -103,6 +103,11 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol>
 
     #[inline]
     fn push(&mut self, solution: Sol) {
+        if self.problem.solution_is_complete(&solution) {
+            // Done! Solution is complete! Write it into the memory and return it
+            self.mhd_memory.write_sample(&self.problem.sample_from_solution(&solution));
+        }; // end if complete
+        // whether complete or not...
         self.solutions.push(solution);
     }
 
@@ -116,8 +121,7 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> Solver<Sol>
         let mut result = Vec::<Sol>::new(); // initially empty...
         if self.problem.solution_is_complete(&parent) {
             // Done! Solution is complete! Write it into the memory and return it
-            self.mhd_memory
-                .write_sample(&self.problem.sample_from_solution(&parent));
+            self.mhd_memory.write_sample(&self.problem.sample_from_solution(&parent));
             // return empty vector (it has no children, so we're done)
             result
         } else {

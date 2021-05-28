@@ -2,7 +2,8 @@ use log::*;
 use rand::Rng;
 use rayon::prelude::*;
 
-use distance_::*;
+use distance_::distance;
+use weight_::weight;
 use sample::*;
 
 /// # The MHD Memory Struct
@@ -214,7 +215,7 @@ impl MhdMemory {
 
             // exploration -- trickier...
             let ln_total_hits = (total_hits as f64).ln();
-            const UCB_METHOD: u8 = 2;  // 0 == close to UCB, 1 = not quite, 2 = not at all
+            const UCB_METHOD: u8 = 3;  // 0 == close to UCB, 1 = not quite, 2 = weight ratios, 3 = hits
             let exploration = match UCB_METHOD {
                 0 => {  // This is roughly the UCBT Formula...
                     const UCB_CONSTANT: f64 = 113.13708499; // = 80 * sqrt(2) ; or 5.65685425; or 2.828427125...
@@ -251,6 +252,23 @@ impl MhdMemory {
                         relation
                     } // end if other is heavier
                 }, // end method 2
+                3 => {
+                    // Ditto -- with hits, instead of weights
+                    // See above
+                    let other_hits = total_hits - hits_count;
+                    if other_hits <= hits_count {
+                        0.0
+                    } else {
+                        // if hits_count < other_hits
+                        //  ==> implies that 0 < delta_hits (see below)
+                        let delta_hits = other_hits - hits_count;
+                        let relation = delta_hits as f64 / other_hits as f64; // e.g. 25% see above...
+                        assert!(0.0 < relation);
+                        assert!(relation < 1.0);
+                        // now "return" modifier as exploration
+                        relation
+                    } // end if other is heavier
+                }, // end method 3
                 _ => { error!( "Unknown UCB Method {}", UCB_METHOD ); -1.0 }, // -1 for compiler
             }; // end let exploration = match...
             if exploration < 0.0 {
@@ -271,6 +289,37 @@ impl MhdMemory {
         }
     }
 
+    fn distance_multiplier( threshold : u64, distance : u64 ) -> f64 {
+        if 0 == distance { return 1.0 };
+        // Now assume 0 < distance
+        let dist_plus_1 = (distance + 1) as f64; // prevents division by zero later
+        const DISTANCE_WEIGHT_METHOD : u8 = 2;
+        match DISTANCE_WEIGHT_METHOD {
+            0 => { // 1 over distance+1
+                1.0 / dist_plus_1
+            } // end method 0 --
+            1 => { // 1 over distance+1 squared
+                1.0 / (dist_plus_1 * dist_plus_1)
+            } // end method 0 --
+            2 => { // approximate 1 - (2 * cumulative binomial distribution)
+                if threshold <= distance { 0.0 } // too far out
+                else { // if 0 < distance < num_bits / 2
+                    let exponent = 1.0 / dist_plus_1;
+                    let base = 1.0 - (distance as f64)/(threshold as f64); // 1 -  distance /half-of-num-bits
+                    // return
+                    let result = base.powf( exponent );
+                    assert!( 0.0 <= result );
+                    assert!( result <= 1.0 );
+                    result
+                }
+            } // end method 0 --
+            _ => {
+                error!( "Unknown Method {}", DISTANCE_WEIGHT_METHOD );
+                -1.0
+            }
+        }
+    }
+
     /// This method evaluates what happens if we take the solution implied by `mask` and `query`,
     /// set the bit at `index` to be true, and to be false, and return the results as a pair of
     /// floats `(f64,f64) == ( prio_false, prio_true )`
@@ -282,21 +331,20 @@ impl MhdMemory {
         // STEP 1: Calculate (score_false, score_true, weight_false, weight_true)
 
         // let threshold = std::cmp::max( 8,std::cmp::min( 4, mask.iter().count_ones() ) );
-        const THRESHOLD: u64 = 4; // TODO : Optimize threshold!
+        let threshold = weight( mask ) / 2; // distances beyond that are meaningless
+        // assert!( 0 <= threshold ); tautological - according to compiler...
+        assert!( threshold <= self.width() as u64 / 2 );
         let (score_false, score_true, weight_false, weight_true, hits_false, hits_true) = self
             .samples
             .par_iter() // RAYON!
             .map(|s| {
                 // use a closure here to capture query and mask
                 let dist = distance(mask, query, &s.bytes);
-                if THRESHOLD < dist {
+                if threshold < dist {
                     (0.0f64, 0.0f64, 0.0f64, 0.0f64, 0, 0)
                 } else {
                     // if dist <= THRESHOLD
-                    let dist_plus_1 = (dist + 1) as f64; // prevents division by zero later
-                                                         // TODO DECIDE! Squared or not!!!
-                                                         // let weight = 1.0 / (dist_plus_1 * dist_plus_1);
-                    let weight = 1.0 / dist_plus_1;
+                    let weight = Self::distance_multiplier( threshold, dist );
                     let mut hits_on_0: usize = 0;
                     let mut hits_on_1: usize = 0;
                     let s_at_index = s.get_bit(index);
@@ -393,12 +441,15 @@ impl MhdMemory {
     ) -> bool {
         let priorities = self.read_2_priorities(mask, query, index);
 
+        // Are probablistic decisions too flaky?
+        assert!(0.0 <= priorities.0);
+        assert!(0.0 <= priorities.1);
+
         // DECIDE!
         if full_monte {
-            // Are probablistic decisions too flaky?
-            assert!(0.0 < priorities.0);
-            assert!(0.0 < priorities.1);
-            let probability = priorities.1 / (priorities.0 + priorities.1);
+            let total_priorities = priorities.0 + priorities.1;
+            let probability = if 0.0 == total_priorities { 0.5 }
+                                   else { priorities.1 / total_priorities };
             // return ....
             rand::thread_rng().gen_bool(probability)
         } else {

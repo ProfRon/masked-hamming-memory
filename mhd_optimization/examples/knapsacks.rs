@@ -165,7 +165,9 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, prob_num: u16) {
     if 0 != (opt.algorithms & BF_MHD_BIT) {
         print!("Knapsack {}: ", prob_num + 1);
         let mut solver = BestfirstMhdMonteCarloSolver::builder(knapsack);
+        let start_size = solver.mhd_memory.num_samples();
         scores[BF_MHD_SCORE] = run_one_problem_one_solver(&opt, &knapsack, &mut solver);
+        println!("SIZES: MHD had {}, has {} samples", start_size, solver.mhd_memory.num_samples());
     }; // end if best first
 
     let best_score = scores.iter().fold(ZERO_SCORE, |s0, s1| max(s0, *s1));
