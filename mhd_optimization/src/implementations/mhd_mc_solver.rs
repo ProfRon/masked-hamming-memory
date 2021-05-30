@@ -21,19 +21,27 @@ impl<Sol: Solution, Prob: Problem<Sol = Sol>> MhdMonteCarloSolver<Sol, Prob> {
         assert!(self.mhd_memory.is_empty());
         // bootstrap the memory with random samples (but legal ones!)
 
-        // Actually what I wahted was
+        // Actually what I wanted was
         // "while product.number_of_solutions() < problem.problem_size()"
         // but that can take FOREVER due to duplicate solutions @ small width
         // So instead...
-        let starting_row_count = self.problem.problem_size().next_power_of_two();
-        for _ in 0..starting_row_count {
-            // create a square memory -- with height == width
+        // Version 0 (until 30 May 2021)
+        // let starting_row_count = self.problem.problem_size().next_power_of_two();
+        // for _ in 0..starting_row_count {
+        //     // create a square memory -- with height == width
+        //     let solution = self.problem.random_solution();
+        //     self.mhd_memory
+        //         .write_sample(&self.problem.sample_from_solution(&solution));
+        // };
+        // Version 1: (since 30 May 2021)
+        let target = if self.problem.problem_size() < 16 { 4 } else { 16 };
+        while self.mhd_memory.num_samples() < target {
             let solution = self.problem.random_solution();
             self.mhd_memory
                 .write_sample(&self.problem.sample_from_solution(&solution));
         };
         debug!("MHD MCSolver Builder -- Size goal was {}, build size {}",
-                 starting_row_count, self.mhd_memory.num_samples() );
+                 target, self.mhd_memory.num_samples() );
     }
 
     // a replacement for Self::new( size )
