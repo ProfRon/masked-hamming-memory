@@ -172,10 +172,10 @@ fn run_one_problem(opt: &Opt, knapsack: &mut Problem01Knapsack, prob_num: u16) {
 
     let best_score = scores.iter().fold(ZERO_SCORE, |s0, s1| max(s0, *s1));
     assert_ne!(best_score, 0);
-    print!("Best score was {}, ", best_score);
+    print!("Dim {}, Best score {}, ", knapsack.problem_size(), best_score);
     let fbest: f32 = best_score as f32;
     let ratios: Vec<f32> = scores.iter().map(|s| *s as f32 / fbest).collect();
-    println!("ratios are {:?}", ratios);
+    println!("ratios {:?}", ratios);
 } // end run_one_problem
 
 fn run_one_file(opt: &Opt, file_name: &PathBuf) -> usize {
