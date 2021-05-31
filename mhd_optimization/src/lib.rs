@@ -57,6 +57,10 @@ pub mod optimizer {
 
     pub mod problem;
     pub use self::problem::Problem;
+
+    // pub mod permutations;
+    // pub use self::permutations::{ Permutation,  }; // PermutationSolution
+
 }
 
 pub mod implementations {
@@ -81,6 +85,11 @@ pub mod implementations {
     pub mod bf_mhd_mc_solver;
     pub use self::bf_mhd_mc_solver::*;
 
+//    pub mod mcts_mhd_solver;
+//    pub use self::mcts_mhd_solver::*;
+
     pub mod parsers;
     pub use self::parsers::{parse_dot_csv_stream, parse_dot_dat_stream};
+
+    // pub mod travelling_salesman;
 }

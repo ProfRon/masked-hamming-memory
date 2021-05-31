@@ -209,7 +209,7 @@ fn run_one_file(opt: &Opt, file_name: &PathBuf) -> usize {
                 counter += 1;
             } // end for  problems in file
         } // end for all problems
-        _ => assert!(false, "Unknown file extension (not dat, not csv"),
+        _ => warn!("Unknown file extension (not dat, not csv"),
     }; // end match file name extension
        // Done!
     counter

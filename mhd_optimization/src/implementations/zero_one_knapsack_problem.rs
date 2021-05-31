@@ -41,7 +41,7 @@ impl Solution for ZeroOneKnapsackSolution {
     fn name(&self) -> &'static str {
         "ZeroOneKnapsackSolution"
     }
-    #[inline]
+
     #[inline]
     fn short_description(&self) -> String {
         format!(
